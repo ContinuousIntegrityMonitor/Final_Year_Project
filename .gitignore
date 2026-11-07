@@ -41,3 +41,14 @@ Thumbs.db
 *.mov
 videos/
 vm-images/
+
+# Agent skill bodies (names listed in docs/SKILLS_MANIFEST.txt)
+.agents/skills/
+.agents/skills-lock.json
+
+# Local scratch / one-off helper scripts (not part of product CI)
+_plan_extract.txt
+scripts/_*
+
+# Personal study notes — never push
+WHAT_TO_LEARN.md

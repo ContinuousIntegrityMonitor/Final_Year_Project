@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-03
 - **Status:** Accepted
-- **AI-drafted, verified by:** H
+- **Decided by:** Hamza Farooq (MCP lead); Fasih Moin informed
 
 ## Context
 
@@ -19,8 +19,8 @@ Need one reproducible toolchain for both members and CI (plan §4.5).
 - Python 3.12, package name `cim`, src-layout
 - `uv` for venvs and locked deps; never global `pip`
 - Ruff + mypy + pytest + pre-commit (ruff + gitleaks)
-- GitHub Actions: `ci-push` + `merge-gate`
-- Dev on Linux or WSL2 Ubuntu; Docker for hello-world / later sandboxes
+- GitHub Actions: `ci-push` + `merge-gate` (same workflows on personal and org remotes)
+- Dev on Linux or WSL2 Ubuntu; Docker Engine + CLI inside Ubuntu (not Docker Desktop)
 
 ## Consequences
 
