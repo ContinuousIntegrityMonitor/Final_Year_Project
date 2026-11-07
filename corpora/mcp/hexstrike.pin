@@ -1,0 +1,5 @@
+repo=https://github.com/0x4m4/hexstrike-ai
+ref=master
+sha=d689933ff579d839c676c82b231f8e98326c5f04
+recorded=2026-10-19
+notes=Pinned for VM-MON. Checkout this commit; do not float master.
