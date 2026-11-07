@@ -29,6 +29,7 @@ scratch/
 Thumbs.db
 .idea/
 .vscode/
+.cursor/
 *.swp
 
 # VMs, media, large lab artefacts

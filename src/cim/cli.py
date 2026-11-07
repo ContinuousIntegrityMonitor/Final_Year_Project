@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -9,6 +10,7 @@ import typer
 
 from cim import __version__
 from cim.common.store import BaselineStore
+from cim.mcp.inventory import load_tools_list, write_inventory
 
 app = typer.Typer(
     name="cim",
@@ -32,6 +34,56 @@ def version() -> None:
 def status() -> None:
     """Show monitor status (stub until T-13)."""
     typer.echo("status: not implemented (awaiting T-13 pipeline integration)")
+
+
+@app.command("inventory")
+def inventory(
+    db: Annotated[
+        Path,
+        typer.Option("--db", help="Baseline store SQLite path (created if missing)"),
+    ],
+    tools_json: Annotated[
+        Path,
+        typer.Option(
+            "--tools-json",
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help="Recorded MCP tools/list JSON (list or {tools:[...]})",
+        ),
+    ],
+    server_id: Annotated[str, typer.Option("--server-id")] = "hexstrike",
+    name: Annotated[str, typer.Option("--name")] = "hexstrike",
+    description: Annotated[str, typer.Option("--description")] = "HexStrike MCP",
+    root: Annotated[str, typer.Option("--root")] = "/opt/mcp/hexstrike",
+    origin: Annotated[str, typer.Option("--origin")] = "vm-mon",
+    minimum: Annotated[
+        int,
+        typer.Option("--minimum", help="Minimum tool count (HexStrike lab = 150)"),
+    ] = 150,
+) -> None:
+    """Write MCP server + tool artefact baselines from a recorded tools/list (T-07)."""
+    tools = load_tools_list(tools_json)
+    ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with BaselineStore(db) as store:
+        result = write_inventory(
+            store,
+            server_id=server_id,
+            name=name,
+            description=description,
+            root=root,
+            origin=origin,
+            tools=tools,
+            ts=ts,
+            minimum=minimum,
+        )
+        status = store.verify_chain()
+    typer.echo(
+        f"inventory: server={server_id} tools={len(result.tool_digests)} "
+        f"manifest={result.manifest_digest[:12]}… chain={'ok' if status.ok else 'broken'}"
+    )
+    if not status.ok:
+        raise typer.Exit(code=1)
 
 
 @app.command("verify-chain")
