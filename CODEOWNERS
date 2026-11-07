@@ -1,0 +1,26 @@
+# CIM CODEOWNERS — last matching pattern wins.
+# Catch-all (both members) first; sole-owner overrides after.
+
+* @HamzaFarooq3333 @fasih-moin
+
+# Contract: BOTH review every schema change
+/src/cim/common/schema/ @fasih-moin @HamzaFarooq3333
+
+# Sole territories
+/src/cim/mcp/ @HamzaFarooq3333
+/src/cim/skills/ @fasih-moin
+/src/cim/scanners/mcp/ @HamzaFarooq3333
+/src/cim/scanners/skills/ @fasih-moin
+/src/cim/attestation/hostagent/ @HamzaFarooq3333
+/src/cim/attestation/verifier/ @fasih-moin
+
+# Lead-owned components
+/src/cim/correlation/ @HamzaFarooq3333
+/src/cim/adjudicator/ @HamzaFarooq3333
+/src/cim/dashboard/ @HamzaFarooq3333
+
+# Tests and corpora mirror the split
+/tests/mcp/ @HamzaFarooq3333
+/tests/skills/ @fasih-moin
+/corpora/mcp/ @HamzaFarooq3333
+/corpora/skills/ @fasih-moin

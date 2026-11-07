@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cim"
+version = "0.1.0"
+description = "Continuous Integrity Monitor — MCP and skills-side security"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=1.6.0,<2",
+    "pydantic>=2.10.0,<3",
+    "typer>=0.15.0,<1",
+    "watchfiles>=1.0.0,<2",
+    "psutil>=6.1.0,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0,<9",
+    "pytest-cov>=6.0.0,<7",
+    "ruff>=0.9.0,<1",
+    "mypy>=1.14.0,<2",
+    "pre-commit>=4.0.0,<5",
+]
+
+[project.scripts]
+cim = "cim.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cim"]
+
+[tool.uv]
+package = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "sys: system tests runnable in CI",
+    "lab: requires lab VMs; never run in CI",
+    "slow: long-running tests",
+]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["cim"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 60
+show_missing = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["cim"]
+mypy_path = "src"

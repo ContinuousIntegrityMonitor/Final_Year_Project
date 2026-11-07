@@ -1,0 +1,91 @@
+name: merge-gate
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: merge-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  merge-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: PR title must match T-XX
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TITLE" =~ ^T-[0-9]{2}:\ .+ ]]; then
+            echo "PR title must match: T-XX: description"
+            echo "Got: $TITLE"
+            exit 1
+          fi
+          echo "OK PR title: $TITLE"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --all-extras
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Mypy
+        run: uv run mypy src/cim
+
+      - name: Gitleaks
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks detect --source . --verbose --redact
+
+      - name: Unit + contract + sys (not lab) + coverage
+        run: >
+          uv run pytest -m "not lab"
+          --cov=cim --cov-report=term-missing
+          --cov-fail-under=60
+
+      - name: Scripts --help smoke
+        run: |
+          set -euo pipefail
+          for f in scripts/*; do
+            case "$f" in
+              *.sh) bash "$f" --help >/dev/null ;;
+              *.py) uv run python "$f" --help >/dev/null ;;
+              *) echo "skip $f" ;;
+            esac
+            echo "OK help: $f"
+          done
+
+      - name: check-env --ci
+        run: |
+          chmod +x scripts/check-env.sh
+          uv run bash scripts/check-env.sh --ci
+
+      - name: DIRECTORY.md freshness
+        run: |
+          set -euo pipefail
+          uv run python scripts/gen_directory.py
+          git diff --exit-code -- DIRECTORY.md \
+            || { echo "DIRECTORY.md stale — regenerate with scripts/gen_directory.py"; exit 1; }
