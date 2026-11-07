@@ -12,6 +12,6 @@ Single index of architecture and process decisions. Detailed write-ups live unde
 
 - Territory: `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; `common/` = joint (PR + both review).
 - Branches: `tXX-slug`; PR titles: `T-XX: …`; no force-push to `main`.
-- No Cursor / AI co-author trailers on commits.
+- No AI tool as author, committer, or co-author on any commit. Enforced by `scripts/check_ai_coauthor.py` in ci-push and merge-gate (full history) and by `tests/common/test_no_ai_coauthor.py`.
 - Progress truth: `progress/tasks/T-XX.md`; history: `history/entries/`.
 - Agent skills for this workspace: copied under `.agents/skills/` (gitignored bodies); names listed in `docs/SKILLS_MANIFEST.txt`.
