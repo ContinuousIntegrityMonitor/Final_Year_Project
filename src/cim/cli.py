@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -11,6 +13,7 @@ import typer
 from cim import __version__
 from cim.common.store import BaselineStore
 from cim.mcp.inventory import load_tools_list, write_inventory
+from cim.mcp.proxy import ProxyConfig, run_proxy
 
 app = typer.Typer(
     name="cim",
@@ -84,6 +87,31 @@ def inventory(
     )
     if not status.ok:
         raise typer.Exit(code=1)
+
+
+@app.command(
+    "proxy",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def proxy(
+    ctx: typer.Context,
+    db: Annotated[
+        Path | None,
+        typer.Option("--db", help="Baseline store path (default: $CIM_PROXY_DB)"),
+    ] = None,
+) -> None:
+    """Run an MCP server behind the capture proxy: cim proxy --db store.sqlite -- <server cmd>.
+
+    stdout carries the MCP stream, so this command never prints to it.
+    """
+    command = [arg for arg in ctx.args if arg != "--"]
+    if not command:
+        typer.echo("proxy: missing server command after --", err=True)
+        raise typer.Exit(code=2)
+    config = ProxyConfig.from_env()
+    if db is not None:
+        config = dataclasses.replace(config, db=db)
+    raise typer.Exit(code=run_proxy(command, config, sys.stdin.buffer, sys.stdout.buffer))
 
 
 @app.command("verify-chain")

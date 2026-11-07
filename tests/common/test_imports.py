@@ -23,6 +23,7 @@ MODULES = [
     "cim.mcp.lab",
     "cim.mcp.framing",
     "cim.mcp.inventory",
+    "cim.mcp.proxy",
     "cim.skills",
     "cim.correlation",
     "cim.scanners",

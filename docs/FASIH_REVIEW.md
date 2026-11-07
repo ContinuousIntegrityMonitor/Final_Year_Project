@@ -66,6 +66,20 @@ Only re-open if T-06 or T-07 forces a schema change:
 - `src/cim/common/schema/canonical.py` — hashing rules
 - Any new fields required by inventory/proxy → **both must review** before merge
 
+#### Request from Hamza: contract v1.1 for proxy capture (T-09)
+
+T-09 currently stores each `tools/call` as `McpBehaviourPayload` (v1.0). Three things the plan asks
+the proxy to log have no field today, so they are not stored:
+
+| Need (plan T-09) | Proposed change | Why |
+|---|---|---|
+| Response size | `response_size: StrictInt >= 0` on `McpBehaviourPayload` (optional) | SYS-03 evidence, T-14 envelope feature |
+| JSON-RPC method + order | `method: Literal["tools/call"]`, keep order in `invocation_id` (`000042:<id>`) | Make order explicit without parsing ids |
+| `initialize` exchange | New `McpSessionPayload` (server name/version, protocol version, capabilities digest) under kind `artefact` for `mcp_server` | C2 shows which server build the session talked to |
+| Proxy alerts | `ProxyAlertPayload` (code, direction, reason, sha256, size) for kind `alert` | Alerts are unvalidated today |
+
+Checklist for you: accept / change / reject each row. Hamza will not edit `common/schema/` until you agree.
+
 ### Priority 3 — Your sole path (not blocking T-06 merge)
 
 | Task | Status | Your next |
@@ -83,7 +97,7 @@ Per ADR-003 / critical path: **T-07 MCP artefact inventory** (then **T-09 proxy*
 | Task | Territory | Branch / PR | Needs your review? |
 |------|-----------|-------------|--------------------|
 | T-07 MCP inventory | Hamza sole (`src/cim/mcp/`) | `t07-mcp-inventory` (stacked on T-06) | Only if it changes `common/schema` or `common/store` API — it should not |
-| T-09 MCP proxy | Hamza sole | next | Same — review store/schema touch only |
+| T-09 MCP proxy | Hamza sole | `t09-mcp-proxy` (stacked on T-07) | No `common/` edits; see contract v1.1 request above |
 | T-12 rug-pull | Hamza sole | after T-07+T-09 | after |
 
 **T-07 touch list (Hamza sole — optional skim):** `src/cim/mcp/inventory.py`, `tests/mcp/test_inventory.py`, `cim inventory` CLI, `corpora/mcp/servers.json`. Uses existing `BaselineStore` + `McpArtefactPayload` without widening the store API.

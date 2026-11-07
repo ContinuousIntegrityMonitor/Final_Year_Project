@@ -7,6 +7,7 @@ Single index of architecture and process decisions. Detailed write-ups live unde
 | ADR-001 | Tooling (Python 3.12, uv, ruff, mypy, pytest, dual CI) | Accepted | 2026-10-03 |
 | ADR-002 | Dual GitHub remotes (personal + org project repo) | Accepted | 2026-11-07 |
 | ADR-003 | FYP I Dec scope (functional SEE path; product polish = FYP II) | Accepted | 2026-11-07 |
+| ADR-004 | MCP proxy fails open in v1 (forward everything; alert on unparseable frames) | Accepted | 2026-11-08 |
 
 ## Working rules (stable)
 
@@ -16,4 +17,5 @@ Single index of architecture and process decisions. Detailed write-ups live unde
 - Progress truth: `progress/tasks/T-XX.md`; history: `history/entries/`.
 - Agent skills for this workspace: copied under `.agents/skills/` (gitignored bodies); names listed in `docs/SKILLS_MANIFEST.txt`.
 - Joint review queue for Fasih / Claude: [`docs/FASIH_REVIEW.md`](docs/FASIH_REVIEW.md).
-- Do not merge T-06 (#163) until Fasih approves; Hamza may stack T-07/T-09 on the T-06 branch.
+- Do not merge T-06 until Fasih approves; Hamza stacks T-07 and T-09 on the T-06 branch meanwhile.
+- Schema changes in `src/cim/common/schema/` need both members; Hamza files requests in `docs/FASIH_REVIEW.md` instead of editing alone.
