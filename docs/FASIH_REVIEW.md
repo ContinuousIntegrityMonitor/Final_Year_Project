@@ -80,13 +80,11 @@ Only re-open if T-06 or T-07 forces a schema change:
 
 Per ADR-003 / critical path: **T-07 MCP artefact inventory** (then **T-09 proxy**) stacked on the T-06 branch so Dec C1–C2 can move while you review.
 
-| Task | Territory | Branch / PR | Needs your review? |
-|------|-----------|-------------|--------------------|
-| T-07 MCP inventory | Hamza sole (`src/cim/mcp/`) | `t07-mcp-inventory` (stacked on T-06) | Only if it changes `common/schema` or `common/store` API — it should not |
-| T-09 MCP proxy | Hamza sole | next | Same — review store/schema touch only |
-| T-12 rug-pull | Hamza sole | after T-07+T-09 | after |
-
-**T-07 touch list (Hamza sole — optional skim):** `src/cim/mcp/inventory.py`, `tests/mcp/test_inventory.py`, `cim inventory` CLI, `corpora/mcp/servers.json`. Uses existing `BaselineStore` + `McpArtefactPayload` without widening the store API.
+| Task | Territory | Needs your review? |
+|------|-----------|--------------------|
+| T-07 MCP inventory | Hamza sole (`src/cim/mcp/`) | Only if it changes `common/schema` or `common/store` API |
+| T-09 MCP proxy | Hamza sole | Same — review store/schema touch only |
+| T-12 rug-pull | Hamza sole | After T-07+T-09 |
 
 You do **not** need to approve T-07/T-09 implementation detail in `mcp/` before T-06 lands. Glance at PRs for accidental `common/` edits.
 

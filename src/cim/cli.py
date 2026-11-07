@@ -1,10 +1,14 @@
-"""cim CLI entrypoint (v0 stub for T-01)."""
+"""cim CLI entrypoint."""
 
 from __future__ import annotations
+
+from pathlib import Path
+from typing import Annotated
 
 import typer
 
 from cim import __version__
+from cim.common.store import BaselineStore
 
 app = typer.Typer(
     name="cim",
@@ -28,6 +32,23 @@ def version() -> None:
 def status() -> None:
     """Show monitor status (stub until T-13)."""
     typer.echo("status: not implemented (awaiting T-13 pipeline integration)")
+
+
+@app.command("verify-chain")
+def verify_chain(
+    db: Annotated[
+        Path,
+        typer.Option("--db", exists=True, dir_okay=False, readable=True),
+    ],
+) -> None:
+    """Recompute the baseline hash chain. Exit 1 if any historical row was changed."""
+    with BaselineStore(db) as store:
+        result = store.verify_chain()
+    if result.ok:
+        typer.echo(f"verify-chain: ok ({result.count} records)")
+        raise typer.Exit(code=0)
+    typer.echo(f"verify-chain: broken at record {result.broken_at}: {result.reason}")
+    raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
