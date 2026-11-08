@@ -74,7 +74,7 @@ def test_scripted_replay_logs_100_calls_in_order(tmp_path: Path) -> None:
     assert [p["invocation_id"] for p in behaviour] == [f"{n:06d}:{100 + n}" for n in range(1, 101)]
     assert {p["tool_id"] for p in behaviour} == {"echo"}
     assert {p["outcome"] for p in behaviour} == {"ok"}
-    artefacts = [p for kind, p in records if kind == "artefact"]
+    artefacts = [p for kind, p in records if kind == "artefact" and p.get("code") != "mcp_pin"]
     assert sorted(p["name"] for p in artefacts) == ["echo", "fail", "fake", "garbage"]
     with BaselineStore(db) as store:
         assert store.verify_chain().ok

@@ -40,6 +40,17 @@ _DDL = (
 
 
 @dataclass(frozen=True)
+class StoredRecord:
+    """One row of the log, in chain order. Read-only view; rows are never updated."""
+
+    id: int
+    artefact_id: int
+    kind: str
+    payload: str
+    ts: str
+
+
+@dataclass(frozen=True)
 class ChainStatus:
     """Result of recomputing the hash chain from stored rows."""
 
@@ -177,6 +188,22 @@ class BaselineStore:
             prev = stored_hash
             expected_id += 1
         return ChainStatus(ok=True, count=len(rows), broken_at=None, reason="ok")
+
+    def read_records(self) -> list[StoredRecord]:
+        """Return every record in chain order. Does not modify the store."""
+        rows = self._conn.execute(
+            "SELECT id, artefact_id, kind, payload, ts FROM record ORDER BY id"
+        ).fetchall()
+        return [
+            StoredRecord(
+                id=int(row["id"]),
+                artefact_id=int(row["artefact_id"]),
+                kind=str(row["kind"]),
+                payload=str(row["payload"]),
+                ts=str(row["ts"]),
+            )
+            for row in rows
+        ]
 
     def _tip_hash(self) -> str:
         if self._tip is None:

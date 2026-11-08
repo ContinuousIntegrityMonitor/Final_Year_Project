@@ -28,13 +28,13 @@
 | T-06 | Baseline store (SQLite WAL + hash chain) | PR #163 — **awaiting Fasih** (joint) |
 | T-07 | MCP artefact inventory | Branch `t07-mcp-inventory`, stacked on T-06 (Hamza sole) |
 | T-09 | MCP proxy collector v1 (critical path, C2) | Branch `t09-mcp-proxy`, stacked on T-07; lab run vs HexStrike open |
+| T-12 | Rug-pull detector | Branch `t12-mcp-drift`, stacked on T-09 |
 
 ## Next (MCP / Hamza)
 
-1. Fasih reviews T-06 and the contract v1.1 request in `docs/FASIH_REVIEW.md` — do not merge T-06 early
-2. T-12 rug-pull detector: diff successive `tools/list` snapshots recorded by the proxy (Dec C3)
+1. Fasih reviews T-06 once (`docs/FASIH_REVIEW.md`) and says whether the store needs changes. Work continues meanwhile.
+2. T-14 behavioural envelope
 3. Lab: capture HexStrike `tools/list` and run a session through `cim proxy` on VM-MON (C1/C2 evidence)
-4. Push each phase to `org` with CI green; history guard blocks AI co-authors
 
 ## Decisions index
 

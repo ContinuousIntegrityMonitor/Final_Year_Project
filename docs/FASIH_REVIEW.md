@@ -30,11 +30,15 @@ After review comments, Hamza dual-pushes. Same CI workflows on both (`ci-push`, 
 
 ## What to review now (JOINT — your action)
 
-### Priority 1 — T-06 baseline store (blocker)
+### Priority 1 — T-06 baseline store (one review, then say if anything should change)
 
-- **PR:** https://github.com/HamzaFarooq3333/Final_Year_Project/pull/163  
-- **Branch:** `t06-baseline-store` (also mirrored on `org`)
+Please review this once. Reply on the PR with either "ok" or the specific improvements you want. Hamza is not blocked on it: T-12 and T-14 are stacked on top, and a requested change gets folded back into the store before merge.
+
+- **Org PR:** open against `ContinuousIntegrityMonitor/Final_Year_Project`, branch `t06-baseline-store`
+- **Personal PR (older history):** https://github.com/HamzaFarooq3333/Final_Year_Project/pull/163
 - **Owner:** impl Hamza, **review Fasih** (plan: joint design, H implements, F reviews)
+
+The store gained one read-only method, `read_records()`, so the rug-pull detector can see the pin. There is still no update or delete path.
 
 **Files to inspect**
 

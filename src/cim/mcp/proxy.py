@@ -32,6 +32,7 @@ from typing import IO, Any, Literal
 
 from cim.common.schema.mcp import McpBehaviourPayload
 from cim.common.store import BaselineStore
+from cim.mcp.drift import diff_tools, pinned_tools, record_drift
 from cim.mcp.framing import Direction, parse_frame
 from cim.mcp.inventory import write_inventory
 
@@ -68,6 +69,7 @@ class ToolsSnapshot:
 class CallCaptured:
     order: int
     tool: str
+    arguments: dict[str, Any]
     message_id: int | str
     request_digest: str
     response_digest: str | None
@@ -165,6 +167,7 @@ class Capture:
         finished_ns: int,
     ) -> CallCaptured:
         params = pending.params if isinstance(pending.params, dict) else {}
+        arguments = params.get("arguments")
         name = params.get("name")
         outcome: Outcome = "timeout"
         response_digest: str | None = None
@@ -177,6 +180,7 @@ class Capture:
         return CallCaptured(
             order=pending.order,
             tool=name if isinstance(name, str) and name else "unknown",
+            arguments=arguments if isinstance(arguments, dict) else {},
             message_id=message_id,
             request_digest=digest(params),
             response_digest=response_digest,
@@ -219,19 +223,43 @@ class StoreSink:
 
     def apply(self, event: CaptureEvent) -> None:
         if isinstance(event, ToolsSnapshot):
-            result = write_inventory(
-                self._store,
-                server_id=self._config.server_id,
-                name=self._config.server_id,
-                description=f"{self._config.server_id} MCP server (seen by proxy)",
-                root=self._config.root,
-                origin=self._config.origin,
-                tools=event.tools,
-                ts=self._now(),
-                minimum=None,
-            )
-            self._server_aid = result.server_artefact_id
-            self._tool_aids.update(result.tool_artefact_ids)
+            pin = pinned_tools(self._store, self._config.server_id)
+            if pin is None:
+                result = write_inventory(
+                    self._store,
+                    server_id=self._config.server_id,
+                    name=self._config.server_id,
+                    description=f"{self._config.server_id} MCP server (seen by proxy)",
+                    root=self._config.root,
+                    origin=self._config.origin,
+                    tools=event.tools,
+                    ts=self._now(),
+                    minimum=None,
+                )
+                self._server_aid = result.server_artefact_id
+                self._tool_aids.update(result.tool_artefact_ids)
+                pin_id = self._store.append_artefact(
+                    "mcp_pin", self._config.server_id, self._config.origin
+                )
+                self._store.append_record(
+                    pin_id,
+                    "artefact",
+                    {
+                        "code": "mcp_pin",
+                        "server_id": self._config.server_id,
+                        "name": self._config.server_id,
+                        "tools": event.tools,
+                    },
+                    self._now(),
+                )
+            else:
+                record_drift(
+                    self._store,
+                    server_id=self._config.server_id,
+                    server_artefact_id=self._server_artefact(),
+                    drifts=diff_tools(pin, event.tools),
+                    ts=self._now(),
+                )
         elif isinstance(event, CallCaptured):
             payload = McpBehaviourPayload(
                 server_id=self._config.server_id,

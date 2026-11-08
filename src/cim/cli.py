@@ -12,6 +12,7 @@ import typer
 
 from cim import __version__
 from cim.common.store import BaselineStore
+from cim.mcp.drift import diff_tools, pinned_tools, record_drift
 from cim.mcp.inventory import load_tools_list, write_inventory
 from cim.mcp.proxy import ProxyConfig, run_proxy
 
@@ -112,6 +113,39 @@ def proxy(
     if db is not None:
         config = dataclasses.replace(config, db=db)
     raise typer.Exit(code=run_proxy(command, config, sys.stdin.buffer, sys.stdout.buffer))
+
+
+@app.command("sweep")
+def sweep(
+    db: Annotated[Path, typer.Option("--db", exists=True, dir_okay=False, readable=True)],
+    tools_json: Annotated[
+        Path,
+        typer.Option("--tools-json", exists=True, dir_okay=False, readable=True),
+    ],
+    server_id: Annotated[str, typer.Option("--server-id")] = "hexstrike",
+) -> None:
+    """Re-read a tools/list and record schema drift against the pinned baseline (T-12)."""
+    current = load_tools_list(tools_json)
+    ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with BaselineStore(db) as store:
+        pin = pinned_tools(store, server_id)
+        if pin is None:
+            typer.echo(f"sweep: no pin for {server_id}; run inventory or the proxy first")
+            raise typer.Exit(code=2)
+        drifts = diff_tools(pin, current)
+        if drifts:
+            record_drift(
+                store,
+                server_id=server_id,
+                server_artefact_id=store.append_artefact("mcp_server", server_id, "sweep"),
+                drifts=drifts,
+                ts=ts,
+            )
+    if not drifts:
+        typer.echo(f"sweep: {server_id} unchanged")
+        return
+    for drift in drifts:
+        typer.echo(f"sweep: {drift.detail}")
 
 
 @app.command("verify-chain")
