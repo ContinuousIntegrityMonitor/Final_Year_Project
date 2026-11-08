@@ -25,6 +25,7 @@ MODULES = [
     "cim.mcp.inventory",
     "cim.mcp.proxy",
     "cim.mcp.drift",
+    "cim.mcp.envelope",
     "cim.skills",
     "cim.correlation",
     "cim.scanners",

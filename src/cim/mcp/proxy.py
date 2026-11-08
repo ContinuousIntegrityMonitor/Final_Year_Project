@@ -33,6 +33,7 @@ from typing import IO, Any, Literal
 from cim.common.schema.mcp import McpBehaviourPayload
 from cim.common.store import BaselineStore
 from cim.mcp.drift import diff_tools, pinned_tools, record_drift
+from cim.mcp.envelope import record_observation
 from cim.mcp.framing import Direction, parse_frame
 from cim.mcp.inventory import write_inventory
 
@@ -279,6 +280,14 @@ class StoreSink:
                 "behaviour",
                 payload.model_dump(mode="json"),
                 self._now(),
+            )
+            record_observation(
+                self._store.path,
+                server_id=self._config.server_id,
+                tool=event.tool,
+                arguments=event.arguments,
+                result_size=event.response_size,
+                outcome=event.outcome,
             )
         else:
             self._store.append_record(

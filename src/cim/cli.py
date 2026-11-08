@@ -13,6 +13,7 @@ import typer
 from cim import __version__
 from cim.common.store import BaselineStore
 from cim.mcp.drift import diff_tools, pinned_tools, record_drift
+from cim.mcp.envelope import envelopes
 from cim.mcp.inventory import load_tools_list, write_inventory
 from cim.mcp.proxy import ProxyConfig, run_proxy
 
@@ -146,6 +147,21 @@ def sweep(
         return
     for drift in drifts:
         typer.echo(f"sweep: {drift.detail}")
+
+
+@app.command("envelope")
+def envelope(
+    db: Annotated[Path, typer.Option("--db", exists=True, dir_okay=False, readable=True)],
+    server_id: Annotated[str, typer.Option("--server-id")] = "hexstrike",
+    tool: Annotated[str | None, typer.Option("--tool")] = None,
+) -> None:
+    """Show per-tool behavioural features and whether warm-up is done (T-14)."""
+    rows = envelopes(db, server_id, tool)
+    if not rows:
+        typer.echo(f"envelope: no observations for {server_id}")
+        raise typer.Exit(code=2)
+    for row in rows:
+        typer.echo(row.render())
 
 
 @app.command("verify-chain")
