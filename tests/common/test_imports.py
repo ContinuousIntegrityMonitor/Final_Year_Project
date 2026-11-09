@@ -18,6 +18,7 @@ MODULES = [
     "cim.common.schema.canonical",
     "cim.common.schema.envelope",
     "cim.common.store",
+    "cim.common.store.baseline",
     "cim.mcp",
     "cim.skills",
     "cim.correlation",
