@@ -34,7 +34,7 @@ After review comments, Hamza dual-pushes. Same CI workflows on both (`ci-push`, 
 
 Please review this once. Reply on the PR with either "ok" or the specific improvements you want. Hamza is not blocked on it: T-12 and T-14 are stacked on top, and a requested change gets folded back into the store before merge.
 
-- **Org PR:** open against `ContinuousIntegrityMonitor/Final_Year_Project`, branch `t06-baseline-store`
+- **Org PR:** https://github.com/ContinuousIntegrityMonitor/Final_Year_Project/pull/1 — open, no review and no comment as of 2026-11-09. GitHub would not assign `fasih-moin` because he is not a collaborator on that repo.
 - **Personal PR (older history):** https://github.com/HamzaFarooq3333/Final_Year_Project/pull/163
 - **Owner:** impl Hamza, **review Fasih** (plan: joint design, H implements, F reviews)
 
@@ -102,7 +102,9 @@ Per ADR-003 / critical path: **T-07 MCP artefact inventory** (then **T-09 proxy*
 |------|-----------|-------------|--------------------|
 | T-07 MCP inventory | Hamza sole (`src/cim/mcp/`) | `t07-mcp-inventory` (stacked on T-06) | Only if it changes `common/schema` or `common/store` API — it should not |
 | T-09 MCP proxy | Hamza sole | `t09-mcp-proxy` (stacked on T-07) | No `common/` edits; see contract v1.1 request above |
-| T-12 rug-pull | Hamza sole | after T-07+T-09 | after |
+| T-12 rug-pull | Hamza sole | `t12-mcp-drift` | No. Reads the store; does not change the schema |
+| T-14 envelope | Hamza sole | `t14-mcp-envelope` | No. Observations sit in `envelope_obs`, outside the hash chain |
+| Status board | Hamza leads | `t14-status-board` | No. Read-only page. It does not change the schema |
 
 **T-07 touch list (Hamza sole — optional skim):** `src/cim/mcp/inventory.py`, `tests/mcp/test_inventory.py`, `cim inventory` CLI, `corpora/mcp/servers.json`. Uses existing `BaselineStore` + `McpArtefactPayload` without widening the store API.
 

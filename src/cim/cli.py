@@ -12,6 +12,9 @@ import typer
 
 from cim import __version__
 from cim.common.store import BaselineStore
+from cim.dashboard.board import load_board
+from cim.dashboard.page import render_page
+from cim.dashboard.serve import make_server
 from cim.mcp.drift import diff_tools, pinned_tools, record_drift
 from cim.mcp.envelope import envelopes
 from cim.mcp.inventory import load_tools_list, write_inventory
@@ -39,6 +42,31 @@ def version() -> None:
 def status() -> None:
     """Show monitor status (stub until T-13)."""
     typer.echo("status: not implemented (awaiting T-13 pipeline integration)")
+
+
+@app.command("dashboard")
+def dashboard(
+    db: Annotated[
+        Path,
+        typer.Option("--db", exists=True, dir_okay=False, readable=True),
+    ],
+    port: Annotated[int, typer.Option("--port", min=1, max=65535)] = 8765,
+    once: Annotated[
+        bool,
+        typer.Option("--once", help="Print the page once and exit"),
+    ] = False,
+) -> None:
+    """Open a read-only page for one store: chain, tools, changes, calls."""
+    if once:
+        typer.echo(render_page(load_board(db)))
+        return
+    server = make_server(db, "127.0.0.1", port)
+    bound = server.server_address[1]
+    typer.echo(f"dashboard: http://127.0.0.1:{bound}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        server.shutdown()
 
 
 @app.command("inventory")
