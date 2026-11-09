@@ -19,6 +19,17 @@ def sha256_canonical(obj: Any) -> str:
     return hashlib.sha256(canonical_json(obj).encode()).hexdigest()
 
 
+def hashable(value: Any) -> Any:
+    """Copy a JSON value so it can be hashed. Decimal numbers become strings."""
+    if isinstance(value, float):
+        return format(value, ".12g")
+    if isinstance(value, dict):
+        return {str(key): hashable(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [hashable(item) for item in value]
+    return value
+
+
 def load_tools_list(path: Path) -> list[dict[str, Any]]:
     """Load a recorded MCP tools/list `tools` array from JSON."""
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -76,7 +87,7 @@ def describe_tool(tool: dict[str, Any]) -> McpToolDescriptor:
     return McpToolDescriptor(
         name=name,
         description=description,
-        input_schema_digest=sha256_canonical(tool_input_schema(tool)),
+        input_schema_digest=sha256_canonical(hashable(tool_input_schema(tool))),
     )
 
 

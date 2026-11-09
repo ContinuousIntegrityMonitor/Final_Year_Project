@@ -35,7 +35,7 @@ from cim.common.store import BaselineStore
 from cim.mcp.drift import diff_tools, pinned_tools, record_drift
 from cim.mcp.envelope import record_observation
 from cim.mcp.framing import Direction, parse_frame
-from cim.mcp.inventory import write_inventory
+from cim.mcp.inventory import hashable, write_inventory
 
 Outcome = Literal["ok", "error", "timeout"]
 Clock = Callable[[], int]
@@ -224,6 +224,7 @@ class StoreSink:
 
     def apply(self, event: CaptureEvent) -> None:
         if isinstance(event, ToolsSnapshot):
+            tools = hashable(event.tools)
             pin = pinned_tools(self._store, self._config.server_id)
             if pin is None:
                 result = write_inventory(
@@ -233,7 +234,7 @@ class StoreSink:
                     description=f"{self._config.server_id} MCP server (seen by proxy)",
                     root=self._config.root,
                     origin=self._config.origin,
-                    tools=event.tools,
+                    tools=tools,
                     ts=self._now(),
                     minimum=None,
                 )
@@ -249,7 +250,7 @@ class StoreSink:
                         "code": "mcp_pin",
                         "server_id": self._config.server_id,
                         "name": self._config.server_id,
-                        "tools": event.tools,
+                        "tools": tools,
                     },
                     self._now(),
                 )
@@ -258,7 +259,7 @@ class StoreSink:
                     self._store,
                     server_id=self._config.server_id,
                     server_artefact_id=self._server_artefact(),
-                    drifts=diff_tools(pin, event.tools),
+                    drifts=diff_tools(pin, tools),
                     ts=self._now(),
                 )
         elif isinstance(event, CallCaptured):

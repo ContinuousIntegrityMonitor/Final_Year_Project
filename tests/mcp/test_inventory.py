@@ -17,6 +17,29 @@ from cim.mcp.lab import MIN_HEXSTRIKE_TOOLS
 TS = "2026-11-07T18:00:00Z"
 
 
+def test_float_default_in_schema_still_hashes() -> None:
+    tools = [
+        {
+            "name": "timed",
+            "description": "Waits",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"execution_time": {"type": "number", "default": 1.5}},
+            },
+        }
+    ]
+    manifest, digests = build_manifest(
+        server_id="hexstrike",
+        name="hexstrike",
+        description="HexStrike MCP",
+        root="/opt/mcp/hexstrike",
+        tools=tools,
+        minimum=None,
+    )
+    assert "timed" in digests
+    assert len(manifest.manifest_digest) == 64
+
+
 def test_digests_stable_across_rereads() -> None:
     tools = synthetic_hexstrike_tools()
     first, digests_a = build_manifest(
