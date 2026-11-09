@@ -1,0 +1,13 @@
+{
+  "servers": [
+    {
+      "server_id": "hexstrike",
+      "name": "hexstrike",
+      "description": "HexStrike AI MCP on VM-MON",
+      "root": "/opt/mcp/hexstrike",
+      "origin": "vm-mon",
+      "tools_list": "tools_list.json",
+      "notes": "Operator captures tools/list into tools_list.json on the lab host; CI uses synthetic_hexstrike_tools()."
+    }
+  ]
+}
