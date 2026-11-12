@@ -32,6 +32,7 @@ from typing import IO, Any, Literal
 
 from cim.common.schema.mcp import McpBehaviourPayload
 from cim.common.store import BaselineStore
+from cim.mcp.alert import score_latest
 from cim.mcp.drift import diff_tools, pinned_tools, record_drift
 from cim.mcp.envelope import record_observation
 from cim.mcp.framing import Direction, parse_frame
@@ -289,6 +290,13 @@ class StoreSink:
                 arguments=event.arguments,
                 result_size=event.response_size,
                 outcome=event.outcome,
+            )
+            score_latest(
+                self._store,
+                artefact_id=self._server_artefact(),
+                server_id=self._config.server_id,
+                tool=event.tool,
+                ts=self._now(),
             )
         else:
             self._store.append_record(

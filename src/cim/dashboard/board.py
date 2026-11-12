@@ -21,6 +21,7 @@ class PinnedTool:
     name: str
     digest: str
     parameters: tuple[str, ...]
+    schema: str = ""
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,8 @@ class FrameAlert:
     ts: str
     code: str
     detail: str
+    input_change: str = ""
+    output_change: str = ""
 
 
 @dataclass(frozen=True)
@@ -83,6 +86,7 @@ def load_board(db: Path) -> Board:
         records = store.read_records()
     tools_by_server: dict[str, list[PinnedTool]] = {}
     params_by_server: dict[str, dict[str, tuple[str, ...]]] = {}
+    schemas_by_server: dict[str, dict[str, str]] = {}
     changes: list[SchemaChange] = []
     calls: list[ToolCall] = []
     alerts: list[FrameAlert] = []
@@ -97,12 +101,13 @@ def load_board(db: Path) -> Board:
             pinned = _pin_parameters(payload)
             if pinned is not None:
                 params_by_server[pinned[0]] = pinned[1]
+                schemas_by_server[pinned[0]] = pinned[2]
             links_all.append(ChainLink(record.id, "pin", "Fingerprint pinned", record.ts))
             continue
         server_id = payload.get("server_id")
         _remember_server(servers, server_id)
         if record.kind == "artefact" and payload.get("tool_id") is None:
-            parsed = _pinned_tools(payload, params_by_server)
+            parsed = _pinned_tools(payload, params_by_server, schemas_by_server)
             if parsed is not None and isinstance(server_id, str):
                 tools_by_server[server_id] = parsed
                 links_all.append(ChainLink(record.id, "schema", "Schema recorded", record.ts))
@@ -136,16 +141,20 @@ def load_board(db: Path) -> Board:
                     ts=record.ts,
                     code=_text(payload.get("code")) or "alert",
                     detail=detail,
+                    input_change=_text(payload.get("input_change")),
+                    output_change=_text(payload.get("output_change")),
                 )
             )
             links_all.append(ChainLink(record.id, "alert", detail, record.ts))
     for server_id, known in params_by_server.items():
+        schemas = schemas_by_server.get(server_id, {})
         tools_by_server[server_id] = [
             PinnedTool(
                 server_id=tool.server_id,
                 name=tool.name,
                 digest=tool.digest,
                 parameters=known.get(tool.name, tool.parameters),
+                schema=schemas.get(tool.name, tool.schema),
             )
             for tool in tools_by_server.get(server_id, [])
         ]
@@ -187,6 +196,7 @@ def as_dict(board: Board) -> dict[str, Any]:
                 "name": tool.name,
                 "digest": tool.digest,
                 "parameters": list(tool.parameters),
+                "schema": tool.schema,
             }
             for tool in board.tools
         ],
@@ -210,7 +220,14 @@ def as_dict(board: Board) -> dict[str, Any]:
             for call in board.calls
         ],
         "alerts": [
-            {"ts": alert.ts, "code": alert.code, "detail": alert.detail} for alert in board.alerts
+            {
+                "ts": alert.ts,
+                "code": alert.code,
+                "detail": alert.detail,
+                "input_change": alert.input_change,
+                "output_change": alert.output_change,
+            }
+            for alert in board.alerts
         ],
         "patterns": [
             {
@@ -241,17 +258,22 @@ def _remember_server(servers: list[str], server_id: object) -> None:
         servers.append(server_id)
 
 
-def _pin_parameters(payload: dict[str, Any]) -> tuple[str, dict[str, tuple[str, ...]]] | None:
+def _pin_parameters(
+    payload: dict[str, Any],
+) -> tuple[str, dict[str, tuple[str, ...]], dict[str, str]] | None:
     server_id = payload.get("server_id")
     raw = payload.get("tools")
     if not isinstance(server_id, str) or not isinstance(raw, list):
         return None
     named: dict[str, tuple[str, ...]] = {}
+    schemas: dict[str, str] = {}
     for tool in raw:
         if not isinstance(tool, dict) or not isinstance(tool.get("name"), str):
             continue
-        named[str(tool["name"])] = _parameter_names(tool)
-    return server_id, named
+        name = str(tool["name"])
+        named[name] = _parameter_names(tool)
+        schemas[name] = _schema_text(tool)
+    return server_id, named, schemas
 
 
 def _parameter_names(tool: dict[str, Any]) -> tuple[str, ...]:
@@ -264,15 +286,31 @@ def _parameter_names(tool: dict[str, Any]) -> tuple[str, ...]:
     return tuple(str(name) for name in props)
 
 
+def _schema_text(tool: dict[str, Any]) -> str:
+    schema = tool.get("inputSchema")
+    if not isinstance(schema, dict):
+        schema = tool.get("input_schema")
+    if not isinstance(schema, dict):
+        schema = {}
+    shown = {
+        "name": tool.get("name"),
+        "description": tool.get("description", ""),
+        "inputSchema": schema,
+    }
+    return json.dumps(shown, indent=2, sort_keys=True)
+
+
 def _pinned_tools(
     payload: dict[str, Any],
     params_by_server: dict[str, dict[str, tuple[str, ...]]],
+    schemas_by_server: dict[str, dict[str, str]],
 ) -> list[PinnedTool] | None:
     raw = payload.get("tools")
     server_id = payload.get("server_id")
     if not isinstance(raw, list) or not isinstance(server_id, str):
         return None
     known = params_by_server.get(server_id, {})
+    schemas = schemas_by_server.get(server_id, {})
     tools: list[PinnedTool] = []
     for item in raw:
         if not isinstance(item, dict) or not isinstance(item.get("name"), str):
@@ -285,12 +323,16 @@ def _pinned_tools(
                 name=name,
                 digest=digest if isinstance(digest, str) else "",
                 parameters=known.get(name, ()),
+                schema=schemas.get(name, ""),
             )
         )
     return tools
 
 
 def _alert_detail(payload: dict[str, Any]) -> str:
+    detail = _text(payload.get("detail"))
+    if detail:
+        return detail
     reason = _text(payload.get("reason"))
     direction = _text(payload.get("direction"))
     if reason and direction:

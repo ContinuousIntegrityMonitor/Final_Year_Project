@@ -8,6 +8,7 @@ Single index of architecture and process decisions. Detailed write-ups live unde
 | ADR-002 | Dual GitHub remotes (personal + org project repo) | Accepted | 2026-11-07 |
 | ADR-003 | FYP I Dec scope (functional SEE path; product polish = FYP II) | Accepted | 2026-11-07 |
 | ADR-004 | MCP proxy fails open in v1 (forward everything; alert on unparseable frames) | Accepted | 2026-11-08 |
+| ADR-005 | Stdio proxy + HTTP MCP gateway (both Cursor transports) | Accepted | 2026-11-12 |
 
 ## Working rules (stable)
 

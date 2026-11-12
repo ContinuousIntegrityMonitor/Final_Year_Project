@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 from cim.cli import app
 from cim.common.store import BaselineStore
 from cim.dashboard.board import load_board
+from cim.dashboard.call_demo import clear_demo, read_connected, run_demo_call, tamper_log
 from cim.dashboard.page import render_page
 from cim.dashboard.serve import make_server
 from cim.mcp.proxy import CallCaptured, ProxyConfig, StoreSink, ToolsSnapshot, digest
@@ -82,6 +83,8 @@ def test_board_shows_pin_call_and_rug_pull(tmp_path: Path) -> None:
     assert board.empty is False
     assert [tool.name for tool in board.tools] == ["send_email"]
     assert board.tools[0].parameters == ("body", "subject", "to")
+    assert '"name": "send_email"' in board.tools[0].schema
+    assert "inputSchema" in board.tools[0].schema
     assert board.tools[0].digest
     assert any(link.mark == "change" for link in board.links)
     assert [change.detail for change in board.changes] == [
@@ -180,6 +183,84 @@ def test_http_serves_the_same_page(tmp_path: Path) -> None:
     assert missing == 404
     assert "Record is safe" in body
     assert "Something new showed up" in body
+    assert "Use the tool" in body
+    assert "Connect MCP" in body
+    assert "Use it in a new way" in body
+    assert "Change a past log" in body
+    assert "Clear and start again" in body
+    assert "MCP schema" in body
+    assert "inputSchema" in body
     assert "send_email" in body
     assert feed["chain_ok"] is True
     assert any("bcc" in change["detail"] for change in feed["changes"])
+
+
+def test_button_calls_the_artificial_mcp(tmp_path: Path) -> None:
+    db = tmp_path / "demo.sqlite"
+    first = run_demo_call(db, False)
+    assert first["schema"]["properties"].keys() == {"to", "subject", "body"}
+    assert first["input"]["to"] == "advisor@example.com"
+    assert first["output"]["sent"] is True
+    assert first["connected"] is True
+    assert read_connected(db) is True
+    second = run_demo_call(db, True)
+    assert "bcc" not in second["schema"]["properties"]
+    assert second["input"]["bcc"] == "hidden@example.com"
+    assert second["output"]["copied"] == "hidden@example.com"
+    assert second["connected"] is False
+    assert read_connected(db) is False
+    board = load_board(db)
+    assert board.chain_ok
+    assert len(board.calls) == 2
+    assert board.changes == ()
+    assert len(board.alerts) == 1
+    assert "Strange behaviour detected." in board.alerts[0].detail
+    assert "hidden" in board.alerts[0].input_change
+    assert "hidden copy" in board.alerts[0].output_change
+    page = render_page(board, connected=False)
+    assert "Strange behaviour detected." in page
+    assert "MCP disconnected." in page
+    assert "Disconnected. Clear and start again to reconnect." in page
+    assert "Input change:" in page
+    assert "Output change:" in page
+
+
+def test_tamper_breaks_the_next_fingerprint(tmp_path: Path) -> None:
+    db = tmp_path / "demo.sqlite"
+    run_demo_call(db, connect_only=True)
+    run_demo_call(db, False)
+    result = tamper_log(db)
+    assert result["tampered"] is True
+    assert result["chain_ok"] is False
+    assert result["broken_at"] == 2
+    assert result["connected"] is False
+    assert "prev_hash" in result["chain_reason"]
+    assert read_connected(db) is False
+    board = load_board(db)
+    assert board.chain_ok is False
+    assert board.broken_at == 2
+    page = render_page(board, connected=False)
+    assert "An old log was changed." in page
+    assert "MCP disconnected." in page
+    assert "rest of the chain cannot be trusted" in page
+    assert "Later entries no longer match the line" in page
+    assert "Change a past log" in page
+    assert "Clear and start again" in page
+
+
+def test_clear_wipes_the_demo(tmp_path: Path) -> None:
+    db = tmp_path / "demo.sqlite"
+    run_demo_call(db, False)
+    run_demo_call(db, True)
+    assert read_connected(db) is False
+    cleared = clear_demo(db)
+    assert cleared["cleared"] is True
+    assert cleared["connected"] is False
+    board = load_board(db)
+    assert board.empty
+    assert board.tools == ()
+    assert board.alerts == ()
+    assert read_connected(db) is False
+    page = render_page(board, connected=False)
+    assert "Not connected. Connect an MCP to begin." in page
+    assert "Nothing recorded yet" in page

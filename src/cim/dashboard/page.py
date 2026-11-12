@@ -8,174 +8,287 @@ from cim.dashboard.board import Board
 from cim.mcp.envelope import WARMUP, ToolEnvelope
 
 _CSS = """
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 :root {
   color-scheme: dark;
-  --bg: #0b3048;
-  --surface: #0e3c58;
-  --ink: #f2f0e9;
-  --muted: #d9d6cc;
-  --line: rgba(242, 240, 233, 0.16);
-  --accent: #b8f12c;
-  --accent-ink: #0b3048;
-  --intact: #b8f12c;
-  --changed: #f2f0e9;
+  --bg: #12151a;
+  --bg-2: #171b22;
+  --surface: #1c222c;
+  --surface-2: #232a36;
+  --ink: #e8eaed;
+  --muted: #9aa3ad;
+  --line: rgba(232, 234, 237, 0.12);
+  --accent: #6b8cae;
+  --accent-ink: #12151a;
+  --safe: #3d9a6a;
+  --warn: #c45c26;
+  --danger: #c62828;
+  --ridge: #c5ccd6;
+  --pad: #151a21;
 }
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f2f0e9;
+  --bg: #eef1f4;
+  --bg-2: #e4e8ee;
   --surface: #ffffff;
-  --ink: #0b3048;
-  --muted: #3d5568;
-  --line: rgba(11, 48, 72, 0.14);
-  --accent: #b8f12c;
-  --accent-ink: #0b3048;
-  --intact: #0b3048;
-  --changed: #0b3048;
+  --surface-2: #f7f8fa;
+  --ink: #1a2330;
+  --muted: #5b6775;
+  --line: rgba(26, 35, 48, 0.12);
+  --accent: #3d5f80;
+  --accent-ink: #ffffff;
+  --safe: #1f7a4d;
+  --warn: #a84a1a;
+  --danger: #b71c1c;
+  --ridge: #3a4654;
+  --pad: #e8ecf1;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  background: var(--bg);
+  min-height: 100vh;
   color: var(--ink);
-  font: 16px/1.45 Aptos, "Segoe UI", sans-serif;
+  font: 15px/1.45 "IBM Plex Sans", "Segoe UI", sans-serif;
   font-variant-numeric: tabular-nums;
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(107, 140, 174, 0.18), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(61, 154, 106, 0.08), transparent 50%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 40%);
 }
-button, select {
+button {
   font: inherit;
-  font-weight: 650;
-  color: var(--accent-ink);
-  background: var(--accent);
-  border: none;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 0.45rem 0.95rem;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
 }
-button { cursor: pointer; }
-:focus-visible { outline: 2px solid var(--intact); outline-offset: 2px; }
-.shell { max-width: 76rem; margin: 0 auto; padding: 1.1rem 1.4rem 3rem; }
+button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+}
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.shell {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.1rem 1.25rem 5.5rem;
+}
 .top {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding-bottom: 0.85rem;
+  padding-bottom: 0.9rem;
   border-bottom: 1px solid var(--line);
 }
-.brand { display: flex; align-items: center; gap: 0.75rem; }
-.logo {
-  width: 2.4rem;
-  height: 2.4rem;
-  display: grid;
-  place-items: center;
-  border: 1.5px solid var(--accent);
-  border-radius: 50%;
-  color: var(--accent);
+.brand { display: flex; align-items: baseline; gap: 0.55rem; }
+.word {
+  margin: 0;
+  font-size: 0.85rem;
   font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
-.word { margin: 0; font-weight: 650; letter-spacing: -0.03em; }
-h1 { margin: 0; font-size: 1.7rem; font-weight: 650; letter-spacing: -0.03em; }
-.actions { display: flex; align-items: center; gap: 0.6rem; }
+h1 {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.actions { display: flex; align-items: center; gap: 0.7rem; }
 .live {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   margin: 0;
   color: var(--muted);
+  font-size: 0.92rem;
 }
 .dot {
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--safe);
 }
 @media (prefers-reduced-motion: no-preference) {
-  .dot { animation: pulse 2s ease-in-out infinite; }
+  .dot { animation: pulse 2.2s ease-in-out infinite; }
 }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
 }
-.banner {
-  margin: 1rem 0 0;
-  padding: 0.85rem 0;
-  border-top: 2px solid var(--ink);
-  border-bottom: 1px solid var(--line);
-  font-size: 1.2rem;
+#theme {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink);
+  font-weight: 500;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
 }
-.ok { color: var(--intact); }
-.bad { color: var(--changed); }
-.check { margin: 0.8rem 0 0; font-weight: 650; }
+.board {
+  display: grid;
+  grid-template-columns: minmax(14rem, 17rem) minmax(14rem, 1fr) minmax(16rem, 22rem);
+  gap: 1.1rem;
+  margin-top: 1.15rem;
+  align-items: start;
+}
+.verdict, .rail, #home {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  padding: 1rem 1.05rem 1.1rem;
+}
+.verdict .banner {
+  margin: 0.55rem 0 0;
+  font-size: 1.2rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+.connection { margin: 0; font-weight: 600; font-size: 0.95rem; }
+.connection.on { color: var(--safe); }
+.connection.off { color: var(--muted); }
+.ok { color: var(--safe); }
+.bad { color: var(--danger); }
+.check { margin: 0.45rem 0 0; color: var(--muted); font-size: 0.88rem; }
+.warning {
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid var(--danger);
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+.warning strong { color: var(--danger); }
+.warning p { margin: 0.35rem 0 0; font-size: 0.9rem; }
+.alert-line { margin: 0.85rem 0 0; color: var(--muted); font-size: 0.9rem; }
+.rail h2, #home h2, #mcp-schema h2, #exchange h2 {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+.print-pad {
+  width: 100%;
+  aspect-ratio: 1 / 1.15;
+  border-radius: 0.55rem;
+  background: var(--pad);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.print { width: 88%; height: auto; display: block; }
+.ridge {
+  fill: none;
+  stroke: var(--ridge);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 800;
+  stroke-dashoffset: 800;
+  animation: draw 0.7s ease forwards;
+}
+.ridge.unusual { stroke: var(--danger); stroke-width: 2.6; }
+.ridge.broken {
+  stroke: var(--danger);
+  stroke-width: 2.4;
+  stroke-dasharray: 6 7;
+  stroke-dashoffset: 0;
+  animation: none;
+  opacity: 0.85;
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.legend {
+  margin: 0.65rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
 .stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.7rem;
-  margin-top: 1rem;
+  gap: 0.55rem;
 }
 .stat {
+  padding: 0.45rem 0.35rem;
+  border-radius: 0.5rem;
+  background: var(--surface-2);
+  text-align: center;
+}
+.stat b { display: block; font-size: 1.35rem; line-height: 1.1; font-weight: 650; }
+.stat span { color: var(--muted); font-size: 0.75rem; }
+details { margin-top: 0.85rem; }
+summary {
+  cursor: pointer;
+  font-weight: 650;
+  color: var(--accent);
+  list-style: none;
+}
+summary::-webkit-details-marker { display: none; }
+#home section { margin-top: 0.95rem; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+th, td {
+  text-align: left;
+  padding: 0.4rem 0.35rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+th { color: var(--muted); font-weight: 600; font-size: 0.78rem; }
+code, pre {
+  font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  font-size: 0.82rem;
+}
+.note, .empty { color: var(--muted); margin: 0.35rem 0 0; font-size: 0.88rem; }
+.demo-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+}
+#mcp-schema, #exchange {
+  margin-top: 1rem;
   background: var(--surface);
-  border-radius: 1rem;
-  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  padding: 1rem 1.05rem;
 }
-.stat b { display: block; font-size: 1.7rem; line-height: 1.1; }
-.stat span { color: var(--muted); }
-details { margin-top: 1rem; }
-summary { cursor: pointer; font-weight: 650; }
-.frame {
-  display: grid;
-  grid-template-columns: 16rem 1fr;
-  gap: 1.5rem;
-  align-items: start;
-  margin-top: 1.25rem;
+#exchange h3 { margin: 0.75rem 0 0.3rem; font-size: 0.9rem; }
+pre {
+  margin: 0;
+  padding: 0.7rem 0.75rem;
+  background: var(--pad);
+  border-radius: 0.5rem;
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  overflow-x: auto;
 }
-h2 { margin: 0 0 0.55rem; font-size: 1.15rem; font-weight: 650; }
-.rail {
-  position: sticky;
-  top: 0.75rem;
-  padding: 1rem 1rem 0.8rem;
-  background: var(--surface);
-  border-radius: 1.25rem;
-}
-.print { width: 100%; height: auto; display: block; }
-.ridge {
-  fill: none;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-dasharray: 520;
-  stroke-dashoffset: 520;
-  animation: draw 0.9s ease forwards;
-}
-.ridge.usual { stroke: var(--ink); }
-.ridge.unusual { stroke: #e10600; stroke-width: 3.5; }
-@keyframes draw { to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .ridge { animation: none; stroke-dashoffset: 0; }
   .dot { animation: none; }
 }
-.legend { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.9rem; }
-section { margin-top: 1.4rem; }
-section:first-child { margin-top: 0; }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--surface);
-  border-radius: 1rem;
-  overflow: hidden;
-}
-th, td {
-  text-align: left;
-  padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid var(--line);
-  vertical-align: top;
-}
-th { color: var(--muted); font-weight: 650; }
-code { font-family: "Cascadia Mono", ui-monospace, Consolas, monospace; font-size: 0.85em; }
-.note, .empty { color: var(--muted); margin: 0.3rem 0 0; }
-@media (max-width: 800px) {
-  .shell { padding: 1rem 0.85rem 2rem; }
-  .top { display: block; }
-  .actions { margin-top: 0.7rem; }
+@media (max-width: 960px) {
+  .board { grid-template-columns: 1fr; }
+  .shell { padding-bottom: 7rem; }
   .stats { grid-template-columns: 1fr 1fr; }
-  .frame { grid-template-columns: 1fr; }
-  .rail { position: static; }
+}
+@media (max-width: 640px) {
+  .top { flex-direction: column; align-items: flex-start; }
   table, tbody, tr, td { display: block; width: 100%; }
   thead {
     position: absolute;
@@ -184,13 +297,13 @@ code { font-family: "Cascadia Mono", ui-monospace, Consolas, monospace; font-siz
     overflow: hidden;
     clip: rect(0 0 0 0);
   }
-  tr { border-bottom: 1px solid var(--line); padding: 0.4rem 0.7rem 0.5rem; }
-  td { border: none; padding: 0.12rem 0; }
+  tr { border-bottom: 1px solid var(--line); padding: 0.35rem 0; }
+  td { border: none; padding: 0.1rem 0; }
   td::before {
     content: attr(data-label);
     display: block;
     color: var(--muted);
-    font-size: 0.82rem;
+    font-size: 0.75rem;
   }
 }
 """
@@ -208,12 +321,13 @@ _SCRIPT = """
   function applyTheme(mode) {
     if (mode === "light") root.setAttribute("data-theme", "light");
     else root.removeAttribute("data-theme");
-    button.textContent = root.getAttribute("data-theme") === "light" ? "Teal theme" : "Pearl theme";
+    button.textContent = root.getAttribute("data-theme") === "light"
+      ? "Steel theme" : "Pearl theme";
   }
   applyTheme(savedTheme());
   button.addEventListener("click", function () {
-    var next = root.getAttribute("data-theme") === "light" ? "teal" : "light";
-    try { localStorage.setItem("cim-theme", next === "light" ? "light" : "teal"); } catch (e) {}
+    var next = root.getAttribute("data-theme") === "light" ? "steel" : "light";
+    try { localStorage.setItem("cim-theme", next === "light" ? "light" : "steel"); } catch (e) {}
     applyTheme(next);
   });
   function node(tag, className, text) {
@@ -244,14 +358,14 @@ _SCRIPT = """
     p.id = "status";
     if (data.empty) {
       p.appendChild(document.createTextNode("Nothing recorded yet. Start one with "));
-      var code = node("code", "", "cim proxy --db store.sqlite -- <server command>");
-      p.appendChild(code);
+      p.appendChild(node("code", "", "cim proxy --db store.sqlite -- <server command>"));
       p.appendChild(document.createTextNode(" or load a tool list with "));
       p.appendChild(node("code", "", "cim inventory"));
       p.appendChild(document.createTextNode("."));
       return p;
     }
     var strong = node("strong", data.chain_ok ? "ok" : "bad");
+    // Split so empty/broken first-paint tests do not match this script source.
     strong.textContent = data.chain_ok ? "Record is " + "safe" : "Record was " + "changed";
     p.appendChild(strong);
     if (!data.chain_ok) {
@@ -280,21 +394,55 @@ _SCRIPT = """
   var pumping = false;
   function signature(data) {
     return data.links.map(function (link) { return link.record_id; }).join(",") +
-      "|" + data.chain_ok + "|" + data.changes.length;
+      "|" + data.chain_ok + "|" + data.broken_at + "|" + data.changes.length +
+      "|" + data.connected + "|" + data.alerts.length;
   }
   function refresh(data) {
     var sig = signature(data);
     if (sig === seen) return;
     seen = sig;
+    var conn = document.getElementById("connection");
+    if (conn) conn.replaceWith(connectionLine(data));
     var status = document.getElementById("status");
     if (status) status.replaceWith(headline(data));
     var check = document.querySelector(".check");
     if (check) check.replaceWith(selfCheck(data));
+    var warnings = document.getElementById("warnings");
+    if (warnings) warnings.replaceWith(alertLine(data));
     var home = document.getElementById("home");
     if (!home) return;
     home.replaceChildren();
     home.appendChild(stats(data));
     home.appendChild(detailList(data));
+    showSchema(data);
+  }
+  function connectionLine(data) {
+    var connected = data.connected === true;
+    var p = node("p", connected ? "connection on" : "connection off");
+    p.id = "connection";
+    if (connected) {
+      var names = data.tools.slice(0, 3).map(function (tool) { return tool.name; }).join(", ");
+      var more = data.tools.length > 3 ? " and " + (data.tools.length - 3) + " more" : "";
+      p.textContent = "Connected. " + names + more + ".";
+    } else if (data.tools.length || data.record_count) {
+      p.textContent = "Disconnected. Clear and start again to reconnect.";
+    } else {
+      p.textContent = "Not connected. Connect an MCP to begin.";
+    }
+    var use = document.getElementById("call-normal");
+    var changed = document.getElementById("call-new");
+    var connect = document.getElementById("call-connect");
+    var tamper = document.getElementById("call-tamper");
+    var clear = document.getElementById("call-clear");
+    if (use) use.disabled = !connected;
+    if (changed) changed.disabled = !connected;
+    if (tamper) tamper.disabled = !connected || data.record_count < 2;
+    if (connect) connect.disabled = connected || data.record_count > 0;
+    if (clear) clear.disabled = data.record_count < 1 && !data.tools.length;
+    if (connect) connect.classList.toggle("primary", !connected && data.record_count < 1);
+    if (use) use.classList.toggle("primary", connected);
+    if (clear) clear.classList.toggle("primary", !connected && data.record_count > 0);
+    return p;
   }
   function stat(value, label) {
     var box = node("div", "stat");
@@ -307,11 +455,50 @@ _SCRIPT = """
     wrap.appendChild(stat(data.tools.length, "Tools"));
     wrap.appendChild(stat(data.calls.length, "Calls"));
     wrap.appendChild(stat(data.changes.length, "Changes"));
-    wrap.appendChild(stat(data.changes.length ? "Yes" : "No", "New pattern"));
+    wrap.appendChild(stat(data.alerts.length, "Alerts"));
     return wrap;
+  }
+  function alertLine(data) {
+    var i;
+    if (!data.chain_ok) {
+      var where = data.broken_at == null ? "unknown" : String(data.broken_at);
+      var box = node("div", "warning");
+      box.id = "warnings";
+      box.setAttribute("role", "status");
+      box.appendChild(node("strong", "", "Warning. "));
+      box.appendChild(document.createTextNode("An old log was changed. MCP disconnected."));
+      box.appendChild(node(
+        "p",
+        "",
+        "Entry " + where + " no longer matches. Each later entry depends on the " +
+        "fingerprint before it, so the rest of the chain cannot be trusted."
+      ));
+      return box;
+    }
+    var drift = null;
+    for (i = 0; i < data.alerts.length; i++) {
+      if (data.alerts[i].code === "mcp_behaviour_drift") {
+        drift = data.alerts[i];
+        break;
+      }
+    }
+    if (!drift) {
+      var quiet = node("p", "alert-line", "No behaviour alert.");
+      quiet.id = "warnings";
+      return quiet;
+    }
+    var warn = node("div", "warning");
+    warn.id = "warnings";
+    warn.setAttribute("role", "status");
+    warn.appendChild(node("strong", "", "Warning. "));
+    warn.appendChild(document.createTextNode("Strange behaviour detected. MCP disconnected."));
+    warn.appendChild(node("p", "", "Input change: " + (drift.input_change || "")));
+    warn.appendChild(node("p", "", "Output change: " + (drift.output_change || "")));
+    return warn;
   }
   function detailList(data) {
     var box = document.createElement("details");
+    box.open = true;
     var summary = document.createElement("summary");
     summary.textContent = "See the list";
     box.appendChild(summary);
@@ -323,50 +510,63 @@ _SCRIPT = """
   }
   function selfCheck(data) {
     if (data.empty) return node("p", "check", "Waiting for a session.");
-    if (!data.chain_ok) return node("p", "check bad", "Record check failed.");
+    if (!data.chain_ok) {
+      var where = data.broken_at == null ? "unknown" : String(data.broken_at);
+      return node(
+        "p",
+        "check bad",
+        "Record check failed at entry " + where + ". Later entries no longer match the line."
+      );
+    }
     return node(
       "p",
       "check ok",
       "Record check passed. " + data.record_count + " entries checked."
     );
   }
-  function shapeOf(label) {
-    var hash = 0;
+  function curve(_label, stack, unusual) {
+    var pts = [];
+    var steps = 56;
     var i;
-    for (i = 0; i < label.length; i++) hash = (hash * 33 + label.charCodeAt(i)) % 997;
-    return hash;
+    var a = 22 + stack * 8;
+    var b = 30 + stack * 10;
+    for (i = 0; i <= steps; i++) {
+      var t = -2.6 + (5.2 * i / steps);
+      var wave = unusual ? 1 : 1 + 0.035 * Math.sin(t * 8 + stack);
+      var x = 110 + Math.cos(t) * a * wave;
+      var y = 118 + Math.sin(t) * b * wave;
+      if (unusual) {
+        x = 110 + Math.cos(t * 0.65) * (a * 0.9);
+        y = 78 + Math.sin(t) * (12 + stack * 3);
+      }
+      pts.push((i === 0 ? "M " : " L ") + x.toFixed(1) + " " + y.toFixed(1));
+    }
+    return pts.join("");
   }
-  function curve(label, stack, unusual) {
-    var hash = shapeOf(label);
-    var shift = stack * 5;
-    var x0 = 28 + (hash % 36) + shift;
-    var y0 = unusual ? 200 : 36 + (hash % 24);
-    var x1 = 188 - (hash % 28);
-    var y1 = unusual ? 36 : 196 - (hash % 20);
-    var c1 = unusual ? 24 : 48 + (hash % 70);
-    var c2 = unusual ? 196 : 150 - (hash % 40);
-    return "M " + x0 + " " + y0 +
-      " C " + c1 + " " + (unusual ? 170 : 20) +
-      ", " + c2 + " " + (unusual ? 30 : 210) +
-      ", " + (x1 + shift) + " " + y1;
-  }
-  function paintLine(link, stack, unusual) {
+  function paintLine(link, stack, unusual, broken) {
     var svg = document.getElementById("print");
     if (!svg) return;
     var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("class", unusual ? "ridge unusual" : "ridge usual");
-    path.setAttribute("d", curve(link.label, stack, unusual));
+    var klass = "ridge usual";
+    if (broken) klass = "ridge broken";
+    else if (unusual) klass = "ridge unusual";
+    path.setAttribute("class", klass);
+    path.setAttribute("d", curve(link.label, stack, unusual || broken));
     svg.appendChild(path);
     var legend = document.getElementById("print-legend");
     if (legend) {
-      legend.textContent = (unusual ? "New pattern: " : "Same as before: ") + link.label;
+      if (broken) {
+        legend.textContent = "Broken link from entry " + link.record_id + ": " + link.label;
+      }
+      else if (unusual) legend.textContent = "New pattern: " + link.label;
+      else legend.textContent = "Same print: " + link.label;
     }
   }
   function pump() {
     if (pumping || !lineQueue.length) return;
     pumping = true;
     var item = lineQueue.shift();
-    paintLine(item.link, item.stack, item.unusual);
+    paintLine(item.link, item.stack, item.unusual, item.broken);
     setTimeout(function () {
       pumping = false;
       pump();
@@ -374,15 +574,23 @@ _SCRIPT = """
   }
   function growPrint(data) {
     var stack = {};
-    data.links.forEach(function (link) {
+    var breakAt = data.chain_ok ? null : data.broken_at;
+    data.links.forEach(function (link, index) {
       var unusual = link.mark === "change" || link.mark === "alert";
       var call = link.mark === "call";
-      if (!call && !unusual) return;
-      var placed = stack[link.label] || 0;
-      if (call) stack[link.label] = placed + 1;
+      var broken = breakAt != null && link.record_id >= breakAt;
+      var next = data.links[index + 1];
+      if (call && next && next.mark === "alert" && !broken) {
+        drawn[link.record_id] = true;
+        return;
+      }
+      if (!call && !unusual && !broken) return;
+      var key = broken ? "broken" : unusual ? "new" : link.label;
+      var placed = stack[key] || 0;
+      stack[key] = placed + 1;
       if (drawn[link.record_id]) return;
       drawn[link.record_id] = true;
-      lineQueue.push({ link: link, stack: call ? placed : 0, unusual: unusual });
+      lineQueue.push({ link: link, stack: placed, unusual: unusual, broken: broken });
     });
     pump();
   }
@@ -403,7 +611,7 @@ _SCRIPT = """
       tr.appendChild(cell("Server", alert.code));
       tr.appendChild(cell("Tool", ""));
       tr.appendChild(cell("What changed", alert.detail));
-      return rows.push(tr);
+      rows.push(tr);
     });
     if (!rows.length) section.appendChild(node("p", "empty", "Nothing has changed."));
     else section.appendChild(table(["When", "Server", "Tool", "What changed"], rows));
@@ -482,6 +690,33 @@ _SCRIPT = """
     ));
     return section;
   }
+  function showSchema(data) {
+    var box = document.getElementById("schema-body");
+    if (!box) return;
+    if (!data.tools || !data.tools.length) {
+      box.textContent = "Not connected.";
+      return;
+    }
+    box.textContent = data.tools.map(function (tool) {
+      return tool.schema || tool.name;
+    }).join("\\n\\n");
+  }
+  function showCall(data) {
+    var box = document.getElementById("exchange");
+    if (!box) return;
+    box.hidden = false;
+    document.getElementById("ex-schema").textContent = JSON.stringify(data.schema, null, 2);
+    document.getElementById("ex-input").textContent = JSON.stringify(data.input, null, 2);
+    document.getElementById("ex-output").textContent = JSON.stringify(data.output, null, 2);
+  }
+  function resetPrint() {
+    drawn = {};
+    lineQueue = [];
+    pumping = false;
+    var svg = document.getElementById("print");
+    if (svg) while (svg.firstChild) svg.removeChild(svg.firstChild);
+    seen = "";
+  }
   function tick() {
     fetch("/api/board", { cache: "no-store" })
       .then(function (response) { return response.json(); })
@@ -492,15 +727,51 @@ _SCRIPT = """
       })
       .catch(function () { live.textContent = "Paused"; });
   }
+  function callTool(action) {
+    fetch("/api/call", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: action })
+    })
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        if (data.schema !== undefined) showCall(data);
+        if (data.cleared) {
+          resetPrint();
+          var box = document.getElementById("exchange");
+          if (box) box.hidden = true;
+        } else if (data.tampered || data.unusual) {
+          resetPrint();
+        }
+        tick();
+      })
+      .catch(function () { live.textContent = "Paused"; });
+  }
   tick();
   setInterval(tick, 2000);
+  document.getElementById("call-connect").addEventListener("click", function () {
+    callTool("connect");
+  });
+  document.getElementById("call-normal").addEventListener("click", function () {
+    callTool("call");
+  });
+  document.getElementById("call-new").addEventListener("click", function () {
+    callTool("change");
+  });
+  document.getElementById("call-tamper").addEventListener("click", function () {
+    callTool("tamper");
+  });
+  document.getElementById("call-clear").addEventListener("click", function () {
+    callTool("clear");
+  });
 })();
 </script>
 """
 
 
-def render_page(board: Board) -> str:
+def render_page(board: Board, *, connected: bool | None = None) -> str:
     """Return a full HTML document. Store values in the first paint are escaped."""
+    live = bool(board.tools) if connected is None else connected
     parts = [
         "<!DOCTYPE html>",
         '<html lang="en">',
@@ -519,18 +790,47 @@ def render_page(board: Board) -> str:
         '<div class="shell">',
         '<header class="top">',
         '<div class="brand">',
-        '<span class="logo">C</span>',
-        "<div>",
         '<p class="word">CIM</p>',
         "<h1>Monitor</h1>",
-        "</div>",
         "</div>",
         '<div class="actions">',
         '<p class="live"><i class="dot"></i><span id="live-state">Live</span></p>',
         '<button type="button" id="theme">Pearl theme</button>',
         "</div>",
         "</header>",
-        f'<div id="live" data-sig="{_e(_signature(board))}">{_body(board)}</div>',
+        f'<div id="live" data-sig="{_e(_signature(board, live))}">{_body(board, live)}</div>',
+        '<section id="mcp-schema">',
+        "<h2>MCP schema</h2>",
+        f'<pre id="schema-body">{_schema_body(board)}</pre>',
+        "</section>",
+        '<section id="exchange" hidden>',
+        "<h2>Last call</h2>",
+        "<h3>Schema</h3>",
+        '<pre id="ex-schema"></pre>',
+        "<h3>Input</h3>",
+        '<pre id="ex-input"></pre>',
+        "<h3>Output</h3>",
+        '<pre id="ex-output"></pre>',
+        "</section>",
+        "</div>",
+        '<div class="demo-bar" aria-label="Demo controls">',
+        (
+            f'<button type="button" id="call-connect"'
+            f"{_connect_attrs(board, live)}>Connect MCP</button>"
+        ),
+        (
+            f'<button type="button" id="call-normal"{_action_disabled(live)}'
+            f"{_primary(live)}>Use the tool</button>"
+        ),
+        f'<button type="button" id="call-new"{_action_disabled(live)}>Use it in a new way</button>',
+        (
+            f'<button type="button" id="call-tamper"'
+            f"{_tamper_disabled(board, live)}>Change a past log</button>"
+        ),
+        (
+            f'<button type="button" id="call-clear"'
+            f"{_clear_attrs(board, live)}>Clear and start again</button>"
+        ),
         "</div>",
         _SCRIPT,
         "</body>",
@@ -539,31 +839,95 @@ def render_page(board: Board) -> str:
     return "\n".join(parts)
 
 
-def _body(board: Board) -> str:
+def _body(board: Board, connected: bool) -> str:
     return (
-        f"{_headline(board)}{_self_check(board)}"
-        '<div class="frame">'
+        '<div class="board">'
+        '<aside class="verdict">'
+        f"{_connection(board, connected)}{_headline(board)}{_self_check(board)}"
+        f'<div id="warnings">{_alert_inner(board)}</div>'
+        "</aside>"
         f"{_rail(board)}"
         '<div id="home">'
         f"{_stats(board)}"
-        "<details><summary>See the list</summary>"
+        "<details open><summary>See the list</summary>"
         f"{_changes(board)}{_tools(board)}{_calls(board)}{_patterns(board)}"
         "</details></div></div>"
     )
 
 
+def _alert_inner(board: Board) -> str:
+    """Inner HTML for #warnings (wrapper already has the id)."""
+    if not board.chain_ok:
+        where = "unknown" if board.broken_at is None else str(board.broken_at)
+        return (
+            '<div class="warning" role="status"><strong>Warning.</strong> '
+            "An old log was changed. MCP disconnected."
+            f"<p>Entry {where} no longer matches. Each later entry depends on the "
+            "fingerprint before it, so the rest of the chain cannot be trusted.</p></div>"
+        )
+    drift = next((alert for alert in board.alerts if alert.code == "mcp_behaviour_drift"), None)
+    if drift is None:
+        return '<p class="alert-line">No behaviour alert.</p>'
+    return (
+        '<div class="warning" role="status"><strong>Warning.</strong> '
+        "Strange behaviour detected. MCP disconnected."
+        f"<p>Input change: {_e(drift.input_change)}</p>"
+        f"<p>Output change: {_e(drift.output_change)}</p></div>"
+    )
+
+
+def _schema_body(board: Board) -> str:
+    blocks = [tool.schema for tool in board.tools if tool.schema]
+    if not blocks:
+        return "Not connected."
+    return _e("\n\n".join(blocks))
+
+
 def _stats(board: Board) -> str:
-    new = "Yes" if board.changes else "No"
     cards = (
         (len(board.tools), "Tools"),
         (len(board.calls), "Calls"),
         (len(board.changes), "Changes"),
-        (new, "New pattern"),
+        (len(board.alerts), "Alerts"),
     )
     body = "".join(
         f'<div class="stat"><b>{value}</b><span>{label}</span></div>' for value, label in cards
     )
     return f'<div class="stats">{body}</div>'
+
+
+def _primary(on: bool) -> str:
+    return ' class="primary"' if on else ""
+
+
+def _action_disabled(connected: bool) -> str:
+    return "" if connected else " disabled"
+
+
+def _connect_attrs(board: Board, connected: bool) -> str:
+    disabled = " disabled" if connected or board.record_count > 0 else ""
+    return f"{disabled}{_primary(not connected and board.record_count < 1)}"
+
+
+def _clear_attrs(board: Board, connected: bool) -> str:
+    empty = board.record_count < 1 and not board.tools
+    disabled = " disabled" if empty else ""
+    return f"{disabled}{_primary(not connected and board.record_count > 0)}"
+
+
+def _connection(board: Board, connected: bool) -> str:
+    if connected:
+        shown = ", ".join(tool.name for tool in board.tools[:3])
+        more = ""
+        if len(board.tools) > 3:
+            more = f" and {len(board.tools) - 3} more"
+        return f'<p id="connection" class="connection on">Connected. {_e(shown)}{more}.</p>'
+    if board.tools or board.record_count:
+        return (
+            '<p id="connection" class="connection off">'
+            "Disconnected. Clear and start again to reconnect.</p>"
+        )
+    return '<p id="connection" class="connection off">Not connected. Connect an MCP to begin.</p>'
 
 
 def _headline(board: Board) -> str:
@@ -592,17 +956,30 @@ def _headline(board: Board) -> str:
     )
 
 
-def _signature(board: Board) -> str:
+def _signature(board: Board, connected: bool) -> str:
     ids = ",".join(str(link.record_id) for link in board.links)
-    return f"{ids}|{board.chain_ok}|{len(board.changes)}"
+    return (
+        f"{ids}|{board.chain_ok}|{board.broken_at}|{len(board.changes)}|"
+        f"{connected}|{len(board.alerts)}"
+    )
 
 
 def _self_check(board: Board) -> str:
     if board.empty:
         return '<p class="check">Waiting for a session.</p>'
     if not board.chain_ok:
-        return '<p class="check bad">Record check failed.</p>'
+        where = "unknown" if board.broken_at is None else str(board.broken_at)
+        return (
+            f'<p class="check bad">Record check failed at entry {where}. '
+            "Later entries no longer match the line.</p>"
+        )
     return f'<p class="check ok">Record check passed. {board.record_count} entries checked.</p>'
+
+
+def _tamper_disabled(board: Board, connected: bool) -> str:
+    if not connected or board.record_count < 2:
+        return " disabled"
+    return ""
 
 
 def _rail(board: Board) -> str:
@@ -611,8 +988,10 @@ def _rail(board: Board) -> str:
         waiting = "Nothing here yet."
     return (
         '<aside class="rail"><h2>Activity pattern</h2>'
-        '<svg id="print" class="print" viewBox="0 0 220 240" role="img" '
+        '<div class="print-pad">'
+        '<svg id="print" class="print" viewBox="0 0 220 260" role="img" '
         'aria-label="Fingerprint forming"></svg>'
+        "</div>"
         f'<p class="legend" id="print-legend">{waiting}</p></aside>'
     )
 

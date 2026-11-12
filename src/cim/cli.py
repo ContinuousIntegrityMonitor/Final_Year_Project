@@ -17,6 +17,7 @@ from cim.dashboard.page import render_page
 from cim.dashboard.serve import make_server
 from cim.mcp.drift import diff_tools, pinned_tools, record_drift
 from cim.mcp.envelope import envelopes
+from cim.mcp.http_gateway import load_gateway_config, run_gateway
 from cim.mcp.inventory import load_tools_list, write_inventory
 from cim.mcp.proxy import ProxyConfig, run_proxy
 
@@ -142,6 +143,34 @@ def proxy(
     if db is not None:
         config = dataclasses.replace(config, db=db)
     raise typer.Exit(code=run_proxy(command, config, sys.stdin.buffer, sys.stdout.buffer))
+
+
+@app.command("http-gateway")
+def http_gateway(
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help="JSON routes file (see config/cursor-http-gateway.json)",
+        ),
+    ],
+    db: Annotated[
+        Path | None,
+        typer.Option("--db", help="Baseline store path (overrides config db)"),
+    ] = None,
+    host: Annotated[str | None, typer.Option("--host")] = None,
+    port: Annotated[int | None, typer.Option("--port", min=1, max=65535)] = None,
+) -> None:
+    """Proxy Cursor URL / Streamable-HTTP MCPs into the baseline store (T-16b).
+
+    Point Cursor at http://127.0.0.1:<port>/s/<server-id> instead of the real URL.
+    Authorization headers are forwarded and never logged.
+    """
+    loaded = load_gateway_config(config, db=db, host=host, port=port)
+    raise typer.Exit(code=run_gateway(loaded))
 
 
 @app.command("sweep")
