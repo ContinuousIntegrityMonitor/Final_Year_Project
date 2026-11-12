@@ -91,6 +91,7 @@ Checklist for you: accept / change / reject each row. Hamza will not edit `commo
 | T-05 skills lab / corpus | IP (skeleton PR #6 on main) | Finish runner + corpus acceptance |
 | T-08 skills artefact inventory | Blocked on T-06 (+ T-05) | After #163 merges, mirror T-07 pattern for skills |
 | T-10 / T-11 | Later | After T-08 |
+| Final dashboard research | **New 12 Nov 2026** | Read [`docs/FASIH_DASHBOARD_RESEARCH.md`](FASIH_DASHBOARD_RESEARCH.md): form factor, section IA, auto-disconnect (skills + MCP). Research only — do not build UI or quarantine yet. |
 
 ---
 

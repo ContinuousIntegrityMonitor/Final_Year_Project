@@ -5,6 +5,7 @@
 - **Milestone:** December 2026 demo (C1–C6) — not yet achieved
 - **Local tests:** `uv run pytest -q` passed on 2026-11-09 (Windows, project venv on D:)
 - **Fasih review queue:** [`docs/FASIH_REVIEW.md`](docs/FASIH_REVIEW.md) — no reply yet
+- **Fasih dashboard research:** [`docs/FASIH_DASHBOARD_RESEARCH.md`](docs/FASIH_DASHBOARD_RESEARCH.md) — form factor, sections, auto-disconnect (research only)
 
 ## Remotes
 
@@ -32,15 +33,15 @@
 
 | Task | Summary | Status |
 |------|---------|--------|
-| T-16 | Behaviour alerts | MCP half in progress: live path = Cursor Playwright through `cim proxy` (`docs/setup/cursor-playwright-cim.md`). Skills half waits on Fasih. |
-| T-16b | HTTP MCP gateway | **Code landed 2026-11-12** (`cim http-gateway`). Live warm-up + OAuth env tokens still open. How-to: `docs/setup/cursor-http-mcp-gateway.md`. |
+| T-16 | Behaviour alerts | MCP half **live done** 12 Nov 2026 (Playwright + HTTP demo). Skills half waits on Fasih. |
+| T-16b | HTTP MCP gateway | **Code + live warm-up done** 12 Nov 2026. OAuth `CIM_MCP_AUTH_*` wrap still optional. How-to: `docs/setup/cursor-http-mcp-gateway.md`. |
+| Dashboard product | Final UI research (Fasih) | Brief filed 12 Nov 2026. Current board stays demo-only until research lands. |
 
 ## Next (MCP / Hamza)
 
-1. Reload Cursor MCP for Playwright; run dashboard on `logs/cursor-playwright.sqlite`; warm-up 30+ calls; show one live behaviour alert (C4 step).
-2. Start `cim http-gateway`; reload URL MCPs; prove one URL server on `logs/cursor-http.sqlite` (Graphiti first if local).
-3. VM-MON: one HexStrike session through `cim proxy` (graded lab).
-4. Fasih: skills envelope / skills half of T-16 / T-13 `cim status` when he pushes.
+1. VM-MON: one HexStrike session through `cim proxy` (graded lab).
+2. Optional: OAuth URL MCPs via gateway (`CIM_MCP_AUTH_*`).
+3. Fasih: skills envelope / T-16 skills half / T-13 `cim status`, plus dashboard research in `docs/FASIH_DASHBOARD_RESEARCH.md`.
 
 ## Decisions index
 
