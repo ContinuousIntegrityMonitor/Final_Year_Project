@@ -170,10 +170,15 @@ def test_timeout_reports_no_leak_and_keeps_output(tmp_path: Path) -> None:
 
 @pytest.mark.usefixtures("needs_scope")
 def test_non_utf8_output_and_comm_do_not_crash(tmp_path: Path) -> None:
+    # A script run through its shebang takes the script's file name as its process name.
+    # (Copying a coreutils binary under that name does not work where coreutils is one
+    # multi-call binary that dispatches on its own name.)
     body = (
         "printf '\\377\\376 ok\\n'\n"
-        "cp /usr/bin/sleep \"$HOME/$(printf 'bad\\377name')\"\n"
-        "\"$HOME/$(printf 'bad\\377name')\" 0.3\n"
+        "f=\"$HOME/$(printf 'bad\\377name')\"\n"
+        "printf '#!/bin/sh\\nsleep 0.3\\nexit 0\\n' > \"$f\"\n"
+        'chmod +x "$f"\n'
+        '"$f"\n'
     )
     skill, script = make_skill(tmp_path, "binary", body)
     out = run_script_scoped(skill, script)
