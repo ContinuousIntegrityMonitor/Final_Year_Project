@@ -15,6 +15,7 @@ from cim.common.store import BaselineStore
 from cim.skills.__main__ import main
 from cim.skills.corpus import default_root, load_manifest
 from cim.skills.inventory import (
+    SweepResult,
     known_skills,
     skill_roots,
     sweep,
@@ -156,6 +157,16 @@ def test_new_and_removed_skills(store: BaselineStore, root: Path) -> None:
         ("gamma", "create", "scripts/run.sh"),
     ]
     assert len(records(store, "artefact")) == 4  # alpha, beta, gamma, delta: one each
+
+
+def test_first_sweep_on_an_empty_store_only_baselines(tmp_path: Path, root: Path) -> None:
+    with BaselineStore(tmp_path / "fresh.sqlite") as fresh:
+        result = sweep(fresh, [root], ts=TS)
+        assert result.new_skills == ("alpha", "beta", "gamma")
+        assert result.events == ()
+        assert len(records(fresh, "artefact")) == 3
+        assert records(fresh, "integrity") == []
+        assert sweep(fresh, [root], ts=LATER) == SweepResult((), ())
 
 
 def test_state_survives_reopening_the_store(

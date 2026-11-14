@@ -213,12 +213,16 @@ def sweep(
 ) -> SweepResult:
     """Compare the skills on disk with the store and record every difference.
 
-    A skill the store has never seen gets a baseline and a `create` event per file. A skill
-    that is gone gets a `delete` event per file. A sweep with nothing to report writes nothing.
+    A skill the store has never seen gets a baseline. If the store already held skill
+    baselines, the skill appeared after monitoring began, so it also gets a `create` event
+    per file; on a store with no skill baselines the sweep is the first inventory and only
+    baselines. A skill that is gone gets a `delete` event per file. A sweep with nothing to
+    report writes nothing.
     """
     stamp = ts or utc_now()
     current = take_inventory(roots)
     known = known_skills(store)
+    first_inventory = not known
     new_skills: list[str] = []
     events: list[SkillIntegrityPayload] = []
     with store.transaction():
@@ -230,6 +234,8 @@ def sweep(
                 assert payload is not None
                 skill = _write_baseline(store, payload, origin, stamp)
                 new_skills.append(skill_id)
+                if first_inventory:
+                    continue
             on_disk = {item.path: item.sha256 for item in payload.files} if payload else {}
             for event in diff_files(skill_id, before, on_disk):
                 _append(store, skill.artefact_id, "integrity", event, stamp)
