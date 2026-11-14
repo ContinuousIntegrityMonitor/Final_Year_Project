@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from cim.common.chain import compute_record_hash
-from cim.common.schema import SCHEMA_VERSION
+from cim.common.schema import CONTRACT_VERSION, SCHEMA_VERSION
 from cim.common.schema.canonical import canonical_json
 from cim.common.schema.envelope import Artefact, Event
 
@@ -93,6 +93,47 @@ def test_mcp_server_artefact_round_trip() -> None:
 
 def test_schema_version_matches_constant() -> None:
     assert skill_event(BEHAVIOUR).schema_version == SCHEMA_VERSION
+
+
+def test_contract_revision_belongs_to_the_schema_version() -> None:
+    assert CONTRACT_VERSION.split(".")[0] == str(SCHEMA_VERSION)
+
+
+@pytest.mark.parametrize(
+    "ts", ["2026-13-01T00:00:00Z", "2026-02-30T00:00:00Z", "2026-01-01T99:99:99Z"]
+)
+def test_impossible_timestamp_rejected(ts: str) -> None:
+    with pytest.raises(ValidationError):
+        Event(
+            ts=ts,
+            artefact=Artefact(type="skill", skill="pdf-tools"),
+            kind="behaviour",
+            payload=BEHAVIOUR,
+        )
+
+
+@pytest.mark.parametrize(
+    "ids",
+    [
+        {"type": "skill", "skill": "a", "server": "x"},
+        {"type": "skill", "skill": "a", "tool": "t"},
+        {"type": "mcp_server", "server": "x", "tool": "t"},
+        {"type": "mcp_tool", "server": "x", "tool": "t", "skill": "a"},
+    ],
+)
+def test_artefact_rejects_identifiers_of_another_type(ids: dict[str, str]) -> None:
+    with pytest.raises(ValidationError, match="must not set"):
+        Artefact.model_validate(ids)
+
+
+def test_payload_text_that_cannot_be_hashed_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="lone surrogate"):
+        Event(
+            ts=TS,
+            artefact=Artefact(type="skill", skill="pdf-tools"),
+            kind="alert",
+            payload={"detail": "\ud800"},
+        )
 
 
 def test_bad_timestamp_rejected() -> None:

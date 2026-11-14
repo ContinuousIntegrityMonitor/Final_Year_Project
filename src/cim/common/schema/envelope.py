@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from cim.common.schema.canonical import canonical_json
 from cim.common.schema.mcp import (
@@ -37,6 +38,8 @@ _REQUIRED_IDS: dict[str, tuple[str, ...]] = {
     "mcp_server": ("server",),
     "mcp_tool": ("server", "tool"),
 }
+_ID_FIELDS = ("server", "tool", "skill")
+_TS_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 class Artefact(BaseModel):
@@ -49,9 +52,13 @@ class Artefact(BaseModel):
 
     @model_validator(mode="after")
     def _check_ids(self) -> Self:
-        missing = [f for f in _REQUIRED_IDS[self.type] if getattr(self, f) is None]
+        required = _REQUIRED_IDS[self.type]
+        missing = [f for f in required if getattr(self, f) is None]
         if missing:
             raise ValueError(f"artefact type {self.type!r} requires: {', '.join(missing)}")
+        stray = [f for f in _ID_FIELDS if f not in required and getattr(self, f) is not None]
+        if stray:
+            raise ValueError(f"artefact type {self.type!r} must not set: {', '.join(stray)}")
         return self
 
 
@@ -63,6 +70,12 @@ class Event(BaseModel):
     artefact: Artefact
     kind: Kind
     payload: dict[str, Any]
+
+    @field_validator("ts")
+    @classmethod
+    def _check_ts(cls, value: str) -> str:
+        datetime.strptime(value, _TS_FORMAT)  # the pattern fixes the shape; this rejects 99:99:99
+        return value
 
     @model_validator(mode="after")
     def _check_payload(self) -> Self:
