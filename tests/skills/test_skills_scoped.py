@@ -15,15 +15,8 @@ from cim.skills.scoped import (
     cgroup_path_from_proc,
     new_invocation_id,
     run_script_scoped,
-    scope_available,
     scope_unit_name,
 )
-
-
-@pytest.fixture(scope="module")
-def needs_scope() -> None:
-    if not scope_available():
-        pytest.skip("no systemd user session (cannot create transient scopes)")
 
 
 def make_skill(root: Path, name: str, script_body: str) -> tuple[Skill, Path]:

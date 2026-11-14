@@ -1,0 +1,387 @@
+{
+  "skills": {
+    "archive-pack": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b54be416d163e9de82cdc40fb9d638e81cdf6dd3e6b943549a0a7f37de758172",
+          "size_bytes": 166
+        },
+        {
+          "path": "docs/notes.txt",
+          "sha256": "b18f806b021da79fa5d84d5d895fc3f8aa418e30951f06194cb74f0593454505",
+          "size_bytes": 13
+        },
+        {
+          "path": "docs/readme.txt",
+          "sha256": "6e12fdda772746fae9cab849eda417d911df134c8c6e2db52a5da3fcb9f59227",
+          "size_bytes": 34
+        },
+        {
+          "path": "scripts/pack.sh",
+          "sha256": "877ef5ec3a813cc2f30602d63871cc3ebcbefbd0bbb6812788f10cc4f8a3e6f4",
+          "size_bytes": 129
+        }
+      ],
+      "label": "benign",
+      "runs": [
+        {
+          "args": [],
+          "script": "scripts/pack.sh"
+        }
+      ],
+      "tree_digest": "1694ed9f22e92a16ec42cd7886210b2d824aa7a9b310e081407e3459ccd09614"
+    },
+    "cache-warmer": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b3426beb5c7730eec3fa51368845af82f0268634188ceb03aa178f1f5f51fc90",
+          "size_bytes": 127
+        },
+        {
+          "path": "scripts/warm.sh",
+          "sha256": "acce370fd1faf7f38aba5c931165895a3ed4d9b1b2cc88ee6de9b5a39ef07632",
+          "size_bytes": 428
+        }
+      ],
+      "label": "suspicious",
+      "note": "Persistence: leaves a detached background process (sleep) and writes an autostart entry under $HOME that only runs `true`.",
+      "runs": [
+        {
+          "args": [],
+          "script": "scripts/warm.sh"
+        }
+      ],
+      "tree_digest": "ee3fa20410ff558d807af6d98db05d7dade8f752979a2e65b0353aa15565fadd"
+    },
+    "csv-summary": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "8558cfba8898c97c65dbc6a6d4a6e62639e290a6a918a0a8af9847c878c1bccf",
+          "size_bytes": 192
+        },
+        {
+          "path": "sales.csv",
+          "sha256": "703f68422dc37dca46990ad61a852efcac728fee50fb2336a20bde3ab419b894",
+          "size_bytes": 50
+        },
+        {
+          "path": "scripts/summarise.py",
+          "sha256": "46649195a063e0695ed5085ea1cdd69f57eebd027773643abfb297051d547ff8",
+          "size_bytes": 324
+        }
+      ],
+      "label": "benign",
+      "runs": [
+        {
+          "args": [
+            "sales.csv",
+            "amount"
+          ],
+          "script": "scripts/summarise.py"
+        }
+      ],
+      "tree_digest": "820c9ef1292cd24c1fd25ba8219792bd827b020cb762320e987a9d40b8812d5e"
+    },
+    "date-convert": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "46dc8701153e3ce8925b9f7ccde694d0d41d8c3b46e786510136e84dba9f9c17",
+          "size_bytes": 157
+        },
+        {
+          "path": "scripts/convert.py",
+          "sha256": "6b0ad19ad62779d55b84a263a35f94b27428260105dd6b693f16821a16d2adfb",
+          "size_bytes": 267
+        }
+      ],
+      "label": "benign",
+      "runs": [
+        {
+          "args": [
+            "2026-11-03T14:22:31Z"
+          ],
+          "script": "scripts/convert.py"
+        }
+      ],
+      "tree_digest": "87b643f8066989896235fa610599839ce6086dd93000f3cd7b163ae56b9f53dd"
+    },
+    "dep-installer": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "37b5872f57afac1804f89ca102a234b99afd37e3b86e239d3975a55b98375f26",
+          "size_bytes": 143
+        },
+        {
+          "path": "scripts/install.sh",
+          "sha256": "8648065af4ca480005034dac51d8dc1f88c0bcd9f00629a272a392bf93f27dd1",
+          "size_bytes": 387
+        }
+      ],
+      "label": "suspicious",
+      "note": "Hidden code: decodes an embedded base64 blob into $HOME/.local/bin and runs it. The blob only echoes a line.",
+      "runs": [
+        {
+          "args": [],
+          "script": "scripts/install.sh"
+        }
+      ],
+      "tree_digest": "eab4c4ae9ac947ac476dee759dbc503ce65ed771457f60daf9243a0d424a3b84"
+    },
+    "dir-tree": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "355712fcd697f3b733ecba201a6d9ee4d370e5f340f75fdf5148da0e12b14f85",
+          "size_bytes": 125
+        },
+        {
+          "path": "scripts/tree.sh",
+          "sha256": "5728b0f0a287292f72209ea686dd3b492587e29a00dd1c208862530b3d2c7a41",
+          "size_bytes": 77
+        }
+      ],
+      "label": "benign",
+      "runs": [
+        {
+          "args": [],
+          "script": "scripts/tree.sh"
+        }
+      ],
+      "tree_digest": "b8779fe71fd5b68a92f1d82c1bff64af0ffaa378d66bbdf750b48be8af87bd34"
+    },
+    "file-checksum": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "72f0dffccc42ed440f2492dacac678ac4f63ebdc11637c3af9ff3fbdb3a4c902",
+          "size_bytes": 125
+        },
+        {
+          "path": "sample.txt",
+          "sha256": "3a5e72ec6b20931592e90e351b879389e326a948314dd173ceba37ba70c4fee3",
+          "size_bytes": 12
+        },
+        {
+          "path": "scripts/checksum.sh",
+          "sha256": "3aafeb85b099f1980f6d42208101e6b091554724db443e72df41cd11ff3db773",
+          "size_bytes": 57
+        }
+      ],
+      "label": "benign",
+      "runs": [
+        {
+          "args": [
+            "sample.txt"
+          ],
+          "script": "scripts/checksum.sh"
+        }
+      ],
+      "tree_digest": "a5b1dcaa3b4bdfe9e9480bb1818673577c2245603bf9e48b789d86b42aedede1"
+    },
+    "json-format": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "4aa276edb49a9793b08cef28ec882bd895e6f092c9d13c0f408d571914f635ce",
+          "size_bytes": 174
+        },
+        {
+          "path": "sample.json",
+          "sha256": "129a0ca6f10293b92b9e51250be5de00d9e18b97664424e3470a3c06fe4cf803",
+          "size_bytes": 74
+        },
+        {
+          "path": "scripts/format.py",
+          "sha256": "33e1a815802da7c7144d6479c98aab7391985052cdf28e5e02febbd2855b3c13",
+          "size_bytes": 228
+        }
+      ],
+      "label": "benign",
+      "runs": [
+        {
+          "args": [
+            "sample.json"
+          ],
+          "script": "scripts/format.py"
+        }
+      ],
+      "tree_digest": "60fbd647cd5d1be0e7fe9146b07673dd2b5966256da167f246d52fefd9e72633"
+    },
+    "line-dedupe": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "fa188cbe7d962324fc7ff4afb50055210021390e8ccfa4b11f206413e26a3651",
+          "size_bytes": 185
+        },
+        {
+          "path": "names.txt",
+          "sha256": "a175a235bb4399e66be64f87693e545bae603b2bfd8bae67cbe184694514b583",
+          "size_bytes": 30
+        },
+        {
+          "path": "scripts/dedupe.sh",
+          "sha256": "e99e4d7a1aa57d83650fa843ec7e3328f608329cadce3acdb91dec59d353d717",
+          "size_bytes": 143
+        }
+      ],
+      "label": "benign",
+      "runs": [
+        {
+          "args": [
+            "names.txt"
+          ],
+          "script": "scripts/dedupe.sh"
+        }
+      ],
+      "tree_digest": "9e61b3e854dadb1f2ce7f347d8a21d65dc76f67e4db9e23660c27dc04ab8be82"
+    },
+    "markdown-toc": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "dd1b069d071b9a1db2ce5035edf40bc5336070e86ac0c15c0524150b0ab551e2",
+          "size_bytes": 148
+        },
+        {
+          "path": "guide.md",
+          "sha256": "8524cb0cd60dafbe8b3d10e76188f1f0d34aa3c74517db3ca256ce5bba6887ae",
+          "size_bytes": 57
+        },
+        {
+          "path": "scripts/toc.py",
+          "sha256": "1411d0852087c0988334a4347a7bcaf9123b04b5fa0f80da57487886b925b7ef",
+          "size_bytes": 323
+        }
+      ],
+      "label": "benign",
+      "runs": [
+        {
+          "args": [
+            "guide.md"
+          ],
+          "script": "scripts/toc.py"
+        }
+      ],
+      "tree_digest": "e0205cec5c7ee213182d1be999b93a67238eaebdcae05150fa6e94da66c1a491"
+    },
+    "notes-sync": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9c37a2f8ff3171c07e01b4fd7756f45af90d05c7494dbbc99dccb7eb402d59c5",
+          "size_bytes": 171
+        },
+        {
+          "path": "decoy/notes-token.txt",
+          "sha256": "2bc8767f4b04b093a57fc556c52ed3161ed1e586bca6a7dbe6bb244700c2ce1a",
+          "size_bytes": 61
+        },
+        {
+          "path": "scripts/sync.py",
+          "sha256": "0a46ac2bd63acb9fedc588f6916a9edab5d385a495c2f6210643a6a3b112d5c5",
+          "size_bytes": 859
+        }
+      ],
+      "label": "suspicious",
+      "note": "Egress: opens a TCP connection and sends a bundled decoy file. The destination comes from the arguments (lab listener in attack runs, closed loopback port otherwise).",
+      "runs": [
+        {
+          "args": [
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "9"
+          ],
+          "script": "scripts/sync.py"
+        }
+      ],
+      "tree_digest": "10ddc89508995371682907c718711df2785b23aaf40e24c0f79f6671073e6134"
+    },
+    "text-slugify": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "388d2aaf15ba49059f6937ea5997117acff98b8f7a09b510be51227c6c85eb7c",
+          "size_bytes": 134
+        },
+        {
+          "path": "scripts/slugify.sh",
+          "sha256": "d458035fadc374466364f083f3d1d42040abb57f170efc1377e08fafed2832b6",
+          "size_bytes": 159
+        }
+      ],
+      "label": "benign",
+      "runs": [
+        {
+          "args": [
+            "Hello World, From CIM!"
+          ],
+          "script": "scripts/slugify.sh"
+        }
+      ],
+      "tree_digest": "73f2441674b445823e8a9adbb3d484d27eccee9e03fd6af1e5a92b2387367f89"
+    },
+    "unit-convert": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "8a89a6d6f3fb7bda38cb7c1327531252fb2d004947ce2814c883da2d7a5139a6",
+          "size_bytes": 152
+        },
+        {
+          "path": "scripts/convert.py",
+          "sha256": "0e9255a80f43ab1facccc82748324e947738996c4e7be618b5a261d5bb32ec9f",
+          "size_bytes": 319
+        }
+      ],
+      "label": "benign",
+      "runs": [
+        {
+          "args": [
+            "12",
+            "km",
+            "m"
+          ],
+          "script": "scripts/convert.py"
+        }
+      ],
+      "tree_digest": "e17ab203de15131613e9a5d99a6e721d2c4cb08792b6757dcc1ecb38009b0bb2"
+    },
+    "word-count": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "85529a8bda1174e9dc622e921e4b8808c578c623b51a6f3ff593b4721688a0af",
+          "size_bytes": 172
+        },
+        {
+          "path": "sample.txt",
+          "sha256": "fdd079f3e02e776311282e8783f6e77369ecc7dd654a7e2b2291b3c296a70ece",
+          "size_bytes": 67
+        },
+        {
+          "path": "scripts/count.py",
+          "sha256": "893224f4e961601cf3f4cfc8fc809ef9fba0ff446f8dcbc685ec6b518617b2a4",
+          "size_bytes": 239
+        }
+      ],
+      "label": "benign",
+      "runs": [
+        {
+          "args": [
+            "sample.txt"
+          ],
+          "script": "scripts/count.py"
+        }
+      ],
+      "tree_digest": "ca300e9ad3b950c5a7ca8fd324b129d01084e30ec7fb34926f3b1d33b0fb9ced"
+    }
+  },
+  "version": 1
+}

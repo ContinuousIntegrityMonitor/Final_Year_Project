@@ -1,0 +1,7 @@
+# Corpus files are fixtures with pinned checksums (MANIFEST.json).
+# They must never be linted into shape or reformatted.
+[lint]
+select = []
+
+[format]
+exclude = ["*"]
