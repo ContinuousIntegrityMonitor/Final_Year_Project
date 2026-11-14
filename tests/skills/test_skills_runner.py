@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import pytest
@@ -54,3 +55,111 @@ def test_run_script_passes_args(tmp_path: Path) -> None:
     skill = discover_skills(tmp_path)[0]
     result = run_script(skill, skill.helper_scripts[0], args=("hello",))
     assert result.stdout.strip() == "hello"
+
+
+def wait_until_dead(pid: int, seconds: float = 3.0) -> bool:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if not Path(f"/proc/{pid}").exists():
+            return True
+        time.sleep(0.05)
+    return not Path(f"/proc/{pid}").exists()
+
+
+def test_parse_frontmatter_ignores_bom() -> None:
+    assert parse_frontmatter("\ufeff---\nname: a\n---\n") == {"name": "a"}
+
+
+def test_parse_frontmatter_block_and_continuation_values() -> None:
+    text = (
+        "---\n"
+        "name: a\n"
+        "description: >-\n  folded text\n  more\n"
+        "notes: |\n  line one\n  line two\n"
+        "summary: starts here\n  and continues\n"
+        "---\n"
+    )
+    assert parse_frontmatter(text) == {
+        "name": "a",
+        "description": "folded text more",
+        "notes": "line one\nline two",
+        "summary": "starts here and continues",
+    }
+
+
+def test_parse_frontmatter_skips_nested_structures() -> None:
+    text = "---\nmetadata:\n  author: someone\nname: a\n---\n"
+    assert parse_frontmatter(text) == {"metadata": "", "name": "a"}
+
+
+def test_parse_frontmatter_strips_only_matching_quotes() -> None:
+    meta = parse_frontmatter("---\na: 'x y'\nb: \"it's\"\nc: 5\" disk\n---\n")
+    assert meta == {"a": "x y", "b": "it's", "c": '5" disk'}
+
+
+def test_discover_survives_undecodable_manifest(tmp_path: Path) -> None:
+    make_skill(tmp_path, "alpha", "print('hi')\n")
+    broken = make_skill(tmp_path, "broken", "print('hi')\n")
+    (broken / "SKILL.md").write_bytes(b"---\nname: \xff\xfe\n---\n")
+    assert [s.skill_id for s in discover_skills(tmp_path)] == ["alpha", "broken"]
+
+
+def test_empty_frontmatter_name_falls_back_to_directory(tmp_path: Path) -> None:
+    skill_dir = make_skill(tmp_path, "alpha", "print('hi')\n")
+    (skill_dir / "SKILL.md").write_text("---\nname:\n---\n", encoding="utf-8")
+    assert discover_skills(tmp_path)[0].name == "alpha"
+
+
+def test_run_script_with_relative_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    make_skill(tmp_path / "skills", "alpha", "import os\nprint(os.path.basename(os.getcwd()))\n")
+    monkeypatch.chdir(tmp_path)
+    skill = discover_skills(Path("skills"))[0]
+    result = run_script(skill, skill.helper_scripts[0])
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "alpha"
+
+
+def test_run_script_tolerates_non_utf8_output(tmp_path: Path) -> None:
+    body = "import sys\nsys.stdout.buffer.write(b'\\xff\\xfe ok\\n')\n"
+    make_skill(tmp_path, "alpha", body)
+    skill = discover_skills(tmp_path)[0]
+    result = run_script(skill, skill.helper_scripts[0])
+    assert result.returncode == 0
+    assert result.stdout == "\ufffd\ufffd ok\n"
+
+
+def test_run_script_does_not_inherit_stdin(tmp_path: Path) -> None:
+    make_skill(tmp_path, "alpha", "import sys\nprint(repr(sys.stdin.read()))\n")
+    skill = discover_skills(tmp_path)[0]
+    assert run_script(skill, skill.helper_scripts[0]).stdout.strip() == "''"
+
+
+def test_run_script_rejects_unsupported_suffix(tmp_path: Path) -> None:
+    make_skill(tmp_path, "alpha", "print('hi')\n")
+    skill = discover_skills(tmp_path)[0]
+    with pytest.raises(ValueError):
+        run_script(skill, tmp_path / "alpha" / "helper.rb")
+
+
+def test_run_script_timeout_kills_children_and_keeps_output(tmp_path: Path) -> None:
+    skill_dir = make_skill(tmp_path, "alpha", "")
+    (skill_dir / "run.sh").write_text("echo started\nsleep 300 &\necho $! > child.pid\nwait\n")
+    skill = discover_skills(tmp_path)[0]
+    start = time.monotonic()
+    result = run_script(skill, skill_dir / "run.sh", timeout=1.0)
+    assert time.monotonic() - start < 10
+    assert result.returncode == 124
+    assert result.stdout == "started\n"
+    assert result.stderr == "timeout after 1.0s"
+    assert wait_until_dead(int((skill_dir / "child.pid").read_text()))
+
+
+def test_run_script_kills_background_children_after_exit(tmp_path: Path) -> None:
+    skill_dir = make_skill(tmp_path, "alpha", "")
+    (skill_dir / "run.sh").write_text("sleep 300 &\necho $! > child.pid\n")
+    skill = discover_skills(tmp_path)[0]
+    start = time.monotonic()
+    result = run_script(skill, skill_dir / "run.sh")
+    assert result.returncode == 0
+    assert time.monotonic() - start < 10  # did not wait for the background child
+    assert wait_until_dead(int((skill_dir / "child.pid").read_text()))
