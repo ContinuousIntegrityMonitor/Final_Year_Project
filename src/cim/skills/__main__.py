@@ -10,8 +10,16 @@ from pathlib import Path
 
 from cim.common.store import BaselineStore
 from cim.skills.corpus import default_root, run_corpus, update_manifest, verify_manifest
-from cim.skills.inventory import DEFAULT_ORIGIN, skill_roots, sweep, take_inventory, write_baselines
+from cim.skills.inventory import (
+    DEFAULT_ORIGIN,
+    SweepResult,
+    skill_roots,
+    sweep,
+    take_inventory,
+    write_baselines,
+)
 from cim.skills.scoped import scope_available
+from cim.skills.watcher import DEFAULT_INTERVAL_S, watch
 
 
 def _corpus(args: argparse.Namespace) -> int:
@@ -64,16 +72,37 @@ def _inventory(args: argparse.Namespace) -> int:
     return 0 if chain.ok else 1
 
 
-def _sweep(args: argparse.Namespace) -> int:
-    with BaselineStore(args.db) as store:
-        result = sweep(store, _roots(args), origin=args.origin)
+def _print_sweep(result: SweepResult, quiet_when_unchanged: bool = False) -> None:
     for skill_id in result.new_skills:
-        print(f"sweep: new skill {skill_id}")
+        print(f"sweep: new skill {skill_id}", flush=True)
     for event in result.events:
         source = f" (was {event.old_path})" if event.old_path else ""
-        print(f"sweep: {event.skill_id}: {event.change} {event.path}{source}")
-    if not result.new_skills and not result.events:
-        print("sweep: unchanged")
+        print(f"sweep: {event.skill_id}: {event.change} {event.path}{source}", flush=True)
+    if not quiet_when_unchanged and not result.new_skills and not result.events:
+        print("sweep: unchanged", flush=True)
+
+
+def _sweep(args: argparse.Namespace) -> int:
+    with BaselineStore(args.db) as store:
+        _print_sweep(sweep(store, _roots(args), origin=args.origin))
+    return 0
+
+
+def _watch(args: argparse.Namespace) -> int:
+    roots = _roots(args)
+    mode = "periodic sweep only" if args.no_inotify else "notifications + periodic sweep"
+    print(f"watch: {len(roots)} root(s), every {args.interval:g}s, {mode}", flush=True)
+    try:
+        watch(
+            args.db,
+            roots,
+            origin=args.origin,
+            interval=args.interval,
+            use_inotify=not args.no_inotify,
+            report=lambda result: _print_sweep(result, quiet_when_unchanged=True),
+        )
+    except KeyboardInterrupt:
+        pass
     return 0
 
 
@@ -104,6 +133,15 @@ def main(argv: list[str] | None = None) -> int:
     sweeper = commands.add_parser("sweep", help="record what changed since the stored baselines")
     _store_options(sweeper)
     sweeper.set_defaults(handler=_sweep)
+    watcher = commands.add_parser("watch", help="record changes as they happen, until stopped")
+    _store_options(watcher)
+    watcher.add_argument(
+        "--interval", type=float, default=DEFAULT_INTERVAL_S, help="seconds between sweeps"
+    )
+    watcher.add_argument(
+        "--no-inotify", action="store_true", help="rely on the periodic sweep alone"
+    )
+    watcher.set_defaults(handler=_watch)
     args = parser.parse_args(argv)
     return int(args.handler(args))
 
