@@ -49,7 +49,8 @@ Rules:
 - Fasih has asked me to take on the pending items from the review while Hamza is busy. Agreed rules: one stage at a time, Fasih approves each stage before it starts, one branch and one PR per stage, and **Hamza merges**. Nothing in Hamza's code reaches `main` without him.
 - **Stage 1, done (2026-11-15): baseline store, PR #11, waiting for Hamza to review and merge.** Branch `t06-store-fixes`. Fixed: two writers (S1), artefact lookup (S5), tip hash and count in `verify-chain` (S3), real timestamps (S4). S2 (what the hash covers) is **not** changed: it alters the formula in the plan and needs both of us. New store calls for your side: `find_artefact()`, `get_or_create_artefact()`.
 - **Stage 2, done (2026-11-15): stdio proxy, PR #12, waiting for Hamza. Merge #11 first; #12 is stacked on it.** Branch `t09-proxy-fixes`. Fixed: capture can no longer stop forwarding (P1); an unstorable event or uncapturable frame leaves a `proxy_capture_failed` alert (D1, proxy half); no hang when the server cannot start (P2); artefact rows are reused across sessions (P3). Not changed: the `invocation_id` format, which is one of your v1.1 rows.
-- Planned next, not started: 3. drift and inventory (D1 drift half, D2 to D5, C1); 4. dashboard and envelope on `main` (U1, U2, E1); 5. the unmerged T-16 branch (G1 to G5, X1, X2).
+- **Stage 3, in progress (2026-11-15): drift and inventory.** Branch `t12-drift-fixes`, stacked on `t09-proxy-fixes`. A diff that cannot be switched off by a malformed entry (D1), duplicate names (D2), fields outside name, description and inputSchema (D3, in the detector only; stored digests are not changed), the same drift recorded once (D4), paginated lists (D5), `cim inventory` writing the pin (C1).
+- Planned next, not started: 4. dashboard and envelope on `main` (U1, U2, E1); 5. the unmerged T-16 branch (G1 to G5, X1, X2).
 
 ### Hamza's assistant (MCP side)
 
