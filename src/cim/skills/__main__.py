@@ -17,6 +17,7 @@ from cim.skills.corpus import (
     update_manifest,
     verify_manifest,
 )
+from cim.skills.envelope import profiles
 from cim.skills.inventory import (
     DEFAULT_ORIGIN,
     SweepResult,
@@ -143,6 +144,17 @@ def _observe(args: argparse.Namespace) -> int:
     return 0
 
 
+def _envelope(args: argparse.Namespace) -> int:
+    with BaselineStore(args.db) as store:
+        found = profiles(store, args.skill)
+    if not found:
+        print("envelope: no behaviour records" + (f" for {args.skill}" if args.skill else ""))
+        return 2
+    for profile in found:
+        print(profile.render())
+    return 0
+
+
 def _store_options(command: argparse.ArgumentParser) -> None:
     command.add_argument("--db", type=Path, required=True, help="baseline store path")
     command.add_argument(
@@ -187,6 +199,12 @@ def main(argv: list[str] | None = None) -> int:
     observer.add_argument("--skill", action="append", help="skill id (repeatable; default: all)")
     observer.add_argument("--origin", default=DEFAULT_ORIGIN, help="host the skills run on")
     observer.set_defaults(handler=_observe)
+    envelope = commands.add_parser(
+        "envelope", help="show each skill's behavioural profile and whether warm-up is done"
+    )
+    envelope.add_argument("--db", type=Path, required=True, help="baseline store path")
+    envelope.add_argument("--skill", help="one skill id (default: all)")
+    envelope.set_defaults(handler=_envelope)
     args = parser.parse_args(argv)
     return int(args.handler(args))
 
