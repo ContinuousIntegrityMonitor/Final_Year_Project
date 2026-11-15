@@ -34,7 +34,15 @@ from typing import IO, Any, Literal
 
 from cim.common.schema.mcp import McpBehaviourPayload
 from cim.common.store import BaselineStore
-from cim.mcp.drift import PIN_CODE, diff_tools, pinned_tools, record_drift
+from cim.mcp.drift import (
+    PIN_CODE,
+    list_anomalies,
+    list_digest,
+    pinned_tools,
+    record_drift,
+    record_sweep,
+    write_pin,
+)
 from cim.mcp.envelope import record_observation
 from cim.mcp.framing import Direction, parse_frame
 from cim.mcp.inventory import hashable, write_inventory
@@ -141,6 +149,7 @@ class Capture:
         self._clock = clock
         self._pending: dict[int | str, _Pending] = {}
         self._calls = 0
+        self._pages: list[dict[str, Any]] = []  # earlier pages of a list still being read
 
     def client_line(self, raw: bytes, started_ns: int | None = None) -> list[CaptureEvent]:
         started = self._clock() if started_ns is None else started_ns
@@ -172,9 +181,19 @@ class Capture:
         if pending.method == "tools/list":
             result = body.get("result")
             tools = result.get("tools") if isinstance(result, dict) else None
-            if isinstance(tools, list) and all(isinstance(t, dict) for t in tools):
-                return [ToolsSnapshot(tools=tools)]
-            return []
+            if not (isinstance(tools, list) and all(isinstance(t, dict) for t in tools)):
+                return []
+            # A long list arrives in pages. One page is not the list: comparing it with the
+            # pin would report every tool on the other pages as removed.
+            asked = pending.params if isinstance(pending.params, dict) else {}
+            if not asked.get("cursor"):
+                self._pages = []  # this request starts the list from the beginning
+            self._pages.extend(tools)
+            more = result.get("nextCursor") if isinstance(result, dict) else None
+            if isinstance(more, str) and more:
+                return []
+            whole, self._pages = self._pages, []
+            return [ToolsSnapshot(tools=whole)]
         return [self._call(pending, message_id, body, len(raw), finished)]
 
     def drain(self) -> list[CaptureEvent]:
@@ -312,26 +331,30 @@ class StoreSink:
                 )
                 self._server_aid = result.server_artefact_id
                 self._tool_aids.update(result.tool_artefact_ids)
-                pin_id = self._store.append_artefact(
-                    "mcp_pin", self._config.server_id, self._config.origin
+                write_pin(
+                    self._store,
+                    server_id=self._config.server_id,
+                    origin=self._config.origin,
+                    tools=tools,
+                    ts=self._now(),
                 )
-                self._store.append_record(
-                    pin_id,
-                    "artefact",
-                    {
-                        "code": "mcp_pin",
-                        "server_id": self._config.server_id,
-                        "name": self._config.server_id,
-                        "tools": tools,
-                    },
-                    self._now(),
-                )
-            else:
+                # Nothing to compare a first list with, but it can be wrong on its own.
                 record_drift(
                     self._store,
                     server_id=self._config.server_id,
+                    server_artefact_id=result.server_artefact_id,
+                    drifts=list_anomalies(tools),
+                    ts=self._now(),
+                    old_sha256=list_digest(tools),
+                    new_sha256=list_digest(tools),
+                )
+            else:
+                record_sweep(
+                    self._store,
+                    server_id=self._config.server_id,
                     server_artefact_id=self._server_artefact(),
-                    drifts=diff_tools(pin, tools),
+                    pinned=pin,
+                    current=tools,
                     ts=self._now(),
                 )
         elif isinstance(event, CallCaptured):
