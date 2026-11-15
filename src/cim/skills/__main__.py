@@ -9,7 +9,14 @@ import argparse
 from pathlib import Path
 
 from cim.common.store import BaselineStore
-from cim.skills.corpus import default_root, run_corpus, update_manifest, verify_manifest
+from cim.skills.collector import observe, record_behaviour, tracer_available
+from cim.skills.corpus import (
+    default_root,
+    load_manifest,
+    run_corpus,
+    update_manifest,
+    verify_manifest,
+)
 from cim.skills.inventory import (
     DEFAULT_ORIGIN,
     SweepResult,
@@ -18,6 +25,7 @@ from cim.skills.inventory import (
     take_inventory,
     write_baselines,
 )
+from cim.skills.runner import discover_skills
 from cim.skills.scoped import scope_available
 from cim.skills.watcher import DEFAULT_INTERVAL_S, watch
 
@@ -106,6 +114,35 @@ def _watch(args: argparse.Namespace) -> int:
     return 0
 
 
+def _observe(args: argparse.Namespace) -> int:
+    if not scope_available():
+        raise SystemExit("observe: needs a systemd user session (cgroup scope per invocation)")
+    if not tracer_available():
+        raise SystemExit("observe: needs strace, and permission to trace a child process")
+    root: Path = args.corpus or default_root()
+    manifest = load_manifest(root)
+    skills = {skill.skill_id: skill for skill in discover_skills(root)}
+    wanted = args.skill or sorted(manifest)
+    unknown = [
+        skill_id for skill_id in wanted if skill_id not in manifest or skill_id not in skills
+    ]
+    if unknown:
+        raise SystemExit(f"observe: not in the corpus: {', '.join(unknown)}")
+    with BaselineStore(args.db) as store:
+        for skill_id in wanted:
+            skill = skills[skill_id]
+            for run in manifest[skill_id].runs:
+                seen = observe(skill, skill.path / run.script, run.args)
+                record_behaviour(store, skill, seen, origin=args.origin)
+                events = ", ".join(f"{kind} {what}" for kind, what in seen.events) or "nothing"
+                print(
+                    f"observe: {skill_id} {run.script} exit={seen.run.result.returncode} "
+                    f"processes={seen.process_count} leaked={len(seen.run.leaked)}: {events}",
+                    flush=True,
+                )
+    return 0
+
+
 def _store_options(command: argparse.ArgumentParser) -> None:
     command.add_argument("--db", type=Path, required=True, help="baseline store path")
     command.add_argument(
@@ -142,6 +179,14 @@ def main(argv: list[str] | None = None) -> int:
         "--no-inotify", action="store_true", help="rely on the periodic sweep alone"
     )
     watcher.set_defaults(handler=_watch)
+    observer = commands.add_parser(
+        "observe", help="run corpus helpers under the collector and store what each one did"
+    )
+    observer.add_argument("--db", type=Path, required=True, help="baseline store path")
+    observer.add_argument("--corpus", type=Path, help="corpus directory (default: corpora/skills)")
+    observer.add_argument("--skill", action="append", help="skill id (repeatable; default: all)")
+    observer.add_argument("--origin", default=DEFAULT_ORIGIN, help="host the skills run on")
+    observer.set_defaults(handler=_observe)
     args = parser.parse_args(argv)
     return int(args.handler(args))
 
