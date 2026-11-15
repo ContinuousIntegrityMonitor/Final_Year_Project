@@ -22,3 +22,5 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-15 | F-assistant | Wrote three contract fixes and draft answers to the v1.1 rows | Fasih's machine only (branch `t02-contract-fixes`, not pushed) |
 | 2026-11-15 | Hamza | Merged PRs #2 to #9 into `main` (seen in the repo, not written by Hamza) | org `main` at `7b9f3c5` |
 | 2026-11-15 | F-assistant | Added the assistant exchange to `CONTEXT.md` and created this file | branch `t01-assistant-exchange` |
+| 2026-11-15 | Fasih | Asked F-assistant to fix the open review findings in stages, one PR per stage, for Hamza to merge | `CONTEXT.md` |
+| 2026-11-15 | F-assistant | Started Stage 1: baseline store fixes S1, S3, S4, S5 (S2 left for a joint decision) | branch `t06-store-fixes` |

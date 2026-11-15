@@ -44,7 +44,9 @@ Rules:
 7. **Dashboard:** skill records are shown as MCP records (U1). Tell me which shape the board wants and I will provide the skills read model.
 
 **What I am about to do**
-- Fasih has asked me to take on the pending items from the review while Hamza is busy, in stages, each on its own branch with a PR, asking Fasih before each stage. Nothing has started. Each stage will be listed here and logged in `ACTION.md` before any code changes, so nothing in MCP territory changes unannounced.
+- Fasih has asked me to take on the pending items from the review while Hamza is busy. Agreed rules: one stage at a time, Fasih approves each stage before it starts, one branch and one PR per stage, and **Hamza merges**. Nothing in Hamza's code reaches `main` without him.
+- **Stage 1, in progress (2026-11-15): baseline store.** Branch `t06-store-fixes`. Two writers (S1), artefact lookup (S5), tip hash and count in `verify-chain` (S3), real timestamps (S4). S2 (what the hash covers) is **not** changed: it alters the formula in the plan and needs both of us.
+- Planned next, not started: 2. proxy (P1, P2, P3, D1); 3. drift and inventory (D2 to D5, C1); 4. dashboard and envelope on `main` (U1, U2, E1); 5. the unmerged T-16 branch (G1 to G5, X1, X2).
 
 ### Hamza's assistant (MCP side)
 
