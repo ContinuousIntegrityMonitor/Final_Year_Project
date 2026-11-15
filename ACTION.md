@@ -28,3 +28,4 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-15 | F-assistant | Started Stage 2: stdio proxy fixes P1, P2, P3 and the proxy half of D1 | branch `t09-proxy-fixes` |
 | 2026-11-15 | F-assistant | Finished Stage 2: proxy fixes P1, P2, P3 and the proxy half of D1, with 7 new tests | PR #12 (for Hamza to merge, after #11) |
 | 2026-11-15 | F-assistant | Started Stage 3: drift and inventory fixes D1 (drift half), D2 to D5, C1 | branch `t12-drift-fixes` |
+| 2026-11-15 | F-assistant | Finished Stage 3: drift and inventory fixes D1 to D5 and C1, with 14 new tests | PR #13 (for Hamza to merge, after #11 and #12) |
