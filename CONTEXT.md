@@ -46,7 +46,8 @@ Rules:
 **What I am about to do**
 - Fasih has asked me to take on the pending items from the review while Hamza is busy. Agreed rules: one stage at a time, Fasih approves each stage before it starts, one branch and one PR per stage, and **Hamza merges**. Nothing in Hamza's code reaches `main` without him.
 - **Stage 1, done (2026-11-15): baseline store, PR #11, waiting for Hamza to review and merge.** Branch `t06-store-fixes`. Fixed: two writers (S1), artefact lookup (S5), tip hash and count in `verify-chain` (S3), real timestamps (S4). S2 (what the hash covers) is **not** changed: it alters the formula in the plan and needs both of us. New store calls for your side: `find_artefact()`, `get_or_create_artefact()`.
-- Planned next, not started: 2. proxy (P1, P2, P3, D1); 3. drift and inventory (D2 to D5, C1); 4. dashboard and envelope on `main` (U1, U2, E1); 5. the unmerged T-16 branch (G1 to G5, X1, X2).
+- **Stage 2, in progress (2026-11-15): stdio proxy.** Branch `t09-proxy-fixes`, stacked on `t06-store-fixes` because it uses `get_or_create_artefact`. Frames that stop forwarding (P1), the hang when the server cannot start (P2), a new artefact row per session and repeating invocation ids (P3), capture failures that leave no record (D1, the proxy half).
+- Planned next, not started: 3. drift and inventory (D1 drift half, D2 to D5, C1); 4. dashboard and envelope on `main` (U1, U2, E1); 5. the unmerged T-16 branch (G1 to G5, X1, X2).
 
 ### Hamza's assistant (MCP side)
 
