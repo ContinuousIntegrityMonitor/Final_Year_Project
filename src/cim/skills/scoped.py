@@ -26,6 +26,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 from cim.skills.runner import (
     TIMEOUT_RETURNCODE,
@@ -56,6 +57,22 @@ class ScopeError(RuntimeError):
     """systemd did not create the scope. The helper never ran."""
 
 
+class Tracer(Protocol):
+    """Something that runs the helper as its child and reports when the helper is done.
+
+    A tracer stays alive for as long as anything it traces is alive, so its own exit cannot
+    tell us that the helper's main process has finished. It has to say so itself.
+    """
+
+    def command(self, inner: list[str]) -> list[str]:
+        """The command line that runs `inner` under the tracer."""
+        ...
+
+    def helper_exit(self) -> int | None:
+        """The helper's exit status once its main process has finished, else None."""
+        ...
+
+
 @dataclass(frozen=True)
 class Member:
     """One process observed inside an invocation's cgroup."""
@@ -72,7 +89,10 @@ class ScopedRunResult:
     invocation_id: str
     unit: str
     cgroup: Path
-    members: tuple[Member, ...]  # the helper itself plus every process sampled in its cgroup
+    home: Path  # the helper's temporary HOME; removed when the run ends
+    # The helper itself plus every process sampled in its cgroup. Under a tracer the tracer
+    # is left out and the helper is only listed if a sample caught it; the trace is complete.
+    members: tuple[Member, ...]
     leaked: tuple[Member, ...]  # outlived the main script (then killed); empty after a timeout
 
 
@@ -197,6 +217,7 @@ def run_script_scoped(
     args: tuple[str, ...] = (),
     timeout: float = 30.0,
     invocation_id: str | None = None,
+    tracer: Tracer | None = None,
 ) -> ScopedRunResult:
     """Run one helper in its own systemd user scope with a clean environment.
 
@@ -204,9 +225,11 @@ def run_script_scoped(
     caller's XDG_RUNTIME_DIR to reach the user session. Call scope_available() first.
     Raises ScopeError if the scope cannot be created; the helper has not run in that case.
     The timeout covers the helper only, not the time systemd takes to set the scope up.
+    With a tracer, the helper runs as the tracer's child inside the same scope.
     """
     script = script.resolve()
     inner = helper_command(script, args)
+    launch = tracer.command(inner) if tracer is not None else inner
     invocation = invocation_id or new_invocation_id()
     unit = scope_unit_name(skill.skill_id, invocation)
     timed_out = False
@@ -219,7 +242,7 @@ def run_script_scoped(
         env = [f"{key}={value}" for key, value in clean_env(home).items()]
         cmd = [
             "systemd-run", "--user", "--scope", "--quiet", f"--unit={unit}", "--",
-            "env", "-i", *env, "/bin/sh", "-c", _GATE, "cim-gate", *inner,
+            "env", "-i", *env, "/bin/sh", "-c", _GATE, "cim-gate", *launch,
         ]  # fmt: skip
         proc = subprocess.Popen(
             cmd,
@@ -238,18 +261,32 @@ def run_script_scoped(
                 detail = read_output(err_f).strip() or "systemd did not place it in a scope"
                 raise ScopeError(f"{unit}.scope was not created: {detail}")
 
-            seen = {proc.pid: Member(proc.pid, Path(inner[0]).name[:COMM_MAX])}
+            # Our direct child is the helper, or the tracer when there is one.
+            seen: dict[int, Member] = {}
+            if tracer is None:
+                seen[proc.pid] = Member(proc.pid, Path(inner[0]).name[:COMM_MAX])
+
+            def helper_members() -> list[Member]:
+                found = _read_members(cgroup)
+                if tracer is not None:
+                    return [member for member in found if member.pid != proc.pid]
+                # Until the gate has exec'd the helper, its PID still carries a launcher's name.
+                return [m for m in found if m.pid != proc.pid or m.comm not in _LAUNCH_COMMS]
+
+            helper_status: int | None = None
             _open_gate(proc)
             deadline = time.monotonic() + timeout
             while True:
-                for member in _read_members(cgroup):
-                    launching = member.pid == proc.pid and member.comm in _LAUNCH_COMMS
-                    if not launching:  # until the gate has exec'd the helper
-                        seen[member.pid] = member
+                for member in helper_members():
+                    seen[member.pid] = member
                 try:
                     proc.wait(timeout=POLL_INTERVAL_S)
                     break
                 except subprocess.TimeoutExpired:
+                    if tracer is not None:
+                        helper_status = tracer.helper_exit()
+                        if helper_status is not None:
+                            break
                     if time.monotonic() >= deadline:
                         timed_out = True
                         _kill_scope(cgroup, unit)
@@ -258,12 +295,21 @@ def run_script_scoped(
                         _wait_empty(cgroup)
                         break
 
-            leaked = tuple(_read_members(cgroup))
+            leaked = tuple(helper_members())
             for member in leaked:
                 seen[member.pid] = member
             if leaked:
                 _kill_scope(cgroup, unit)
                 _wait_empty(cgroup)
+            if tracer is not None and not timed_out:
+                try:  # with nothing left to trace, the tracer exits by itself
+                    proc.wait(timeout=SETTLE_TIMEOUT_S)
+                except subprocess.TimeoutExpired:
+                    _kill_scope(cgroup, unit)
+                    proc.kill()
+                    proc.wait()
+                if helper_status is None:
+                    helper_status = tracer.helper_exit()
         finally:
             if proc.poll() is None:  # interrupted: never leave a helper running unobserved
                 if cgroup is not None:
@@ -274,9 +320,11 @@ def run_script_scoped(
         stdout = read_output(out_f)
         stderr = read_output(err_f)
 
-    returncode = TIMEOUT_RETURNCODE if timed_out else proc.returncode
+    returncode = proc.returncode if helper_status is None else helper_status
+    if timed_out:
+        returncode = TIMEOUT_RETURNCODE
     if timed_out:
         stderr = with_timeout_note(stderr, timeout)
     result = RunResult(skill.skill_id, script, returncode, stdout, stderr)
     members = tuple(sorted(seen.values(), key=lambda m: m.pid))
-    return ScopedRunResult(result, invocation, unit, cgroup, members, leaked)
+    return ScopedRunResult(result, invocation, unit, cgroup, Path(home), members, leaked)

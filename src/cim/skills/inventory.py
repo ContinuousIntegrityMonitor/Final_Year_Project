@@ -167,7 +167,10 @@ def diff_files(
     return sorted(events, key=lambda event: event.path)
 
 
-def _append(store: BaselineStore, artefact_id: int, kind: Kind, model: BaseModel, ts: str) -> None:
+def append_event(
+    store: BaselineStore, artefact_id: int, kind: Kind, model: BaseModel, ts: str
+) -> None:
+    """Append one skills record, after it has passed the event contract."""
     payload = model.model_dump(mode="json")
     skill_id = payload["skill_id"]
     # Go through the event contract, so nothing the contract rejects reaches the store.
@@ -179,7 +182,7 @@ def _write_baseline(
     store: BaselineStore, payload: SkillArtefactPayload, origin: str, ts: str
 ) -> KnownSkill:
     artefact_id = store.append_artefact("skill", payload.skill_id, origin)
-    _append(store, artefact_id, "artefact", payload, ts)
+    append_event(store, artefact_id, "artefact", payload, ts)
     return KnownSkill(artefact_id, {item.path: item.sha256 for item in payload.files})
 
 
@@ -238,6 +241,6 @@ def sweep(
                     continue
             on_disk = {item.path: item.sha256 for item in payload.files} if payload else {}
             for event in diff_files(skill_id, before, on_disk):
-                _append(store, skill.artefact_id, "integrity", event, stamp)
+                append_event(store, skill.artefact_id, "integrity", event, stamp)
                 events.append(event)
     return SweepResult(tuple(new_skills), tuple(events))

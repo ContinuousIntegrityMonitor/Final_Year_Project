@@ -163,3 +163,12 @@ def test_run_script_kills_background_children_after_exit(tmp_path: Path) -> None
     assert result.returncode == 0
     assert time.monotonic() - start < 10  # did not wait for the background child
     assert wait_until_dead(int((skill_dir / "child.pid").read_text()))
+
+
+def test_python_helpers_leave_no_bytecode_behind(tmp_path: Path) -> None:
+    skill_dir = make_skill(tmp_path, "alpha", "import sibling\nprint(sibling.VALUE)\n")
+    (skill_dir / "sibling.py").write_text("VALUE = 7\n", encoding="utf-8")
+    skill = discover_skills(tmp_path)[0]
+    result = run_script(skill, skill_dir / "helper.py")
+    assert result.stdout.strip() == "7", result.stderr
+    assert not (skill_dir / "__pycache__").exists()
