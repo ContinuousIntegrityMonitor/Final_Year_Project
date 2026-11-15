@@ -119,8 +119,18 @@ def helper_command(script: Path, args: tuple[str, ...] = ()) -> list[str]:
 
 
 def clean_env(home: str) -> dict[str, str]:
-    """The only variables a helper sees."""
-    return {"PATH": CLEAN_PATH, "HOME": home, "LANG": "C.UTF-8"}
+    """The only variables a helper sees.
+
+    PYTHONDONTWRITEBYTECODE keeps Python from writing .pyc files. Otherwise the first run on
+    a machine writes into the interpreter's own directories and into the skill, and later
+    runs do not: the same helper would look different from one run to the next.
+    """
+    return {
+        "PATH": CLEAN_PATH,
+        "HOME": home,
+        "LANG": "C.UTF-8",
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
 
 
 def read_output(stream: IO[bytes]) -> str:

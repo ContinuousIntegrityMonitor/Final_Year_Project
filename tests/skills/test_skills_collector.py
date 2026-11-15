@@ -121,6 +121,8 @@ def test_connection_attempts_are_recorded_whatever_the_outcome() -> None:
             '400 1700000000.000006 connect(6<socket:[14]>, {sa_family=AF_UNIX, sun_path="/run/user/1000/bus"}, 21) = 0',
             '400 1700000000.000007 connect(7<socket:[15]>, {sa_family=AF_UNIX, sun_path=@"abstract"}, 11) = 0',
             "400 1700000000.000008 connect(8<socket:[16]>, {sa_family=AF_NETLINK, nl_pid=0, nl_groups=00000000}, 12) = 0",
+            # Nobody is listening on a unix socket that does not exist: not egress.
+            '400 1700000000.000009 connect(9<socket:[17]>, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)',
         ),
         CWD,
     )
@@ -253,6 +255,15 @@ def test_idle_benign_skill_yields_zero_events(tmp_path: Path, suffix: str, body:
     assert len(seen.binaries_executed) == 1  # only its own interpreter
     assert seen.run.result.returncode == 0
     assert seen.run.result.stderr == ""  # the tracer adds nothing to the helper's output
+
+
+@pytest.mark.usefixtures("needs_tracer")
+def test_python_import_of_a_sibling_module_is_not_a_file_write(tmp_path: Path) -> None:
+    skill, script = make_skill(tmp_path, "imports", "import sibling\n", "py")
+    (skill.path / "scripts" / "sibling.py").write_text("VALUE = 7\n", encoding="utf-8")
+    seen = observe(skill, script)
+    assert seen.run.result.returncode == 0, seen.run.result.stderr
+    assert seen.events == ()
 
 
 @pytest.mark.usefixtures("needs_tracer")

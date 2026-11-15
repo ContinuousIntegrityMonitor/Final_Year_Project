@@ -290,7 +290,7 @@ def parse_trace(lines: list[str], cwd: str) -> Trace:
         line = _Line(call.group(1), call.group(2), call.group(3))
         name = line.name
         if name in ("connect", "sendto"):
-            _read_destination(line, trace)  # an attempt counts, whatever came of it
+            _read_destination(line, trace)
         if not line.ok:
             continue
         if name in _SPAWN_CALLS:
@@ -327,13 +327,20 @@ def parse_trace(lines: list[str], cwd: str) -> Trace:
 
 
 def _read_destination(line: _Line, trace: Trace) -> None:
+    """Record where a connect or sendto was aimed.
+
+    A network address counts whatever came of the call: a refused connection still sent a
+    packet towards it. A unix socket counts only if the call succeeded. A failed one reached
+    nobody, and on some systems every program makes one at start-up, looking for a
+    name-service cache that is not running.
+    """
     for family, pattern in (("inet", _INET), ("inet6", _INET6)):
         match = pattern.search(line.skeleton)
         if match is not None:
             trace.destinations.append((family, line.text_in(match), int(match.group(1))))
             return
     match = _UNIX.search(line.skeleton)
-    if match is not None:
+    if match is not None and line.ok:
         trace.destinations.append(("unix", line.text_in(match), 0))
 
 
