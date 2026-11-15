@@ -244,3 +244,102 @@ Each was reproduced first and has a regression test.
 | One undecodable `SKILL.md` stopped discovery of every skill | Decoded with replacement. |
 
 **Known limit, not fixed:** the scope runs as the same user as the helper, and systemd delegates that user's cgroup tree. A helper that writes a PID into a cgroup *outside* its scope moves that process out, and it is then neither attributed nor killed (reproduced). This needs a boundary a same-user process cannot cross (another uid, a cgroup namespace, or audit events) and belongs in T-11 and the threat model (A3). It is documented at the top of `src/cim/skills/scoped.py`.
+
+---
+
+## 5. Review of `t16-alerts-http-dashboard` (added 2026-11-15)
+
+Branch at `e304196` (T-16 MCP alerts, T-16b HTTP gateway, dashboard buttons). Its own tests pass. G1 to G4, X1, X2 and A1 were reproduced on a copy of the branch with local stand-in servers; nothing was sent to a real MCP service. A2 and G5 to G7 are from reading the code.
+
+| # | Area | Problem | Severity |
+|---|------|---------|----------|
+| G1 | Gateway | Any local caller, and any web page in the operator's browser, gets the stored bearer token attached | High |
+| G2 | Gateway | The path after `/s/<id>/` can leave the configured endpoint: `..`, and other URL schemes | High |
+| G3 | Gateway | A redirect from the upstream carries the bearer token to another host | High |
+| X1 | Dashboard | `POST /api/call` can wipe or rewrite the store, with no check on who asks | High |
+| X2 | Dashboard | The "change" button writes its own behaviour alert; the detector did not produce it | High (for the demo) |
+| A1 | Alert | One alert, then silence: the unusual call joins the baseline | Medium |
+| A2 | Alert | T-16 is specified as a shared scorer; this one is MCP-only and has no z-score or threshold | Medium |
+| G4 | Gateway | Same fail-open breaks as P1: some bodies get no response at all | Medium |
+| G5 | Gateway | Responses are read to the end before anything is sent on, so streams stall | Medium |
+| G6 | Gateway | One capture per route: request ids from two sessions collide | Low |
+| G7 | Config | A real Supabase project reference is committed | Low |
+
+### G1 — The gateway lends its stored credentials to anyone who can reach it (High)
+
+`authorization_env` adds `Authorization: Bearer <token>` whenever the client sent none (`http_gateway.py:191`, `_authorization_for`). The gateway has no check on who the client is: no secret of its own, no `Origin` check, no `Host` check.
+
+Reproduced: a request with no credentials, `Origin: http://evil.example` and `Host: evil.example` was forwarded with `Authorization: Bearer s3cret-token`, and it was a `tools/call`.
+
+Who can do that:
+- any process on the machine;
+- a web page open in the operator's browser. A cross-site `fetch` to `http://127.0.0.1:8877/s/supabase` is sent by the browser, the gateway adds the token and forwards it. With DNS rebinding the page can also read the answers, because nothing validates `Host`.
+
+So a page the operator merely visits can send requests to the Supabase, Vercel, Axiom and Roma MCPs with the operator's tokens attached. The MCP specification asks local HTTP servers to validate `Origin` for exactly this reason.
+
+Suggested fix: require a per-run secret from the client (a random path segment or header, written into Cursor's `mcp.json`), reject requests whose `Host` is not the gateway's own address, and reject any `Origin` that is not expected. Inject the stored token only after those pass.
+
+### G2 — The request path can leave the configured endpoint (High)
+
+`join_upstream` hands the client's path to `urljoin` (`http_gateway.py:168-177`).
+
+- `GET /s/up/../../admin/keys` reached the upstream as `/admin/keys`, with the bearer token attached. The route was configured for `/mcp` only.
+- `GET /s/up/file:/etc/hostname` makes `urljoin` return `file:/etc/hostname`, and `urlopen` opens the local file. The content does not come back today only because the handler then crashes on a missing status code (`TypeError` in `send_response`). That is an accident, not a control.
+
+Suggested fix: after joining, require the result to have the upstream's scheme and host and to start with the upstream's path; refuse anything else with 400.
+
+### G3 — A redirect leaks the token (High)
+
+`urlopen` follows redirects and keeps the `Authorization` header. Reproduced: the upstream answered `302` to a second host, and that host received `Authorization: Bearer s3cret-token`. A compromised or malicious upstream can therefore collect the token for itself or for another service. Suggested fix: build an opener that does not follow redirects and pass the 3xx back to the client.
+
+### X1 — The dashboard can wipe and rewrite the store (High)
+
+`serve.py` now has `POST /api/call` with `clear` and `tamper` actions (`call_demo.py:49` and `219`). `clear` runs `DELETE FROM` on every table; `tamper` rewrites the first record.
+
+Reproduced on a store with five records, sending `Origin: http://evil.example` and `Content-Type: text/plain` (a request a browser sends cross-site without asking first):
+
+```
+tamper -> 200, chain_ok false
+clear  -> 200, records 0, artefacts 0
+cim verify-chain -> ok (0 records)
+```
+
+Three problems in one:
+- This is in `cim dashboard`, which runs against whatever `--db` it is given, including a real evidence store. It is not limited to a demo store.
+- Any web page the operator visits can trigger it. After `clear`, `verify-chain` reports a healthy, empty chain (S3).
+- T-06's acceptance says no update or delete code path exists. One now does, in the package.
+
+Suggested fix: move the demo actions out of the product server into a separate command that only accepts a store it created itself (for example a marker table), and keep `cim dashboard` read-only. If the buttons must stay, require a per-run token and check `Origin`.
+
+### X2 — The demo alert is written by the button, not by the detector (High for the demo)
+
+`run_demo_call(unusual=True)` calls `_warn_behavior` (`call_demo.py:176`), which appends a fixed `mcp_behaviour_drift` alert: detail "Strange behaviour detected.", features `["hidden copy"]`, with prepared input and output sentences.
+
+Reproduced: one press of "change" on an empty store gives that alert with a single observation recorded. The real scorer cannot fire before 30 calls. The alert is stored in the hash chain like real evidence, and the page then shows the server as disconnected, although nothing was disconnected (the flag lives in a `.session` file).
+
+`PROJECT_STATUS.md` on the branch says the T-16 MCP half is "live done". If the board is shown to the committee, the alert on screen has to come from `score_latest`, or it has to be labelled as staged. I would do the former: have the button make 31 ordinary calls first and let the scorer speak.
+
+### A1 — One alert, then silence (Medium)
+
+Every observation joins the baseline, including the one that just raised an alert. Reproduced with `StoreSink`: 31 normal calls, then five identical calls with a new `bcc` argument holding a public address. Alerts after each of the five: 1, 1, 1, 1, 1. The second and later malicious calls are already "normal".
+
+The same mechanism means a tool that misbehaves from its first call never alerts (59 such calls: no alert). That part is inherent to learning a baseline from live traffic, and the plan answers it with thresholds calibrated on the benign corpus. The first part is a choice: keep an observation out of the baseline while its alert is unacknowledged.
+
+### A2 — Not yet the shared scorer the plan describes (Medium)
+
+T-16 is "shared library used by both sides, lives at the border": rolling z-score plus never-seen flag, composite score, configurable threshold. `cim/mcp/alert.py` reads MCP's `envelope_obs` table directly, has fixed rules (new class, new shape, first error, result three times the median), no threshold to configure, and nothing the skills side can call. It also reads every observation the tool has ever had on each call.
+
+Proposal: a small scorer in `common/` that takes two things and knows nothing about where they came from: support sets (value, count) and integer summaries (count, sum, sum of squares). `cim.skills.envelope.SkillProfile` on `t15-skills-envelope` already has exactly that shape, and the MCP envelope can produce it from `envelope_obs`. I can draft it for us both to review.
+
+### G4 — Some bodies get no response (Medium)
+
+Same class as P1. A response containing a lone surrogate, and a deeply nested request body, both end with the client's connection closed and no reply (`UnicodeEncodeError` in `_json_line`, `RecursionError` in `json.loads`). In the second case the request is never forwarded. Capture runs before the reply is written (`_write_upstream`), so a capture failure costs the client its answer. Suggested fix: write the reply first, capture after, and wrap capture in `try/except Exception`.
+
+### G5 — Streams stall (Medium)
+
+`_write_upstream` calls `resp.read()` before sending anything. A long-lived `text/event-stream` (the Streamable HTTP GET stream, or a slow tool that streams progress) is held until the upstream closes or the 120 s timeout. Short JSON and single-event replies work, which is what the unit tests cover.
+
+### G6, G7 — Smaller notes (Low)
+
+- **G6** There is one `Capture` per route, keyed by JSON-RPC id. Two Cursor sessions on the same route both start their ids at 1, so a response can be paired with the other session's request and the wrong tool recorded.
+- **G7** `config/cursor-http-gateway.json` commits a real Supabase `project_ref` and the list of services on your machine to the committee repo. Suggest committing an example file with placeholders and keeping the real one out of git. Request paths, including query strings, are also written to stderr by `log_message`.
