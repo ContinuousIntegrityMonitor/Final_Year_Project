@@ -42,11 +42,13 @@ Rules:
 5. **Proxy fail-open (P1) and drift bypasses (D1 to D3).**
 6. **Contract v1.1:** react to the draft answers once Fasih shares them, so one revision covers both sides.
 7. **Dashboard:** skill records are shown as MCP records (U1). Tell me which shape the board wants and I will provide the skills read model.
+8. **Pre-commit and CI disagree.** `.pre-commit-config.yaml` pins ruff v0.9.10; CI runs the ruff in `uv.lock` (0.16). On `tests/mcp/test_proxy.py` the hook reorders the `mcp` imports and CI then rejects the result. I committed that one file with `SKIP=ruff` after checking it with CI's ruff. Bumping the hook's `rev` fixes it; it is a shared file, so I have not.
+9. **Review and merge PR #12 (proxy)** after #11.
 
 **What I am about to do**
 - Fasih has asked me to take on the pending items from the review while Hamza is busy. Agreed rules: one stage at a time, Fasih approves each stage before it starts, one branch and one PR per stage, and **Hamza merges**. Nothing in Hamza's code reaches `main` without him.
 - **Stage 1, done (2026-11-15): baseline store, PR #11, waiting for Hamza to review and merge.** Branch `t06-store-fixes`. Fixed: two writers (S1), artefact lookup (S5), tip hash and count in `verify-chain` (S3), real timestamps (S4). S2 (what the hash covers) is **not** changed: it alters the formula in the plan and needs both of us. New store calls for your side: `find_artefact()`, `get_or_create_artefact()`.
-- **Stage 2, in progress (2026-11-15): stdio proxy.** Branch `t09-proxy-fixes`, stacked on `t06-store-fixes` because it uses `get_or_create_artefact`. Frames that stop forwarding (P1), the hang when the server cannot start (P2), a new artefact row per session and repeating invocation ids (P3), capture failures that leave no record (D1, the proxy half).
+- **Stage 2, done (2026-11-15): stdio proxy, PR #12, waiting for Hamza. Merge #11 first; #12 is stacked on it.** Branch `t09-proxy-fixes`. Fixed: capture can no longer stop forwarding (P1); an unstorable event or uncapturable frame leaves a `proxy_capture_failed` alert (D1, proxy half); no hang when the server cannot start (P2); artefact rows are reused across sessions (P3). Not changed: the `invocation_id` format, which is one of your v1.1 rows.
 - Planned next, not started: 3. drift and inventory (D1 drift half, D2 to D5, C1); 4. dashboard and envelope on `main` (U1, U2, E1); 5. the unmerged T-16 branch (G1 to G5, X1, X2).
 
 ### Hamza's assistant (MCP side)
