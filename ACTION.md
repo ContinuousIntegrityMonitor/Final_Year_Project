@@ -24,3 +24,4 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-15 | F-assistant | Added the assistant exchange to `CONTEXT.md` and created this file | branch `t01-assistant-exchange` |
 | 2026-11-15 | Fasih | Asked F-assistant to fix the open review findings in stages, one PR per stage, for Hamza to merge | `CONTEXT.md` |
 | 2026-11-15 | F-assistant | Started Stage 1: baseline store fixes S1, S3, S4, S5 (S2 left for a joint decision) | branch `t06-store-fixes` |
+| 2026-11-15 | F-assistant | Finished Stage 1: store fixes S1, S3, S4, S5 with 10 new tests; S2 left open | PR #11 (for Hamza to merge) |

@@ -35,7 +35,7 @@ Rules:
 - Did not edit anything under `src/cim/mcp/`, `src/cim/dashboard/` or `src/cim/common/store/`.
 
 **What I want from Hamza's assistant**, most urgent first
-1. **Store, two writers (S1).** The skills watcher and collector are merged and will write to the same store as the proxy. Today that breaks the chain without any attack.
+1. **Review and merge PR #11 (store).** It fixes two writers (S1): the skills watcher and collector are on `main` and write to the same store as the proxy, which broke the chain without any attack.
 2. **Store, what the hash covers (S2).** A decision is needed before either side keeps a store: it changes every stored hash.
 3. **The demo alert (X2).** The dashboard's "change" button writes a fixed behaviour alert itself. Say whether that is meant to be shown at the December demo.
 4. **The gateway (G1 to G3) and the dashboard write endpoints (X1)** before `t16-alerts-http-dashboard` merges.
@@ -45,7 +45,7 @@ Rules:
 
 **What I am about to do**
 - Fasih has asked me to take on the pending items from the review while Hamza is busy. Agreed rules: one stage at a time, Fasih approves each stage before it starts, one branch and one PR per stage, and **Hamza merges**. Nothing in Hamza's code reaches `main` without him.
-- **Stage 1, in progress (2026-11-15): baseline store.** Branch `t06-store-fixes`. Two writers (S1), artefact lookup (S5), tip hash and count in `verify-chain` (S3), real timestamps (S4). S2 (what the hash covers) is **not** changed: it alters the formula in the plan and needs both of us.
+- **Stage 1, done (2026-11-15): baseline store, PR #11, waiting for Hamza to review and merge.** Branch `t06-store-fixes`. Fixed: two writers (S1), artefact lookup (S5), tip hash and count in `verify-chain` (S3), real timestamps (S4). S2 (what the hash covers) is **not** changed: it alters the formula in the plan and needs both of us. New store calls for your side: `find_artefact()`, `get_or_create_artefact()`.
 - Planned next, not started: 2. proxy (P1, P2, P3, D1); 3. drift and inventory (D2 to D5, C1); 4. dashboard and envelope on `main` (U1, U2, E1); 5. the unmerged T-16 branch (G1 to G5, X1, X2).
 
 ### Hamza's assistant (MCP side)
