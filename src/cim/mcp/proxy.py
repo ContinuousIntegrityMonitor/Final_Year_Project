@@ -11,7 +11,9 @@ directions, and records what it saw into the baseline store:
 
 Capture never alters forwarding: frames are forwarded byte-for-byte even when
 they cannot be parsed, and store writes run on a separate thread (fail-open,
-ADR-004).
+ADR-004). Fail-open is not fail-silent: a frame that capture could not handle,
+and an event the store could not take, each leave a ``proxy_capture_failed``
+alert, so a gap in the record is itself on the record.
 """
 
 from __future__ import annotations
@@ -32,7 +34,7 @@ from typing import IO, Any, Literal
 
 from cim.common.schema.mcp import McpBehaviourPayload
 from cim.common.store import BaselineStore
-from cim.mcp.drift import diff_tools, pinned_tools, record_drift
+from cim.mcp.drift import PIN_CODE, diff_tools, pinned_tools, record_drift
 from cim.mcp.envelope import record_observation
 from cim.mcp.framing import Direction, parse_frame
 from cim.mcp.inventory import hashable, write_inventory
@@ -87,7 +89,24 @@ class MalformedFrame:
     sha256: str
 
 
-CaptureEvent = ToolsSnapshot | CallCaptured | MalformedFrame
+@dataclass(frozen=True)
+class CaptureFailure:
+    """A frame that was forwarded but that capture itself could not handle."""
+
+    direction: Direction
+    reason: str
+    size: int
+    sha256: str
+
+
+CaptureEvent = ToolsSnapshot | CallCaptured | MalformedFrame | CaptureFailure
+_EVENT_NAMES = {
+    ToolsSnapshot: "tools_list",
+    CallCaptured: "tools_call",
+    MalformedFrame: "malformed_frame",
+    CaptureFailure: "capture_failure",
+}
+FAILED_CODE = "proxy_capture_failed"
 
 
 @dataclass(frozen=True)
@@ -99,9 +118,18 @@ class _Pending:
 
 
 def digest(value: Any) -> str:
-    """SHA-256 over sorted-key compact JSON. Floats allowed: only the digest is stored."""
+    """SHA-256 over sorted-key compact JSON. Floats allowed: only the digest is stored.
+
+    JSON can carry a lone surrogate (an escape such as "\\ud800") that UTF-8 cannot.
+    surrogatepass still gives such a value bytes, so any message can be digested.
+    """
     text = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()
+
+
+def _safe_text(value: object, limit: int = 300) -> str:
+    """Text that can always be stored: unencodable characters replaced, length capped."""
+    return str(value).encode("utf-8", "replace").decode("utf-8")[:limit]
 
 
 class Capture:
@@ -194,7 +222,8 @@ class Capture:
     def _parse(direction: Direction, raw: bytes) -> dict[str, Any] | MalformedFrame:
         try:
             return parse_frame(raw.decode("utf-8"))
-        except (UnicodeDecodeError, ValueError) as exc:
+        except (UnicodeDecodeError, ValueError, RecursionError) as exc:
+            # RecursionError: JSON nested deeper than the parser will follow.
             return MalformedFrame(
                 direction=direction,
                 reason=type(exc).__name__,
@@ -221,6 +250,49 @@ class StoreSink:
         self._now = now
         self._server_aid: int | None = None
         self._tool_aids: dict[str, int] = {}
+        self._known_loaded = False
+
+    def _load_known(self) -> None:
+        """Find the artefact rows earlier sessions used for this server and its tools.
+
+        Without this every proxy start added a new server row and a new row per tool, and
+        one tool's records ended up spread over several artefact ids.
+        """
+        if self._known_loaded:
+            return
+        self._known_loaded = True
+        for record in self._store.read_records():
+            if record.kind not in ("artefact", "behaviour"):
+                continue
+            payload = json.loads(record.payload)
+            if not isinstance(payload, dict) or payload.get("server_id") != self._config.server_id:
+                continue
+            if payload.get("code") == PIN_CODE:
+                continue
+            tool = payload.get("tool_id")
+            if isinstance(tool, str):
+                self._tool_aids.setdefault(tool, record.artefact_id)
+            elif record.kind == "artefact" and self._server_aid is None:
+                self._server_aid = record.artefact_id
+
+    def record_failure(self, event: CaptureEvent, exc: BaseException) -> None:
+        """Leave an alert for an event the store could not take.
+
+        The message of the exception is cleaned before it is stored: it can quote the very
+        text that made the write fail.
+        """
+        self._store.append_record(
+            self._server_artefact(),
+            "alert",
+            {
+                "code": FAILED_CODE,
+                "stage": "store",
+                "event": _EVENT_NAMES.get(type(event), "unknown"),
+                "reason": type(exc).__name__,
+                "detail": _safe_text(exc),
+            },
+            self._now(),
+        )
 
     def apply(self, event: CaptureEvent) -> None:
         if isinstance(event, ToolsSnapshot):
@@ -290,6 +362,20 @@ class StoreSink:
                 result_size=event.response_size,
                 outcome=event.outcome,
             )
+        elif isinstance(event, CaptureFailure):
+            self._store.append_record(
+                self._server_artefact(),
+                "alert",
+                {
+                    "code": FAILED_CODE,
+                    "stage": "capture",
+                    "direction": event.direction,
+                    "reason": event.reason,
+                    "sha256": event.sha256,
+                    "size": event.size,
+                },
+                self._now(),
+            )
         else:
             self._store.append_record(
                 self._server_artefact(),
@@ -305,13 +391,15 @@ class StoreSink:
             )
 
     def _server_artefact(self) -> int:
+        self._load_known()
         if self._server_aid is None:
-            self._server_aid = self._store.append_artefact(
+            self._server_aid = self._store.get_or_create_artefact(
                 "mcp_server", self._config.server_id, self._config.origin
             )
         return self._server_aid
 
     def _tool_aid(self, tool: str) -> int:
+        self._load_known()
         if tool not in self._tool_aids:
             self._tool_aids[tool] = self._store.append_artefact(
                 "mcp_tool", tool, self._config.origin
@@ -338,7 +426,11 @@ def _write_events(config: ProxyConfig, events: queue.Queue[CaptureEvent | None])
             try:
                 sink.apply(event)
             except Exception as exc:  # noqa: BLE001
-                _log(f"capture write failed: {exc}")
+                _log(f"capture write failed: {_safe_text(exc)}")
+                try:
+                    sink.record_failure(event, exc)
+                except Exception as again:  # noqa: BLE001 — the store itself is failing
+                    _log(f"could not record the failure either: {_safe_text(again)}")
 
 
 def allow_call(body: dict[str, Any]) -> bool:
@@ -357,28 +449,50 @@ def run_proxy(
     """Run one proxied session. Returns the server's exit code."""
     if not command:
         raise ValueError("server command is required")
+    try:
+        child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    except OSError as exc:
+        # Nothing else has been started yet, so there is nothing left waiting.
+        _log(f"cannot start the server: {exc}")
+        return 127 if isinstance(exc, FileNotFoundError) else 126
+    server_in, server_out = child.stdin, child.stdout
+    assert server_in is not None and server_out is not None
     capture = Capture(clock)
     lock = threading.Lock()
     events: queue.Queue[CaptureEvent | None] = queue.Queue()
     writer = threading.Thread(target=_write_events, args=(config, events), name="cim-proxy-store")
     writer.start()
-    child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    server_in, server_out = child.stdin, child.stdout
-    assert server_in is not None and server_out is not None
+
+    def observe(direction: Direction, line: bytes, started_ns: int | None = None) -> None:
+        """Capture one line. Whatever goes wrong here, forwarding carries on (ADR-004)."""
+        try:
+            with lock:
+                if direction == "client_to_server":
+                    produced = capture.client_line(line, started_ns)
+                else:
+                    produced = capture.server_line(line)
+        except Exception as exc:  # noqa: BLE001
+            produced = [
+                CaptureFailure(
+                    direction=direction,
+                    reason=type(exc).__name__,
+                    size=len(line),
+                    sha256=hashlib.sha256(line).hexdigest(),
+                )
+            ]
+        for event in produced:
+            events.put(event)
 
     def upstream() -> None:
         try:
             for line in client_in:
                 # Register before forwarding: a fast server can answer before we return.
-                with lock:
-                    produced = capture.client_line(line, clock())
+                observe("client_to_server", line, clock())
                 try:
                     server_in.write(line)
                     server_in.flush()
                 except OSError:
                     break
-                for event in produced:
-                    events.put(event)
         finally:
             try:
                 server_in.close()
@@ -387,20 +501,26 @@ def run_proxy(
 
     pump = threading.Thread(target=upstream, name="cim-proxy-upstream", daemon=True)
     pump.start()
+    finished = False
     try:
         for line in server_out:
             client_out.write(line)
             client_out.flush()
-            with lock:
-                produced = capture.server_line(line)
-            for event in produced:
-                events.put(event)
+            observe("server_to_client", line)
+        finished = True
     finally:
+        if not finished:
+            child.terminate()  # we can no longer pass its output on (the client went away)
         code = child.wait()
         pump.join(timeout=1)
-        with lock:
-            for event in capture.drain():
-                events.put(event)
+        try:
+            with lock:
+                drained = capture.drain()
+        except Exception as exc:  # noqa: BLE001
+            _log(f"could not close open calls: {_safe_text(exc)}")
+            drained = []
+        for event in drained:
+            events.put(event)
         events.put(None)
         writer.join()
     return code
