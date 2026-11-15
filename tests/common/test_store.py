@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import sqlite3
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -10,6 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from cim.cli import app
+from cim.common.chain import GENESIS_HASH
 from cim.common.store import BaselineStore
 from cim.common.store.baseline import _DDL
 
@@ -116,3 +119,163 @@ def test_verify_chain_cli_ok_and_broken(tmp_path: Path) -> None:
     broken = runner.invoke(app, ["verify-chain", "--db", str(path)])
     assert broken.exit_code == 1
     assert "broken" in broken.stdout
+
+
+# ---- several writers on one store
+
+
+def test_two_handles_appending_in_turn_keep_the_chain_whole(tmp_path: Path) -> None:
+    path = tmp_path / "baseline.db"
+    with BaselineStore(path) as first, BaselineStore(path) as second:
+        artefact_id = first.append_artefact("skill", "pdf-tools", "lab")
+        first.append_record(artefact_id, "integrity", {"n": 1}, TS)
+        second.append_record(artefact_id, "integrity", {"n": 2}, TS)
+        first.append_record(artefact_id, "integrity", {"n": 3}, TS)  # must chain from record 2
+        with second.transaction():
+            second.append_record(artefact_id, "integrity", {"n": 4}, TS)
+            second.append_record(artefact_id, "integrity", {"n": 5}, TS)
+        first.append_record(artefact_id, "integrity", {"n": 6}, TS)
+        status = first.verify_chain()
+    assert status.ok, status
+    assert status.count == 6
+
+
+_WRITER = """
+import sys
+from cim.common.store import BaselineStore
+path, name, count = sys.argv[1], sys.argv[2], int(sys.argv[3])
+with BaselineStore(path) as store:
+    artefact_id = store.get_or_create_artefact("skill", "shared", "lab")
+    for n in range(count):
+        payload = {"writer": name, "n": n}
+        store.append_record(artefact_id, "behaviour", payload, "2026-10-19T12:00:00Z")
+"""
+
+
+def test_four_processes_writing_at_once_keep_the_chain_whole(tmp_path: Path) -> None:
+    path = tmp_path / "baseline.db"
+    with BaselineStore(path):
+        pass  # create the file before the writers race to
+    writers = [
+        subprocess.Popen([sys.executable, "-c", _WRITER, str(path), f"w{i}", "150"])
+        for i in range(4)
+    ]
+    assert [writer.wait(timeout=120) for writer in writers] == [0, 0, 0, 0]
+    with BaselineStore(path) as store:
+        status = store.verify_chain()
+        artefacts = {record.artefact_id for record in store.read_records()}
+    assert status.ok, status
+    assert status.count == 600
+    assert len(artefacts) == 1  # the four writers found each other's artefact row
+
+
+def test_failed_transaction_leaves_nothing_behind(tmp_path: Path) -> None:
+    with _store(tmp_path) as store:
+        artefact_id = store.append_artefact("skill", "pdf-tools", "lab")
+        store.append_record(artefact_id, "integrity", {"n": 1}, TS)
+        with pytest.raises(ValueError, match="floats"), store.transaction():
+            store.append_record(artefact_id, "integrity", {"n": 2}, TS)
+            with store.transaction():  # nested blocks join the outer one
+                store.append_record(artefact_id, "integrity", {"n": 3}, TS)
+            store.append_record(artefact_id, "integrity", {"bad": 1.5}, TS)
+        store.append_record(artefact_id, "integrity", {"n": 4}, TS)
+        status = store.verify_chain()
+        payloads = [record.payload for record in store.read_records()]
+    assert status.ok
+    assert payloads == ['{"n":1}', '{"n":4}']
+
+
+def test_writer_waits_for_the_lock_instead_of_failing(tmp_path: Path) -> None:
+    path = tmp_path / "baseline.db"
+    with BaselineStore(path) as holder:
+        artefact_id = holder.append_artefact("skill", "pdf-tools", "lab")
+        waiter = subprocess.Popen([sys.executable, "-c", _WRITER, str(path), "late", "1"])
+        with holder.transaction():
+            holder.append_record(artefact_id, "integrity", {"n": 1}, TS)
+            time.sleep(1.0)  # the other process is blocked for this long
+            assert waiter.poll() is None
+        assert waiter.wait(timeout=60) == 0
+        status = holder.verify_chain()
+    assert status.ok
+    assert status.count == 2
+
+
+# ---- artefact look-up
+
+
+def test_get_or_create_artefact_reuses_the_row(tmp_path: Path) -> None:
+    with _store(tmp_path) as store:
+        assert store.find_artefact("mcp_tool", "nmap_scan", "vm-mon") is None
+        first = store.get_or_create_artefact("mcp_tool", "nmap_scan", "vm-mon")
+        assert store.get_or_create_artefact("mcp_tool", "nmap_scan", "vm-mon") == first
+        assert store.find_artefact("mcp_tool", "nmap_scan", "vm-mon") == first
+        # A different type, name or origin is a different artefact.
+        others = {
+            store.get_or_create_artefact("mcp_server", "nmap_scan", "vm-mon"),
+            store.get_or_create_artefact("mcp_tool", "other", "vm-mon"),
+            store.get_or_create_artefact("mcp_tool", "nmap_scan", "laptop"),
+        }
+        assert len(others | {first}) == 4
+    with _store(tmp_path) as reopened:  # and it survives a restart
+        assert reopened.get_or_create_artefact("mcp_tool", "nmap_scan", "vm-mon") == first
+
+
+# ---- timestamps
+
+
+@pytest.mark.parametrize(
+    "ts", ["2026-13-01T00:00:00Z", "2026-02-30T00:00:00Z", "2026-01-01T99:99:99Z"]
+)
+def test_impossible_timestamp_rejected(tmp_path: Path, ts: str) -> None:
+    with _store(tmp_path) as store:
+        artefact_id = store.append_artefact("skill", "pdf-tools", "lab")
+        with pytest.raises(ValueError, match="not a real date"):
+            store.append_record(artefact_id, "integrity", {"n": 1}, ts)
+        assert store.verify_chain().count == 0
+
+
+# ---- tip and count
+
+
+def test_chain_status_carries_the_tip(tmp_path: Path) -> None:
+    path = tmp_path / "baseline.db"
+    with BaselineStore(path) as store:
+        assert store.verify_chain().tip == GENESIS_HASH
+        artefact_id = store.append_artefact("skill", "pdf-tools", "lab")
+        for n in (1, 2, 3):
+            store.append_record(artefact_id, "integrity", {"n": n}, TS)
+        whole = store.verify_chain()
+    raw = sqlite3.connect(path)
+    hashes = [row[0] for row in raw.execute("SELECT record_hash FROM record ORDER BY id")]
+    raw.execute("UPDATE record SET payload = ? WHERE id = 3", ('{"n":9}',))
+    raw.commit()
+    raw.close()
+    assert whole.tip == hashes[2]
+    with BaselineStore(path) as store:
+        broken = store.verify_chain()
+    assert not broken.ok
+    assert broken.tip == hashes[1]  # the last record that still verified
+
+
+def test_cli_catches_a_chain_that_was_cut_short(tmp_path: Path) -> None:
+    path = tmp_path / "baseline.db"
+    with BaselineStore(path) as store:
+        artefact_id = store.append_artefact("skill", "pdf-tools", "lab")
+        for n in (1, 2, 3):
+            store.append_record(artefact_id, "integrity", {"n": n}, TS)
+        tip = store.verify_chain().tip
+    args = ["verify-chain", "--db", str(path)]
+    ok = runner.invoke(app, [*args, "--expect-tip", tip.upper(), "--min-count", "3"])
+    assert ok.exit_code == 0
+    assert f"ok (3 records) tip={tip}" in ok.stdout
+    raw = sqlite3.connect(path)
+    raw.execute("DELETE FROM record WHERE id = 3")
+    raw.commit()
+    raw.close()
+    assert runner.invoke(app, args).exit_code == 0  # a shorter chain still verifies on its own
+    short = runner.invoke(app, [*args, "--min-count", "3"])
+    assert short.exit_code == 1
+    assert "records are missing: 2 found, 3 expected" in short.stdout
+    moved = runner.invoke(app, [*args, "--expect-tip", tip])
+    assert moved.exit_code == 1
+    assert "not the expected" in moved.stdout
