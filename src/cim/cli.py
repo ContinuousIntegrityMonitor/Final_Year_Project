@@ -15,9 +15,9 @@ from cim.common.store import BaselineStore
 from cim.dashboard.board import load_board
 from cim.dashboard.page import render_page
 from cim.dashboard.serve import make_server
-from cim.mcp.drift import diff_tools, pinned_tools, record_drift
+from cim.mcp.drift import diff_tools, pinned_tools, record_sweep, server_artefact, write_pin
 from cim.mcp.envelope import envelopes
-from cim.mcp.inventory import load_tools_list, write_inventory
+from cim.mcp.inventory import hashable, load_tools_list, write_inventory
 from cim.mcp.proxy import ProxyConfig, run_proxy
 
 app = typer.Typer(
@@ -110,10 +110,14 @@ def inventory(
             ts=ts,
             minimum=minimum,
         )
+        pinned_now = pinned_tools(store, server_id) is None
+        if pinned_now:  # the first inventory of a server is its reference for `cim sweep`
+            write_pin(store, server_id=server_id, origin=origin, tools=hashable(tools), ts=ts)
         status = store.verify_chain()
     typer.echo(
         f"inventory: server={server_id} tools={len(result.tool_digests)} "
-        f"manifest={result.manifest_digest[:12]}… chain={'ok' if status.ok else 'broken'}"
+        f"manifest={result.manifest_digest[:12]}… chain={'ok' if status.ok else 'broken'} "
+        f"pin={'written' if pinned_now else 'kept'}"
     )
     if not status.ok:
         raise typer.Exit(code=1)
@@ -154,27 +158,34 @@ def sweep(
     server_id: Annotated[str, typer.Option("--server-id")] = "hexstrike",
 ) -> None:
     """Re-read a tools/list and record schema drift against the pinned baseline (T-12)."""
-    current = load_tools_list(tools_json)
+    current = hashable(load_tools_list(tools_json))
     ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     with BaselineStore(db) as store:
         pin = pinned_tools(store, server_id)
         if pin is None:
             typer.echo(f"sweep: no pin for {server_id}; run inventory or the proxy first")
             raise typer.Exit(code=2)
-        drifts = diff_tools(pin, current)
-        if drifts:
-            record_drift(
-                store,
-                server_id=server_id,
-                server_artefact_id=store.append_artefact("mcp_server", server_id, "sweep"),
-                drifts=drifts,
-                ts=ts,
-            )
-    if not drifts:
-        typer.echo(f"sweep: {server_id} unchanged")
-        return
-    for drift in drifts:
+        artefact_id = server_artefact(store, server_id)
+        if artefact_id is None:
+            artefact_id = store.get_or_create_artefact("mcp_server", server_id, "sweep")
+        recorded = record_sweep(
+            store,
+            server_id=server_id,
+            server_artefact_id=artefact_id,
+            pinned=pin,
+            current=current,
+            ts=ts,
+        )
+    differences = diff_tools(pin, current)
+    for drift in recorded:
         typer.echo(f"sweep: {drift.detail}")
+    if not recorded and differences:
+        typer.echo(
+            f"sweep: {server_id} still differs from the pin "
+            f"({len(differences)} differences, already recorded)"
+        )
+    elif not recorded:
+        typer.echo(f"sweep: {server_id} unchanged")
 
 
 @app.command("envelope")
