@@ -158,7 +158,9 @@ def write_inventory(
     record_ids: list[int] = []
     tool_artefact_ids: dict[str, int] = {}
     with store.transaction():
-        server_aid = store.append_artefact("mcp_server", name, origin)
+        # Reuse the server's row if one exists (the proxy may have alerted on this server
+        # before its first tools/list was stored).
+        server_aid = store.get_or_create_artefact("mcp_server", name, origin)
         record_ids.append(
             store.append_record(
                 server_aid,
