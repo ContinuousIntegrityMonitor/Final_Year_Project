@@ -198,15 +198,33 @@ def verify_chain(
         Path,
         typer.Option("--db", exists=True, dir_okay=False, readable=True),
     ],
+    expect_tip: Annotated[
+        str | None,
+        typer.Option("--expect-tip", help="Fail unless the last record has this hash"),
+    ] = None,
+    min_count: Annotated[
+        int | None,
+        typer.Option("--min-count", min=0, help="Fail if the store holds fewer records"),
+    ] = None,
 ) -> None:
-    """Recompute the baseline hash chain. Exit 1 if any historical row was changed."""
+    """Recompute the baseline hash chain. Exit 1 if any historical row was changed.
+
+    A chain that was cut short, or rebuilt from scratch, still verifies on its own. Note the
+    tip and count this command prints somewhere outside the store, and pass them back with
+    --expect-tip / --min-count to catch that as well.
+    """
     with BaselineStore(db) as store:
         result = store.verify_chain()
-    if result.ok:
-        typer.echo(f"verify-chain: ok ({result.count} records)")
-        raise typer.Exit(code=0)
-    typer.echo(f"verify-chain: broken at record {result.broken_at}: {result.reason}")
-    raise typer.Exit(code=1)
+    if not result.ok:
+        typer.echo(f"verify-chain: broken at record {result.broken_at}: {result.reason}")
+        raise typer.Exit(code=1)
+    if min_count is not None and result.count < min_count:
+        typer.echo(f"verify-chain: records are missing: {result.count} found, {min_count} expected")
+        raise typer.Exit(code=1)
+    if expect_tip is not None and result.tip != expect_tip.lower():
+        typer.echo(f"verify-chain: tip is {result.tip}, not the expected {expect_tip.lower()}")
+        raise typer.Exit(code=1)
+    typer.echo(f"verify-chain: ok ({result.count} records) tip={result.tip}")
 
 
 if __name__ == "__main__":
