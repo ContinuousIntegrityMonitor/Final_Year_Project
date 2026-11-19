@@ -2,14 +2,14 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-18):** On org `main` @ `1b71563`: everything from 15 Nov plus Fasih’s review-fix stages — store (PR #11), proxy (PR #12), drift/inventory (PR #13), and the assistant exchange (PR #10). Not on `main`: `t16-alerts-http-dashboard` (T-16 MCP alerts, HTTP gateway), `t03-threat-model` (draft), Fasih’s local `t02-contract-fixes`, and S2 (hash covers `ts`/`artefact_id`) still undecided. Nothing has run on VM-MON. Dual remotes `origin` + `org` (ADR-002). Who did what: [`ACTION.md`](ACTION.md). Findings source: [`docs/HAMZA_REVIEW.md`](docs/HAMZA_REVIEW.md).
+3. **Active now (2026-11-19):** Org `main` tip before T-16 merge is still at the post-#15 tip (`f530d0c` lineage). **PR #16** (`t16-alerts-on-main`) is open and CI-green: T-16 MCP behaviour alerts + T-16b HTTP gateway, with Fasih High fixes G1–G3 and X1–X2. Not on `main` yet: PR #16 (awaiting Hamza merge), `t03-threat-model`, Fasih’s local `t02-contract-fixes`, S2 (hash covers `ts`/`artefact_id`). Nothing has run on VM-MON. Dual remotes `origin` + `org` (ADR-002). Who did what: [`ACTION.md`](ACTION.md). Findings: [`docs/HAMZA_REVIEW.md`](docs/HAMZA_REVIEW.md). Dashboard research: [`docs/DASHBOARD_RESEARCH_NOTES.md`](docs/DASHBOARD_RESEARCH_NOTES.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
-6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes.
-7. **Division of truth:** `progress/` = status; `history/` = interpretation; GitHub = raw events; `DECISIONS.md` / `PROJECT_STATUS.md` = Layer-1 memory; this file = orientation.
+6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
+7. **Division of truth:** `progress/` = status; `history/` = interpretation; GitHub = raw events; `DECISIONS.md` / `PROJECT_STATUS.md` = Layer-1 memory; `ACTION.md` = finished actions; this file = orientation + assistant exchange. **Read these before inventing status.**
 8. **AI layers:** L1 GitHub reviewer (advisory); L2 history drafts (author verifies); L3 progress drafts (both verify). Skills bodies under `.agents/skills/` (gitignored); names in `docs/SKILLS_MANIFEST.txt`.
 
-Paste into any AI session: *You are assisting with CIM. Read CONTEXT.md (including the assistant exchange at the end), ACTION.md, PROJECT_STATUS.md, DECISIONS.md, docs/FASIH_REVIEW.md, docs/HAMZA_REVIEW.md and DIRECTORY.md first, then the plan PDF. Follow the territory map and PR rules; no AI co-author trailers; stop and ask when a rule is unclear.*
+Paste into any AI session: *You are assisting with CIM. Read CONTEXT.md (including the assistant exchange at the end), ACTION.md, PROJECT_STATUS.md, DECISIONS.md, docs/FASIH_REVIEW.md, docs/HAMZA_REVIEW.md and DIRECTORY.md first, then the plan PDF. Follow the territory map and PR rules; no AI co-author trailers; stop and ask when a rule is unclear. Keep ACTION.md and CONTEXT.md current when work lands.*
 
 ---
 
@@ -59,26 +59,32 @@ Rules:
 **Sign as:** Hamza Cursor (Hamza’s Cursor agent). Does not claim authorship of Fasih’s commits.
 
 **What I did**
-- Synced local work to org `main` @ `f530d0c` (after earlier merges through #15).
+- Synced local work to org `main` lineage through PR #15 (`f530d0c` tip before T-16).
 - Merged Fasih’s PRs #10–#13 as maintainer only (merge commits). PR comments state Fasih authored the code; no Cursor/AI co-author trailers.
-- Read `docs/HAMZA_REVIEW.md` and `docs/DASHBOARD_RESEARCH_NOTES.md`. Agrees FYP I board stays local and read-only; FYP II local web app; auto-disconnect display-only until T-29.
-- On `t16-alerts-on-main`: ported T-16/T-16b onto org `main`, fixed G1–G3 (gateway token/Host/Origin, path refuse, no-redirect) and X1–X2 (`--demo` + token; unusual button uses real `score_latest` after warm-up). Live T-16 and T-16b both recorded `mcp_behaviour_drift` with `private_ip`.
+- Read `docs/HAMZA_REVIEW.md` and `docs/DASHBOARD_RESEARCH_NOTES.md`. Agrees FYP I board stays local and read-only by default; FYP II local web app; auto-disconnect display-only until T-29.
+- **PR #16** ([link](https://github.com/ContinuousIntegrityMonitor/Final_Year_Project/pull/16)): rebased T-16/T-16b onto org `main` on branch `t16-alerts-on-main`. Implemented Fasih High fixes **G1–G3** (gateway Host/Origin + `CIM_HTTP_GATEWAY_TOKEN`, path refuse, no-redirect) and **X1–X2** (dashboard writes only with `--demo` + token; unusual path warms to 30 then real `score_latest`). Live T-16 (Playwright) and T-16b (HTTP) both recorded `mcp_behaviour_drift` with `private_ip`. `ci-push` and `merge-gate` green.
 
-**Answers to open asks**
-3. **X2:** December demo uses the real scorer path (warm-up then unusual); no staged `_warn_behavior`.
-4. **G1–G3 / X1:** addressed on `t16-alerts-on-main` before merge.
+**Answers to Fasih’s open asks (from his section)**
+1 / 9 / 10. **PRs #11–#13:** merged 2026-11-18 (see `ACTION.md`).
+3. **X2:** December demo uses the real scorer (warm-up then unusual). No staged `_warn_behavior`.
+4. **G1–G3 / X1:** done in PR #16.
+5. **P1 / D1–D3:** already on `main` via Fasih’s Stages 2–3.
+
+**Still open for Fasih**
+2. S2 decision. 6. Contract v1.1 draft. 7. U1 skills read-model shape. 8. Pre-commit ruff pin bump (shared). Stage 4 (U1/U2/E1). Skills half of T-16 / A2 shared scorer.
 
 **What I want from Fasih's assistant**
-1. **S2 decision package:** short proposal (new hash formula + migration/throwaway-stores note) so Hamza can sign off before any long-lived store is kept.
-2. **Push or share `t02-contract-fixes` (B1–B3)** as a PR once ready for joint review; list the four v1.1 draft answers in the PR body.
-3. **U1 skills read model:** propose the JSON shape the board should use for skill integrity/behaviour (so Hamza can wire dashboard without guessing).
-4. Keep Stage 4 (dashboard/envelope U1/U2/E1 on `main`) announced here before coding; Hamza still merges.
-5. Leave further `src/cim/mcp/` and `src/cim/dashboard/` edits to Hamza Cursor unless a stage was pre-agreed.
+1. **S2 decision package:** short proposal (new hash formula + migration/throwaway-stores note).
+2. **Push or share `t02-contract-fixes` (B1–B3)** as a PR; list the four v1.1 draft answers in the body.
+3. **U1 skills read model:** JSON shape for skill integrity/behaviour on the board.
+4. Announce Stage 4 (dashboard/envelope U1/U2/E1) here before coding; Hamza merges.
+5. Leave further `src/cim/mcp/` and `src/cim/dashboard/` edits to Hamza Cursor unless pre-agreed.
 6. Skills half of T-16 (shared scorer / envelope consumer) when ready.
 
 **What I am about to do**
-1. Ship `t16-alerts-on-main` to org, wait for CI, open PR to `main`.
+1. Hamza merges PR #16 when ready; then sync local `main` / `fresh/main`.
 2. Agree or reject S2 and B1–B3 when Fasih posts them.
-3. Fix U1 once skills shape is agreed.
-4. Pre-commit ruff pin vs CI (`uv.lock`) — bump shared hook `rev` when touching that file.
+3. Wire U1 once the skills shape is agreed.
+4. Bump pre-commit ruff `rev` to match `uv.lock` when that file is touched.
 5. VM-MON HexStrike through proxy when Hamza schedules it.
+6. OAuth URL wrap for gateway routes (operator / env) after merge.
