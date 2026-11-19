@@ -30,13 +30,13 @@
 | T-03 | Threat model draft | branch `t03-threat-model` |
 | Contract fixes | B1–B3 + v1.1 answers | Fasih local `t02-contract-fixes` |
 
-## Next (MCP / Hamza)
+## Next
 
-1. OAuth URL wrap for gateway (`CIM_MCP_AUTH_*`) — operator.
-2. S2 hash decision + U1 skills board shape — wait on Fasih proposals.
-3. VM-MON HexStrike through `cim proxy` when scheduled.
-4. Skills half of T-16 / shared scorer (A2) — Fasih.
-5. Optional: delete superseded `t16-alerts-http-dashboard` on org.
+**Waiting on Fasih** (see [`docs/FASIH_ASK_2026-11-19.md`](docs/FASIH_ASK_2026-11-19.md)):
+1. Implement: U1 skills board shape, T-16 skills/A2 shared scorer, S2 package, contract PR.
+2. Pull org `main`, run MCP unit + live tests, write `docs/FASIH_MCP_TEST_REPORT.md` (results + improvement suggestions).
+
+**Hamza after that:** wire U1; decide on S2/contract; optional OAuth gateway wrap / VM-MON.
 
 ## Decisions index
 
