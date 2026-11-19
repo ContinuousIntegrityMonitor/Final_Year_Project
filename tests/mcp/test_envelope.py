@@ -7,7 +7,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from cim.cli import app
-from cim.mcp.envelope import WARMUP, envelopes, record_observation
+from cim.mcp.envelope import WARMUP, envelopes, record_observation, value_classes
 
 runner = CliRunner()
 ARGS = {"to": "10.10.10.20", "body": "hello"}
@@ -49,6 +49,12 @@ def test_warmup_opens_at_thirty_observations(tmp_path: Path) -> None:
         db, server_id="mail", tool="send_email", arguments=ARGS, result_size=40, outcome="ok"
     )
     assert envelopes(db, "mail")[0].warmed_up is True
+
+
+def test_url_host_ip_is_classified() -> None:
+    assert "private_ip" in value_classes("http://10.10.10.20/path")
+    assert "public_ip" in value_classes("https://8.8.8.8/")
+    assert "domain" in value_classes("https://example.com/x")
 
 
 def test_cli_shows_warmup_state(tmp_path: Path) -> None:

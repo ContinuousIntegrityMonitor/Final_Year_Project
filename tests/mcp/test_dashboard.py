@@ -7,13 +7,14 @@ import sqlite3
 import threading
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from typer.testing import CliRunner
 
 from cim.cli import app
 from cim.common.store import BaselineStore
 from cim.dashboard.board import load_board
+from cim.dashboard.call_demo import clear_demo, read_connected, run_demo_call, tamper_log
 from cim.dashboard.page import render_page
 from cim.dashboard.serve import make_server
 from cim.mcp.proxy import CallCaptured, ProxyConfig, StoreSink, ToolsSnapshot, digest
@@ -82,6 +83,8 @@ def test_board_shows_pin_call_and_rug_pull(tmp_path: Path) -> None:
     assert board.empty is False
     assert [tool.name for tool in board.tools] == ["send_email"]
     assert board.tools[0].parameters == ("body", "subject", "to")
+    assert '"name": "send_email"' in board.tools[0].schema
+    assert "inputSchema" in board.tools[0].schema
     assert board.tools[0].digest
     assert any(link.mark == "change" for link in board.links)
     assert [change.detail for change in board.changes] == [
@@ -152,7 +155,7 @@ def test_cli_prints_the_page_once(tmp_path: Path) -> None:
     assert "1500 µs" in result.stdout
 
 
-def test_http_serves_the_same_page(tmp_path: Path) -> None:
+def test_http_serves_readonly_by_default(tmp_path: Path) -> None:
     db = tmp_path / "store.sqlite"
     _session(db)
     server = make_server(db, "127.0.0.1", 0)
@@ -172,14 +175,171 @@ def test_http_serves_the_same_page(tmp_path: Path) -> None:
             missing = exc.code
         else:
             missing = 200
+        try:
+            urlopen(
+                Request(
+                    f"http://{host}:{port}/api/call",
+                    data=b'{"action":"clear"}',
+                    method="POST",
+                    headers={"Content-Type": "application/json"},
+                ),
+                timeout=5,
+            )
+        except HTTPError as exc:
+            write_code = exc.code
+        else:
+            write_code = 200
     finally:
         server.shutdown()
         thread.join(timeout=2)
     assert status == 200
     assert feed_status == 200
     assert missing == 404
+    assert write_code == 404
     assert "Record is safe" in body
     assert "Something new showed up" in body
+    assert 'id="call-normal"' not in body
+    assert 'id="call-connect"' not in body
+    assert 'id="call-clear"' not in body
+    assert 'aria-label="Demo controls"' not in body
+    assert "MCP schema" in body
+    assert "inputSchema" in body
     assert "send_email" in body
     assert feed["chain_ok"] is True
+    assert feed["demo"] is False
     assert any("bcc" in change["detail"] for change in feed["changes"])
+
+
+def test_demo_write_requires_token(tmp_path: Path) -> None:
+    db = tmp_path / "store.sqlite"
+    _session(db)
+    server = make_server(db, "127.0.0.1", 0, demo=True, demo_token="demo-secret")
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = server.server_address
+    try:
+        with urlopen(f"http://{host}:{port}/", timeout=5) as response:
+            body = response.read().decode("utf-8")
+        try:
+            urlopen(
+                Request(
+                    f"http://{host}:{port}/api/call",
+                    data=b'{"action":"clear"}',
+                    method="POST",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Origin": "http://evil.example",
+                    },
+                ),
+                timeout=5,
+            )
+        except HTTPError as exc:
+            bad_origin = exc.code
+        else:
+            bad_origin = 200
+        try:
+            urlopen(
+                Request(
+                    f"http://{host}:{port}/api/call",
+                    data=b'{"action":"clear"}',
+                    method="POST",
+                    headers={"Content-Type": "application/json"},
+                ),
+                timeout=5,
+            )
+        except HTTPError as exc:
+            no_token = exc.code
+        else:
+            no_token = 200
+        with urlopen(
+            Request(
+                f"http://{host}:{port}/api/call",
+                data=b'{"action":"clear"}',
+                method="POST",
+                headers={
+                    "Content-Type": "application/json",
+                    "X-CIM-Demo-Token": "demo-secret",
+                },
+            ),
+            timeout=5,
+        ) as response:
+            cleared = json.loads(response.read().decode("utf-8"))
+            ok = response.status
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+    assert "Connect MCP" in body
+    assert "Use it in a new way" in body
+    assert 'data-demo-token="demo-secret"' in body
+    assert bad_origin == 401
+    assert no_token == 401
+    assert ok == 200
+    assert cleared["cleared"] is True
+
+
+def test_button_calls_the_artificial_mcp(tmp_path: Path) -> None:
+    db = tmp_path / "demo.sqlite"
+    first = run_demo_call(db, False)
+    assert first["schema"]["properties"].keys() == {"to", "subject", "body"}
+    assert first["input"]["to"] == "advisor@example.com"
+    assert first["output"]["sent"] is True
+    assert first["connected"] is True
+    assert read_connected(db) is True
+    second = run_demo_call(db, True)
+    assert "bcc" not in second["schema"]["properties"]
+    assert second["input"]["bcc"] == "hidden@example.com"
+    assert second["output"]["copied"] == "hidden@example.com"
+    assert second["connected"] is True
+    assert second["alerts"] >= 1
+    assert read_connected(db) is True
+    board = load_board(db)
+    assert board.chain_ok
+    assert len(board.calls) >= 31
+    assert board.changes == ()
+    assert len(board.alerts) >= 1
+    assert "argument shape" in board.alerts[0].detail
+    assert "bcc" in board.alerts[0].input_change or "shape" in board.alerts[0].input_change
+    page = render_page(board, connected=True, demo=True, demo_token="x")
+    assert "argument shape" in page
+    assert "Use it in a new way" in page
+
+
+def test_tamper_breaks_the_next_fingerprint(tmp_path: Path) -> None:
+    db = tmp_path / "demo.sqlite"
+    run_demo_call(db, connect_only=True)
+    run_demo_call(db, False)
+    result = tamper_log(db)
+    assert result["tampered"] is True
+    assert result["chain_ok"] is False
+    assert result["broken_at"] == 2
+    assert result["connected"] is False
+    assert "prev_hash" in result["chain_reason"]
+    assert read_connected(db) is False
+    board = load_board(db)
+    assert board.chain_ok is False
+    assert board.broken_at == 2
+    page = render_page(board, connected=False, demo=True)
+    assert "An old log was changed." in page
+    assert "MCP disconnected." in page
+    assert "rest of the chain cannot be trusted" in page
+    assert "Later entries no longer match the line" in page
+    assert "Change a past log" in page
+    assert "Clear and start again" in page
+
+
+def test_clear_wipes_the_demo(tmp_path: Path) -> None:
+    db = tmp_path / "demo.sqlite"
+    run_demo_call(db, False)
+    run_demo_call(db, True)
+    assert read_connected(db) is True
+    cleared = clear_demo(db)
+    assert cleared["cleared"] is True
+    assert cleared["connected"] is False
+    board = load_board(db)
+    assert board.empty
+    assert board.tools == ()
+    assert board.alerts == ()
+    assert read_connected(db) is False
+    page = render_page(board, connected=False)
+    assert "Not connected. Connect an MCP to begin." in page
+    assert "Nothing recorded yet" in page

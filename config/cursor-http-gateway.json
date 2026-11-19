@@ -1,0 +1,41 @@
+{
+  "db": "logs/cursor-http.sqlite",
+  "host": "127.0.0.1",
+  "port": 8877,
+  "routes": [
+    {
+      "id": "roma",
+      "upstream": "https://api.roma.app/mcp",
+      "origin": "cursor",
+      "root": "cursor-roma",
+      "authorization_env": "CIM_MCP_AUTH_ROMA"
+    },
+    {
+      "id": "axiom",
+      "upstream": "https://mcp.axiom.co/mcp",
+      "origin": "cursor",
+      "root": "cursor-axiom",
+      "authorization_env": "CIM_MCP_AUTH_AXIOM"
+    },
+    {
+      "id": "supabase",
+      "upstream": "https://mcp.supabase.com/mcp?project_ref=djvjczjffxqncuqjdzrs&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching",
+      "origin": "cursor",
+      "root": "cursor-supabase",
+      "authorization_env": "CIM_MCP_AUTH_SUPABASE"
+    },
+    {
+      "id": "vercel",
+      "upstream": "https://mcp.vercel.com",
+      "origin": "cursor",
+      "root": "cursor-vercel",
+      "authorization_env": "CIM_MCP_AUTH_VERCEL"
+    },
+    {
+      "id": "graphiti",
+      "upstream": "http://127.0.0.1:8000/mcp/",
+      "origin": "cursor",
+      "root": "cursor-graphiti"
+    }
+  ]
+}

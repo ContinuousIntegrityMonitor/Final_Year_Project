@@ -303,7 +303,8 @@ def test_capture_crash_is_forwarded_and_leaves_an_alert(
         "server_to_client",
         "RuntimeError",
     )
-    assert alert["size"] == len(forwarded[2]) + 1
+    # splitlines() drops the terminator; Windows scripted servers may use \r\n.
+    assert alert["size"] in {len(forwarded[2]) + 1, len(forwarded[2]) + 2}
     outcomes = [p["outcome"] for kind, p in _records(db) if kind == "behaviour"]
     assert sorted(outcomes) == ["ok", "ok", "timeout"]  # the call whose reply was not captured
 
