@@ -67,7 +67,10 @@ def test_file_name_that_is_not_utf8_stays_hashable(tmp_path: Path) -> None:
     assert len(tree_digest(files)) == 64
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root can read every file")
+@pytest.mark.skipif(
+    not hasattr(os, "geteuid") or os.geteuid() == 0,  # type: ignore[attr-defined]
+    reason="POSIX unreadable-file check; skip as root or on non-POSIX",
+)
 def test_unreadable_file_is_recorded_not_dropped(tmp_path: Path) -> None:
     skill = make_tree(tmp_path)
     readable = tree_digest(hash_files(skill))

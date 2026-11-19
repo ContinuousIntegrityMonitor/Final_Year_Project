@@ -31,3 +31,4 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-15 | F-assistant | Finished Stage 3: drift and inventory fixes D1 to D5 and C1, with 14 new tests | PR #13 (for Hamza to merge, after #11 and #12) |
 | 2026-11-18 | Hamza | Merged PRs #10–#13 into org `main` (maintainer merge only; commits authored by fasih-moin; no AI/Cursor co-author) | org `main` at `1b71563` |
 | 2026-11-18 | H-assistant | Filled Hamza’s assistant section in `CONTEXT.md`; recorded merges in this file | `CONTEXT.md`, `ACTION.md` |
+| 2026-11-19 | H-assistant | Rebased T-16/T-16b onto org `main`; fixed G1–G3 and X1–X2; live T-16 and T-16b alerts OK | branch `t16-alerts-on-main` |

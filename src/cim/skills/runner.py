@@ -146,8 +146,12 @@ def with_timeout_note(stderr: str, timeout: float) -> str:
 
 
 def _kill_group(pgid: int) -> None:
+    killpg = getattr(os, "killpg", None)
+    sigkill = getattr(signal, "SIGKILL", None)
+    if killpg is None or sigkill is None:
+        return
     try:
-        os.killpg(pgid, signal.SIGKILL)
+        killpg(pgid, sigkill)
     except (ProcessLookupError, PermissionError):
         pass  # nothing left in the group
 

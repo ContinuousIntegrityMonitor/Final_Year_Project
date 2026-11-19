@@ -34,6 +34,7 @@ from typing import IO, Any, Literal
 
 from cim.common.schema.mcp import McpBehaviourPayload
 from cim.common.store import BaselineStore
+from cim.mcp.alert import score_latest
 from cim.mcp.drift import (
     PIN_CODE,
     list_anomalies,
@@ -385,6 +386,18 @@ class StoreSink:
                 result_size=event.response_size,
                 outcome=event.outcome,
             )
+            # T-16: score after the observation is committed. Scoring must never
+            # stop capture (fail-open); a scorer fault is logged by the writer.
+            try:
+                score_latest(
+                    self._store,
+                    artefact_id=self._server_artefact(),
+                    server_id=self._config.server_id,
+                    tool=event.tool,
+                    ts=self._now(),
+                )
+            except Exception:  # noqa: BLE001 — scoring must never stop capture
+                pass
         elif isinstance(event, CaptureFailure):
             self._store.append_record(
                 self._server_artefact(),

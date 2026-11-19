@@ -15,6 +15,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from cim.common.schema.canonical import canonical_json
 
@@ -76,6 +77,18 @@ def _classify(text: str) -> str:
         ip = None
     if ip is not None:
         return "private_ip" if ip.is_private else "public_ip"
+    # Full URLs: classify by host (so http://10.10.10.20/ counts as private_ip).
+    if "://" in text:
+        host = urlsplit(text).hostname
+        if host:
+            try:
+                embedded = ipaddress.ip_address(host)
+            except ValueError:
+                embedded = None
+            if embedded is not None:
+                return "private_ip" if embedded.is_private else "public_ip"
+            if "." in host and " " not in host:
+                return "domain"
     if text.startswith(("/", "\\")) or (len(text) > 2 and text[1] == ":"):
         return "path"
     if "." in text and " " not in text and "/" not in text:
