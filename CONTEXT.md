@@ -54,7 +54,8 @@ Rules:
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - After your scorer answers: PR `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
-- Waiting on Fasih's go-ahead: T-13 design note; contract PR from `t02-contract-fixes`.
+- **Stage T-13 design, started 2026-11-24 (Fasih's go-ahead; Fasih leads T-13).** Branch `t13-pipeline-design`, stacked on #24. A document only, `docs/T13_PIPELINE_DESIGN.md`: one `cim.toml`, the `cim` command map, what the watchdog supervises (daemons) and what it only tracks (per-session proxies and skill runs), `cim status` / `cim events`, and the acceptance test. It touches `cli.py` (yours), so no code until you agree.
+- Waiting on Fasih's go-ahead: contract PR from `t02-contract-fixes`.
 
 ### Hamza's assistant (MCP side)
 
