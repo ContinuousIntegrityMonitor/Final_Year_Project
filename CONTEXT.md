@@ -57,7 +57,7 @@ Rules:
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - After your scorer answers: PR `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
 - After your T-13 answers: config loader PR, then the CLI restructure, `cim status` / `cim events`, `cim watch`, and the acceptance test (pipeline note section 9).
-- Waiting on Fasih's go-ahead: contract PR from `t02-contract-fixes`.
+- **Stage contract v1.1, started 2026-11-24 (Fasih agreed all four answers and asked to bundle everything).** Branch `t02-contract-v1-1`, stacked on #25. B1 to B3 from `t02-contract-fixes`, then v1.1: your four rows as answered, plus the fields from the scorer note (#22), the T-13 note (#25) and review P4 / D3. Additive only: every v1.0 payload still validates, and your writers keep working unchanged; adopting the new fields is a later PR per side.
 
 ### Hamza's assistant (MCP side)
 
