@@ -33,40 +33,47 @@ What exists today:
 @dataclass(frozen=True)
 class Observation:
     categorical: Mapping[str, frozenset[str]]  # feature -> values seen in this run
-    numeric: Mapping[str, int]                  # feature -> integer count or size
+    numeric: Mapping[str, int]  # feature -> integer count or size
+
 
 @dataclass(frozen=True)
 class FeatureRule:
     kind: Literal["categorical", "numeric"]
-    threshold_milli: int = 4000      # z >= 4.0 by default; never-seen always scores CAP
-    floor_ratio: int = 10            # numeric: sd floor = max(1, mean / floor_ratio)
+    threshold_milli: int = 4000  # z >= 4.0 by default; never-seen always scores CAP
+    floor_ratio: int = 10  # numeric: sd floor = max(1, mean / floor_ratio)
+
 
 @dataclass(frozen=True)
 class ScorerConfig:
+    rules: Mapping[str, FeatureRule]  # one per feature; a feature without a rule is ignored
     window: int = 100
     warmup: int = 30
-    rules: Mapping[str, FeatureRule]  # one per feature; a feature without a rule is ignored
+
 
 @dataclass(frozen=True)
 class Drift:
     feature: str
     how: Literal["never_seen", "z"]
-    values: tuple[str, ...]          # never_seen: the new values; z: (str(latest),)
-    score_milli: int                 # CAP for never_seen, else |z| * 1000, capped at CAP
+    values: tuple[str, ...]  # never_seen: the new values; z: (str(latest),)
+    score_milli: int  # CAP for never_seen, else |z| * 1000, capped at CAP
     threshold_milli: int
+
 
 @dataclass(frozen=True)
 class Score:
     warmed_up: bool
-    composite_milli: int             # max score_milli over all features
-    drifted: tuple[Drift, ...]       # features at or over their threshold, highest first, top 3
-    alert: bool                      # warmed_up and drifted is not empty
+    composite_milli: int  # max score_milli over all features
+    drifted: tuple[Drift, ...]  # features at or over their threshold, highest first, top 3
+    alert: bool  # warmed_up and drifted is not empty
 
-def baseline(history: Sequence[tuple[Observation, bool]], config: ScorerConfig) -> list[Observation]:
+
+def baseline(
+    history: Sequence[tuple[Observation, bool]], config: ScorerConfig
+) -> list[Observation]:
     """The last `window` observations that did not alert (section 5)."""
 
-def score(prior: Sequence[Observation], latest: Observation, config: ScorerConfig) -> Score:
-    ...
+
+def score(prior: Sequence[Observation], latest: Observation, config: ScorerConfig) -> Score: ...
 ```
 
 `SkillProfile` already holds the skills side of this. For MCP, an adapter turns each call into an `Observation`.
