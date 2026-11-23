@@ -44,3 +44,6 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-24 | F-assistant | T-17 skills attacks: inert trigger skill `meeting-brief` (A3), `word-count` legitimate update (A4), `python -m cim.skills attack`; 8 tests; 10/10 reliable each | branch `t17-skills-attacks`, `progress/tasks/T-17.md` |
 | 2026-11-24 | F-assistant | Docs stage: ADR-006 S2 proposal (re-reproduced), threat model v0.10 (status per gap), T-05/08/10/11/15 marked Done | branch `t03-s2-threat-cleanup`, `docs/decisions/ADR-006-record-hash-coverage.md`, `docs/THREAT_MODEL.md` |
 | 2026-11-24 | F-assistant | T-13 pipeline and CLI design note (config, command map, watchdog, status, acceptance test); T-13 progress file | branch `t13-pipeline-design`, `docs/T13_PIPELINE_DESIGN.md`, `progress/tasks/T-13.md` |
+| 2026-11-24 | Fasih | Posted the PR summary and merge order for Hamza on issue #19 | issue #19 comment |
+| 2026-11-24 | Fasih | Agreed all four drafted answers to Hamza's v1.1 contract request | `docs/FASIH_REVIEW.md` |
+| 2026-11-24 | F-assistant | Contract 1.0.1 (B1 to B3) and 1.1.0 (four rows + scorer, watchdog, P4, D3 fields), additions only; 29 tests | branch `t02-contract-v1-1`, `docs/CONTRACT_V1_1.md` |

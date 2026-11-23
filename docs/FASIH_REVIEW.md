@@ -84,7 +84,7 @@ the proxy to log have no field today, so they are not stored:
 
 Checklist for you: accept / change / reject each row. Hamza will not edit `common/schema/` until you agree.
 
-#### Fasih's answers (draft, 2026-11-15 — to confirm at the sync)
+#### Fasih's answers (drafted 2026-11-15; agreed by Fasih 2026-11-24 and built as contract 1.1.0, see `docs/CONTRACT_V1_1.md`)
 
 | Row | Answer | Reason |
 |---|---|---|
