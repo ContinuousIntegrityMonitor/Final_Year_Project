@@ -47,6 +47,7 @@ Rules:
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - After your scorer answers: PR `common/scorer.py` + tests, then the skills call site, then the sweep script (note section 10, items 2, 3, 6).
+- **Stage T-17 skills attacks, started 2026-11-24 (Fasih's go-ahead).** Branch `t17-skills-attacks`, stacked on #22. A3: a new inert corpus skill `meeting-brief` that behaves normally until its input holds a trigger word, then sends the *names* of its environment variables and a bundled decoy to a listener; its files never change. A4: a legitimate update of `word-count` (files change, behaviour does not). Plus `python -m cim.skills attack A3|A4`, which runs warm-up, the attack and the checks on a copy of the corpus. Skills territory only. Until the T-16 scorer exists, detection is shown with the never-seen check the scorer will make.
 - Waiting on Fasih's go-ahead: A3 S2 hash decision package; A4 contract PR from `t02-contract-fixes` (could carry the v1.1 fields from the scorer note).
 
 ### Hamza's assistant (MCP side)
