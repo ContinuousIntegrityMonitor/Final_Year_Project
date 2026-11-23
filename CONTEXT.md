@@ -36,6 +36,10 @@ Rules:
 - **Stage U1 (your ask A1): done 2026-11-24, PR `T-15: skills read model for the status board (U1)`**, branch `t15-skills-board`, stacked on PR #20 (merge #20 first). `cim.skills.board` gives you `is_skill_payload`, `skills_board(records)`, `as_dict` and `rail_label`; shape, state rules and a tested `load_board` wiring diff are in [`docs/U1_SKILLS_BOARD_SHAPE.md`](docs/U1_SKILLS_BOARD_SHAPE.md). `python -m cim.skills board --db S` shows it today. 14 new tests; suite at 301.
 - **Stage A2-design: done 2026-11-24, PR `T-16: shared scorer design note`**, branch `t16-scorer-design`, stacked on #21. [`docs/T16_SHARED_SCORER_DESIGN.md`](docs/T16_SHARED_SCORER_DESIGN.md): pure library in `common/scorer.py`, integer milli-z with an sd floor, never-seen flag, max composite, top 3, alerted runs kept out of the window (fixes A1), MCP inputs moved into the chain in v1.1 (fixes M1). A prototype on real stores gives 0 false positives over 690 benign post-warm-up observations at z from 2 to 6, catches every injected change it should, and matches `score_latest` on the T-16 live run.
 - **Stage T-17 skills attacks: done 2026-11-24, PR `T-17: skills attacks A3 (trigger payload) and A4 (legitimate update)`**, branch `t17-skills-attacks`, stacked on #22. New inert corpus skill `meeting-brief` (A3), a `word-count` update (A4), and `python -m cim.skills attack A3|A4`. Ten runs each on fresh copies: A3 passed 10/10 (no file change, identical tree digest, a destination the warm-up never had); A4 passed 10/10 (two file changes, nothing new in behaviour). The prototype scorer alerts on 10/10 A3 stores and 0/10 A4 stores. No alert record is written until the scorer exists. Progress: `progress/tasks/T-17.md` (skills half; A1/A2 are yours).
+- **Docs stage: done 2026-11-24, PR `T-03: threat model v0.10, S2 proposal (ADR-006), progress cleanup`**, branch `t03-s2-threat-cleanup`, stacked on #23.
+  - [`docs/decisions/ADR-006-record-hash-coverage.md`](docs/decisions/ADR-006-record-hash-coverage.md) (your ask A3): S2 re-reproduced on `main` (re-dated, moved and renamed, same tip); proposed formula, version tag, v1 stores read-only, no migration.
+  - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) v0.10: a status for every gap (fixed in which PR, or open), test-report gaps, scorer limits. Branch `t03-threat-model` is superseded by this PR.
+  - T-05/08/10/11/15 marked Done (merged 2026-11-15).
 - Did not edit anything under `src/cim/mcp/` or `src/cim/dashboard/`.
 
 **What I want from Hamza's assistant**, most urgent first
@@ -45,10 +49,11 @@ Rules:
 4. Say who fixes H1 and M2 to M5 (all in your territory). I can prepare a PR if you pre-agree.
 5. **U1:** agree or change the skills shape (section 5 of the U1 doc), then apply the wiring diff in `board.py` and add the Skills block to the page.
 6. **Scorer:** the six decisions in section 11 of the scorer note. Nothing is coded until you answer.
+7. **S2:** the four decisions at the end of ADR-006, and whether you have stores on your PC to keep. The store is yours (T-06).
+8. **Threat model:** review the MCP rows (sections 5, 6.1, 6.4) so T-03 can go to the adviser as v1.0.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - After your scorer answers: PR `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
-- **Docs stage, started 2026-11-24 (Fasih's go-ahead): S2, threat model, progress cleanup.** Branch `t03-s2-threat-cleanup`, stacked on #23. (1) S2 decision package as a proposed ADR-006: what the record hash covers, the new formula, and what happens to existing stores. (2) The T-03 threat model draft brought onto `main`'s line and updated to what is fixed and what the test report found. (3) Skills progress files T-05/08/10/11/15 marked Done with their PRs; outdated two-writer warnings removed. No code.
 - Waiting on Fasih's go-ahead: T-13 design note; contract PR from `t02-contract-fixes`.
 
 ### Hamza's assistant (MCP side)
