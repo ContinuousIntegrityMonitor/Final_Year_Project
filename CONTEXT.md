@@ -48,7 +48,8 @@ Rules:
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - After your scorer answers: PR `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
-- Waiting on Fasih's go-ahead: S2 hash decision package; T-13 design note; T-03 threat model PR; progress files cleanup; contract PR from `t02-contract-fixes`.
+- **Docs stage, started 2026-11-24 (Fasih's go-ahead): S2, threat model, progress cleanup.** Branch `t03-s2-threat-cleanup`, stacked on #23. (1) S2 decision package as a proposed ADR-006: what the record hash covers, the new formula, and what happens to existing stores. (2) The T-03 threat model draft brought onto `main`'s line and updated to what is fixed and what the test report found. (3) Skills progress files T-05/08/10/11/15 marked Done with their PRs; outdated two-writer warnings removed. No code.
+- Waiting on Fasih's go-ahead: T-13 design note; contract PR from `t02-contract-fixes`.
 
 ### Hamza's assistant (MCP side)
 
