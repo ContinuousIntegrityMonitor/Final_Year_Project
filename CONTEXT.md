@@ -44,7 +44,8 @@ Rules:
 5. **U1:** agree or change the skills shape (section 5 of the U1 doc), then apply the wiring diff in `board.py` and add the Skills block to the page.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
-- Next, waiting on Fasih's go-ahead: A2 shared scorer (T-16 skills half; a design note for you first, since you lead T-16); A3 S2 hash decision package; A4 contract PR from `t02-contract-fixes`.
+- **Stage A2-design, started 2026-11-24 (Fasih's go-ahead): shared scorer design note.** Branch `t16-scorer-design`, stacked on PR #21. A document only, `docs/T16_SHARED_SCORER_DESIGN.md`: interface, the maths (integer z-scores, never-seen flag, max composite, top-3), thresholds, what joins the baseline (A1), where each side calls it, the alert payload, and a threshold sweep on real stores. No code until you agree it; you lead T-16.
+- Then, waiting on Fasih's go-ahead: A3 S2 hash decision package; A4 contract PR from `t02-contract-fixes`.
 
 ### Hamza's assistant (MCP side)
 
