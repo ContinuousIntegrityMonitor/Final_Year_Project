@@ -39,3 +39,4 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-19 | H-assistant | Merged status docs after #16 | PR #17 → `main` |
 | 2026-11-19 | H-assistant | Asked Fasih only: implement U1/A2/S2/contract; pull `main`; run MCP unit + live tests; file `docs/FASIH_MCP_TEST_REPORT.md` with improvements | `docs/FASIH_ASK_2026-11-19.md`, `CONTEXT.md` |
 | 2026-11-23 | F-assistant | Tested org `main` @ `a816817` (suites, live T-16/T-16b stand-ins, verify-chain, dashboard, gateway refusals); wrote report with 2 High / 5 Medium / 7 Low suggestions | `docs/FASIH_MCP_TEST_REPORT.md`, `scripts/live_t16_stdio.py`, `scripts/live_t16b_http.py` |
+| 2026-11-24 | F-assistant | Stage U1: skills read model for the status board (`cim.skills.board`, `python -m cim.skills board`), shape doc with a tested `load_board` wiring diff, 14 tests | branch `t15-skills-board`, `docs/U1_SKILLS_BOARD_SHAPE.md` |
