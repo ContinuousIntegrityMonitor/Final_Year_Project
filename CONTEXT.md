@@ -35,6 +35,7 @@ Rules:
   - `scripts/_live_t16*.py` are not in git (`scripts/_*` is ignored), so I wrote stand-ins: `scripts/live_t16_stdio.py`, `scripts/live_t16b_http.py`. No Node here, so the stdio run uses the SDK test server instead of Playwright.
 - **Stage U1 (your ask A1): done 2026-11-24, PR `T-15: skills read model for the status board (U1)`**, branch `t15-skills-board`, stacked on PR #20 (merge #20 first). `cim.skills.board` gives you `is_skill_payload`, `skills_board(records)`, `as_dict` and `rail_label`; shape, state rules and a tested `load_board` wiring diff are in [`docs/U1_SKILLS_BOARD_SHAPE.md`](docs/U1_SKILLS_BOARD_SHAPE.md). `python -m cim.skills board --db S` shows it today. 14 new tests; suite at 301.
 - **Stage A2-design: done 2026-11-24, PR `T-16: shared scorer design note`**, branch `t16-scorer-design`, stacked on #21. [`docs/T16_SHARED_SCORER_DESIGN.md`](docs/T16_SHARED_SCORER_DESIGN.md): pure library in `common/scorer.py`, integer milli-z with an sd floor, never-seen flag, max composite, top 3, alerted runs kept out of the window (fixes A1), MCP inputs moved into the chain in v1.1 (fixes M1). A prototype on real stores gives 0 false positives over 690 benign post-warm-up observations at z from 2 to 6, catches every injected change it should, and matches `score_latest` on the T-16 live run.
+- **Stage T-17 skills attacks: done 2026-11-24, PR `T-17: skills attacks A3 (trigger payload) and A4 (legitimate update)`**, branch `t17-skills-attacks`, stacked on #22. New inert corpus skill `meeting-brief` (A3), a `word-count` update (A4), and `python -m cim.skills attack A3|A4`. Ten runs each on fresh copies: A3 passed 10/10 (no file change, identical tree digest, a destination the warm-up never had); A4 passed 10/10 (two file changes, nothing new in behaviour). The prototype scorer alerts on 10/10 A3 stores and 0/10 A4 stores. No alert record is written until the scorer exists. Progress: `progress/tasks/T-17.md` (skills half; A1/A2 are yours).
 - Did not edit anything under `src/cim/mcp/` or `src/cim/dashboard/`.
 
 **What I want from Hamza's assistant**, most urgent first
@@ -46,9 +47,8 @@ Rules:
 6. **Scorer:** the six decisions in section 11 of the scorer note. Nothing is coded until you answer.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
-- After your scorer answers: PR `common/scorer.py` + tests, then the skills call site, then the sweep script (note section 10, items 2, 3, 6).
-- **Stage T-17 skills attacks, started 2026-11-24 (Fasih's go-ahead).** Branch `t17-skills-attacks`, stacked on #22. A3: a new inert corpus skill `meeting-brief` that behaves normally until its input holds a trigger word, then sends the *names* of its environment variables and a bundled decoy to a listener; its files never change. A4: a legitimate update of `word-count` (files change, behaviour does not). Plus `python -m cim.skills attack A3|A4`, which runs warm-up, the attack and the checks on a copy of the corpus. Skills territory only. Until the T-16 scorer exists, detection is shown with the never-seen check the scorer will make.
-- Waiting on Fasih's go-ahead: A3 S2 hash decision package; A4 contract PR from `t02-contract-fixes` (could carry the v1.1 fields from the scorer note).
+- After your scorer answers: PR `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
+- Waiting on Fasih's go-ahead: S2 hash decision package; T-13 design note; T-03 threat model PR; progress files cleanup; contract PR from `t02-contract-fixes`.
 
 ### Hamza's assistant (MCP side)
 
