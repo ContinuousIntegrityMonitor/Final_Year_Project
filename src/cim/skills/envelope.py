@@ -22,7 +22,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from cim.common.schema.skills import SkillBehaviourPayload
-from cim.common.store import BaselineStore
+from cim.common.store import BaselineStore, StoredRecord
 
 WINDOW = 100  # invocations a profile looks back over
 WARMUP = 30  # invocations needed before a profile can be scored against
@@ -131,8 +131,13 @@ def build_profile(skill_id: str, invocations: list[SkillBehaviourPayload]) -> Sk
 
 def behaviour_history(store: BaselineStore) -> dict[str, list[SkillBehaviourPayload]]:
     """Every skill behaviour record in the store, per skill, oldest first."""
+    return history_of(store.read_records())
+
+
+def history_of(records: Iterable[StoredRecord]) -> dict[str, list[SkillBehaviourPayload]]:
+    """`behaviour_history` over records already read, in chain order."""
     history: dict[str, list[SkillBehaviourPayload]] = {}
-    for record in store.read_records():
+    for record in records:
         if record.kind != "behaviour":
             continue
         payload = json.loads(record.payload)

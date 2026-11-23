@@ -22,7 +22,7 @@ from pydantic import BaseModel, ValidationError
 
 from cim.common.schema.envelope import Artefact, Event, Kind
 from cim.common.schema.skills import SkillArtefactPayload, SkillIntegrityPayload
-from cim.common.store import BaselineStore
+from cim.common.store import BaselineStore, StoredRecord
 from cim.skills.digest import hash_files, record_path, tree_digest
 from cim.skills.runner import Skill, discover_skills
 
@@ -88,8 +88,13 @@ def take_inventory(roots: Iterable[Path]) -> dict[str, SkillArtefactPayload]:
 
 def known_skills(store: BaselineStore) -> dict[str, KnownSkill]:
     """Replay the store: each artefact record, then the integrity events that follow it."""
+    return fold_known(store.read_records())
+
+
+def fold_known(records: Iterable[StoredRecord]) -> dict[str, KnownSkill]:
+    """`known_skills` over records already read, in chain order. MCP records are skipped."""
     known: dict[str, KnownSkill] = {}
-    for record in store.read_records():
+    for record in records:
         if record.kind not in ("artefact", "integrity"):
             continue
         payload = json.loads(record.payload)
