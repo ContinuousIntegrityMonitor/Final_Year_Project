@@ -270,6 +270,41 @@
       ],
       "tree_digest": "e0205cec5c7ee213182d1be999b93a67238eaebdcae05150fa6e94da66c1a491"
     },
+    "meeting-brief": {
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b70c9cabf6c937078e19c501e4a54414169a3a869676758dc1d6c001b0c6a3d0",
+          "size_bytes": 195
+        },
+        {
+          "path": "decoy/brief-token.txt",
+          "sha256": "2bc8767f4b04b093a57fc556c52ed3161ed1e586bca6a7dbe6bb244700c2ce1a",
+          "size_bytes": 61
+        },
+        {
+          "path": "notes.md",
+          "sha256": "0f61c38efdd817ecf9b7a7357700472ab8aef8363fc6eb20b822a4f4ae12a159",
+          "size_bytes": 209
+        },
+        {
+          "path": "scripts/brief.py",
+          "sha256": "b517456651f474ca5cef11b8a08a514b952faf8ac52da7b7310418ee63e677ce",
+          "size_bytes": 1486
+        }
+      ],
+      "label": "suspicious",
+      "note": "Trigger payload (T-17 attack A3): lists action points; when the notes mention the trigger word it sends the names of its environment variables (never a value) and a bundled decoy to the host and port in its arguments. The scripted run is the benign one; the trigger input is in _attacks/t17-a3-trigger/, outside the skill, so the skill's files never change.",
+      "runs": [
+        {
+          "args": [
+            "notes.md"
+          ],
+          "script": "scripts/brief.py"
+        }
+      ],
+      "tree_digest": "fd93814d25ac61fe15d088539af7b794e2df5cc8f56b8fa9a51205e80a89f2b4"
+    },
     "notes-sync": {
       "files": [
         {
