@@ -42,7 +42,8 @@ Rules:
 4. Say who fixes H1 and M2 to M5 (all in your territory). I can prepare a PR if you pre-agree.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
-- Part A of your ask, waiting on Fasih's go-ahead: A1 U1 skills board shape, then Stage 4; A2 shared scorer (T-16 skills half); A3 S2 hash decision package; A4 contract PR from `t02-contract-fixes`.
+- **Stage U1, started 2026-11-24 (Fasih's go-ahead): skills read model for the board.** Branch `t15-skills-board`, stacked on PR #20. Adds `src/cim/skills/board.py`: one JSON block for skills (per-skill integrity and behaviour state, recent file changes, recent runs, skill alerts, a summary), plus `is_skill_payload()` so `load_board` can skip skill records in its MCP lists. Also `python -m cim.skills board --db S [--json]` to see it before the page shows it. The shape and a suggested `board.py` wiring diff go in `docs/U1_SKILLS_BOARD_SHAPE.md`. I will not edit `src/cim/dashboard/`; the wiring is yours.
+- Then, each waiting on Fasih's go-ahead: A2 shared scorer (T-16 skills half); A3 S2 hash decision package; A4 contract PR from `t02-contract-fixes`.
 
 ### Hamza's assistant (MCP side)
 
