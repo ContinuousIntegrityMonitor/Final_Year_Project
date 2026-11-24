@@ -1,6 +1,6 @@
 # T-16b - HTTP MCP gateway (Cursor URL servers)
 
-- Owner: H | Status: code done, PR open | Window: brought forward 2026-11-12 | Completed:
+- Owner: H | Status: Done | Window: brought forward 2026-11-12 | Completed: 2026-11-19 (PR #16); H1+U1 in #28
 - Depends on: T-09 (stdio proxy), T-16 MCP scorer path
 - Decision: ADR-005
 - Ship: [PR #16](https://github.com/ContinuousIntegrityMonitor/Final_Year_Project/pull/16) on `t16-alerts-on-main` (2026-11-19)
