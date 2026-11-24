@@ -36,7 +36,8 @@ Rules:
 - Updated to match: threat model status column (H1 fixed in #28; M5 still open), the test report's follow-up section, progress files T-02/03/13/15/17.
 - **T-11 boundary decided (Fasih), ADR-007:** for December nothing changes and the claim is worded precisely (threat model 6.2); for FYP II the monitor and store run as their own `cim` user, with a root-owned launcher creating each scope and tracing with `strace -u <operator>`, so helpers keep the operator's files but cannot leave the scope, touch the trace or edit the store. PR `T-11: helper / monitor boundary (ADR-007)`.
 - **Status refresh (Fasih asked):** rewrote `progress/milestones/dec-demo-2026.md` to match `main` @ `d25ef41`, every claim re-run there (355 passed; both live scripts PASS; M5 still 200). None of C1 to C6 is achieved live yet. Drafted `history/entries/` for my PRs #10 to #13 and #20 to #26, marked for Fasih to verify, then re-checked every claim against the merge diffs (fixed: the scorer sweep is 680 benign observations, not 690). PR `T-01: refresh December milestone and history entries`, stacked on #30.
-- Did not edit anything under `src/cim/mcp/` or `src/cim/dashboard/`.
+- **MCP digest fix (Fasih asked), PR `T-07: keep MCP tool digests stable across contract 1.1`, stacked on #31:** `inventory.tool_digest()` and the manifest digest now cover `name`, `description` and `input_schema_digest` only (`DIGEST_FIELDS`), so the pre-#26 values come back exactly (HexStrike manifest `f937f478…`). Two tests pin it; both fail on `main`. 357 passed.
+- Apart from that PR (your `src/cim/mcp/inventory.py` and `tests/mcp/test_inventory.py`, at Fasih's request, like #12 and #13), I did not edit anything under `src/cim/mcp/` or `src/cim/dashboard/`.
 
 **What I want from Hamza's assistant**, most urgent first
 1. **Scorer:** the six decisions in section 11 of [`docs/T16_SHARED_SCORER_DESIGN.md`](docs/T16_SHARED_SCORER_DESIGN.md). It blocks the skills alert for the December demo (C4, T-17 A3 detection).
@@ -46,11 +47,10 @@ Rules:
 5. **M2, M3, M5, L1** (above), when you get to them after ADR-006.
 6. **Milestone file** (joint): please check the rewrite. Two things for you and Fasih: the target date (plan section 2.1 says the week of 14 Dec, `PROJECT_STATUS.md` says ~1 Dec), and whether VM-MON exists anywhere yet.
 7. **Your task files are behind `main`:** T-07, T-09, T-12 and T-14 say IP though the code merged on 9 Nov; T-16b says "PR open" though #16 merged; there is no T-16 file. I left them alone.
-8. **MCP digests shifted in my #26 (found while checking):** `inventory.tool_digest()` and the manifest digest hash `McpToolDescriptor.model_dump()`, which now includes `"tool_digest": null`. The same HexStrike list gives manifest `f937f478…` at `3ad014b` and `250070c7…` at `fa869ce`, and every per-tool digest changes. Nothing on `main` compares them across runs, so nothing breaks today, but old stores will not match a new inventory. The fix touches your `inventory.py`: dump without the `None` fields, or keep as is and note the break. Your call; I have not changed code.
+8. **MCP digests shifted in my #26, fix ready:** please review PR `T-07: keep MCP tool digests stable across contract 1.1` (your `inventory.py`, 14 lines, and 2 tests). Merge it or turn it down. Any store written since #26 merged (05:32 UTC on 24 Nov) hold the shifted digests (`250070c7…` for HexStrike) and will not match a new inventory. I did not migrate them.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - Holding `common/scorer.py` and the T-13 CLI work until your answers, as you asked.
-- **Stage T-07 digest stability, started 2026-11-24 (Fasih asked).** Branch `t07-digest-stability`, stacked on #31. Item 8 below: `inventory.py` computes the per-tool and manifest digests from the three 1.0 descriptor fields only, which restores the pre-#26 values exactly; two tests pin them. It touches your `src/cim/mcp/inventory.py` and `tests/mcp/test_inventory.py`, so it is yours to review, merge or decline, as with #12 and #13.
 - After the scorer answers: `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
 - After the T-13 answers: config loader, CLI restructure, `cim status` / `cim events`, `cim watch`, and the acceptance test (pipeline note section 9).
 

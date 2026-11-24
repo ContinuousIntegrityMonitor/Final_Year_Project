@@ -11,6 +11,7 @@ T-02, Fasih (lead). Answers Hamza's v1.1 request in [`docs/FASIH_REVIEW.md`](FAS
 - **No writer has to change for this PR to merge.** The full suite passes unchanged.
 - **One visible effect:** writers that dump these models now write the new keys with `null` values (and `"record": "baseline"` on MCP baselines) until they fill them in. Every reader uses `.get`, so nothing breaks.
 - **Hash formula unchanged:** that is ADR-006 (S2), a store change, decided separately.
+- **Correction (found after merge, fixed in PR `T-07: keep MCP tool digests stable across contract 1.1`):** the null `tool_digest` key also went into the MCP inventory digests, because `inventory.tool_digest()` and the manifest digest hashed the whole descriptor dump. The same HexStrike list gave manifest `f937f478…` before this revision and `250070c7…` after it. Since the fix, both digests cover exactly `name`, `description` and `input_schema_digest` (`inventory.DIGEST_FIELDS`), whatever fields the descriptor gains, and `tests/mcp/test_inventory.py` pins the HexStrike values. Stores written between the two PRs hold the shifted digests; they are lab stores, so they are not migrated.
 
 ## 2. What changed
 

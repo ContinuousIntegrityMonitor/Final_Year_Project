@@ -8,13 +8,16 @@ from pathlib import Path
 from cim.common.store import BaselineStore
 from cim.mcp.inventory import (
     build_manifest,
+    describe_tool,
     load_tools_list,
     synthetic_hexstrike_tools,
+    tool_digest,
     write_inventory,
 )
 from cim.mcp.lab import MIN_HEXSTRIKE_TOOLS
 
 TS = "2026-11-07T18:00:00Z"
+HEXSTRIKE_LIST = Path(__file__).resolve().parents[2] / "corpora" / "mcp" / "tools_list.json"
 
 
 def test_float_default_in_schema_still_hashes() -> None:
@@ -114,3 +117,27 @@ def test_load_tools_list_round_trip(tmp_path: Path) -> None:
     path.write_text(json.dumps({"tools": tools}), encoding="utf-8")
     loaded = load_tools_list(path)
     assert [t["name"] for t in loaded] == [t["name"] for t in tools]
+
+
+def test_recorded_hexstrike_digests_do_not_move() -> None:
+    # Values computed before contract 1.1 (org main @ 3ad014b). Stores keep these digests,
+    # so a schema change that moves them makes every old store disagree with a new inventory.
+    manifest, digests = build_manifest(
+        server_id="hexstrike",
+        name="hexstrike",
+        description="HexStrike MCP",
+        root="/opt/mcp/hexstrike",
+        tools=load_tools_list(HEXSTRIKE_LIST),
+    )
+    assert manifest.manifest_digest == (
+        "f937f478ce5a868fda30c3b11750b99e4c47fa0f987586e84c9e04b1bbb899b5"
+    )
+    assert digests["nmap_scan"] == (
+        "14557bed90f0730242df51163ee8a46f4f956f27a7cf3ac2ae99f69e66abdc62"
+    )
+
+
+def test_fields_added_to_the_descriptor_do_not_change_its_digest() -> None:
+    plain = describe_tool({"name": "t", "description": "d", "inputSchema": {"type": "object"}})
+    filled = plain.model_copy(update={"tool_digest": "a" * 64})
+    assert tool_digest(filled) == tool_digest(plain)

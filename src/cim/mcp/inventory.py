@@ -91,9 +91,19 @@ def describe_tool(tool: dict[str, Any]) -> McpToolDescriptor:
     )
 
 
+# The fields the per-tool and manifest digests cover. Named here, not taken from the model,
+# so a field added to McpToolDescriptor later (contract 1.1 added `tool_digest`) cannot change
+# the digest of an unchanged tool. Changing this set changes every stored digest.
+DIGEST_FIELDS = frozenset({"name", "description", "input_schema_digest"})
+
+
+def _digest_view(descriptor: McpToolDescriptor) -> dict[str, Any]:
+    return descriptor.model_dump(mode="json", include=set(DIGEST_FIELDS))
+
+
 def tool_digest(descriptor: McpToolDescriptor) -> str:
     """Stable per-tool digest over name + description + input schema digest."""
-    return sha256_canonical(descriptor.model_dump(mode="json"))
+    return sha256_canonical(_digest_view(descriptor))
 
 
 def build_manifest(
@@ -110,7 +120,7 @@ def build_manifest(
         enumerate_tools(tools, minimum=minimum)
     descriptors = [describe_tool(tool) for tool in tools]
     digests = {d.name: tool_digest(d) for d in descriptors}
-    manifest_digest = sha256_canonical([d.model_dump(mode="json") for d in descriptors])
+    manifest_digest = sha256_canonical([_digest_view(d) for d in descriptors])
     payload = McpArtefactPayload(
         server_id=server_id,
         tool_id=None,
