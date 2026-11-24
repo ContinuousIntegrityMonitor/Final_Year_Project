@@ -73,10 +73,25 @@ def test_scripted_replay_logs_100_calls_in_order(tmp_path: Path) -> None:
     records = _records(db)
     behaviour = [p for kind, p in records if kind == "behaviour"]
     assert len(behaviour) == 100
-    assert [p["invocation_id"] for p in behaviour] == [f"{n:06d}:{100 + n}" for n in range(1, 101)]
     assert {p["tool_id"] for p in behaviour} == {"echo"}
     assert {p["outcome"] for p in behaviour} == {"ok"}
-    artefacts = [p for kind, p in records if kind == "artefact" and p.get("code") != "mcp_pin"]
+    # Contract 1.1: session_id + seq; invocation_id is "<session_id>:<seq>".
+    assert all(p.get("session_id") and p.get("seq") for p in behaviour)
+    assert [p["invocation_id"] for p in behaviour] == [
+        f"{p['session_id']}:{p['seq']}" for p in behaviour
+    ]
+    assert [p["seq"] for p in behaviour] == list(range(1, 101))
+    assert all(isinstance(p.get("response_bytes"), int) for p in behaviour)
+    assert all(isinstance(p.get("argument_shape_digest"), str) for p in behaviour)
+    assert all(isinstance(p.get("value_classes"), list) for p in behaviour)
+    sessions = [p for kind, p in records if kind == "artefact" and p.get("record") == "session"]
+    assert len(sessions) == 1
+    assert sessions[0]["server_name"] == "fake"
+    artefacts = [
+        p
+        for kind, p in records
+        if kind == "artefact" and p.get("code") != "mcp_pin" and p.get("record") != "session"
+    ]
     assert sorted(p["name"] for p in artefacts) == ["echo", "fail", "fake", "garbage"]
     with BaselineStore(db) as store:
         assert store.verify_chain().ok
@@ -193,7 +208,9 @@ def test_real_mcp_client_session_through_proxy(tmp_path: Path) -> None:
     records = _records(db)
     calls = [p for kind, p in records if kind == "behaviour"]
     assert [(c["server_id"], c["tool_id"], c["outcome"]) for c in calls] == [("sdk", "add", "ok")]
-    assert {p["name"] for kind, p in records if kind == "artefact"} >= {"add", "shout"}
+    assert {
+        p["name"] for kind, p in records if kind == "artefact" and isinstance(p.get("name"), str)
+    } >= {"add", "shout"}
 
 
 def test_config_from_env(tmp_path: Path) -> None:
@@ -274,10 +291,8 @@ def test_frames_nested_too_deep_are_forwarded_and_alerted_from_either_side(
     assert sorted(a["direction"] for a in alerts) == ["client_to_server", "server_to_client"]
     assert {a["code"] for a in alerts} == {"proxy_malformed_frame"}
     assert {a["reason"] for a in alerts} == {"RecursionError"}
-    behaviour = {
-        p["invocation_id"]: p["outcome"] for kind, p in _records(db) if kind == "behaviour"
-    }
-    assert behaviour == {"000001:2": "timeout", "000002:3": "ok"}  # the call after it is captured
+    behaviour = {p["seq"]: p["outcome"] for kind, p in _records(db) if kind == "behaviour"}
+    assert behaviour == {1: "timeout", 2: "ok"}  # the call after it is captured
 
 
 def test_capture_crash_is_forwarded_and_leaves_an_alert(
@@ -335,10 +350,14 @@ def test_tools_list_that_cannot_be_stored_leaves_an_alert(tmp_path: Path) -> Non
     _scripted(tmp_path, {"tools/list": [good]}, [_request(1, "tools/list")], db=second)
     _scripted(tmp_path, {"tools/list": [changed]}, [_request(1, "tools/list")], db=second)
     assert _alerts(second) == []
-    drift = [payload["path"] for kind, payload in _records(second) if kind == "integrity"]
+    drift = [payload["detail"] for kind, payload in _records(second) if kind == "integrity"]
     assert drift == [
         "a: description changed",
         "tools/list: 1 entries have no name (pinned list had 0)",
+    ]
+    assert [payload["path"] for kind, payload in _records(second) if kind == "integrity"] == [
+        "a",
+        "tools/list",
     ]
     with BaselineStore(second) as store:
         assert store.verify_chain().ok
@@ -406,7 +425,6 @@ def test_later_sessions_reuse_the_artefact_rows(tmp_path: Path) -> None:
     finally:
         con.close()
     assert rows == [
-        ("mcp_pin", "srv", 1),
         ("mcp_server", "srv", 1),
         ("mcp_tool", "a", 1),
         ("mcp_tool", "b", 1),

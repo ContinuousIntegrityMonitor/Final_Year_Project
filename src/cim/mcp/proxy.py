@@ -26,13 +26,14 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import IO, Any, Literal
+from typing import IO, Any, Literal, cast
 
-from cim.common.schema.mcp import McpBehaviourPayload
+from cim.common.schema.mcp import McpBehaviourPayload, McpSessionPayload, ValueClass
 from cim.common.store import BaselineStore
 from cim.mcp.alert import score_latest
 from cim.mcp.drift import (
@@ -44,9 +45,10 @@ from cim.mcp.drift import (
     record_sweep,
     write_pin,
 )
-from cim.mcp.envelope import record_observation
+from cim.mcp.envelope import argument_shape, record_observation, value_classes
+from cim.mcp.events import append_mcp
 from cim.mcp.framing import Direction, parse_frame
-from cim.mcp.inventory import hashable, write_inventory
+from cim.mcp.inventory import hashable, sha256_canonical, write_inventory
 
 Outcome = Literal["ok", "error", "timeout"]
 Clock = Callable[[], int]
@@ -108,12 +110,23 @@ class CaptureFailure:
     sha256: str
 
 
-CaptureEvent = ToolsSnapshot | CallCaptured | MalformedFrame | CaptureFailure
+@dataclass(frozen=True)
+class SessionCaptured:
+    """Result of one ``initialize`` handshake (contract 1.1 session record)."""
+
+    server_name: str
+    server_version: str
+    protocol_version: str
+    capabilities: dict[str, Any]
+
+
+CaptureEvent = ToolsSnapshot | CallCaptured | MalformedFrame | CaptureFailure | SessionCaptured
 _EVENT_NAMES = {
     ToolsSnapshot: "tools_list",
     CallCaptured: "tools_call",
     MalformedFrame: "malformed_frame",
     CaptureFailure: "capture_failure",
+    SessionCaptured: "initialize",
 }
 FAILED_CODE = "proxy_capture_failed"
 
@@ -144,7 +157,7 @@ def _safe_text(value: object, limit: int = 300) -> str:
 class Capture:
     """Turns forwarded stdio lines into capture events. Pure: no I/O, no threads."""
 
-    _TRACKED = frozenset({"tools/list", "tools/call"})
+    _TRACKED = frozenset({"tools/list", "tools/call", "initialize"})
 
     def __init__(self, clock: Clock = time.monotonic_ns) -> None:
         self._clock = clock
@@ -179,6 +192,8 @@ class Capture:
         pending = self._pending.pop(message_id, None)
         if pending is None:
             return []
+        if pending.method == "initialize":
+            return self._session(body)
         if pending.method == "tools/list":
             result = body.get("result")
             tools = result.get("tools") if isinstance(result, dict) else None
@@ -196,6 +211,29 @@ class Capture:
             whole, self._pages = self._pages, []
             return [ToolsSnapshot(tools=whole)]
         return [self._call(pending, message_id, body, len(raw), finished)]
+
+    @staticmethod
+    def _session(body: dict[str, Any]) -> list[CaptureEvent]:
+        result = body.get("result")
+        if not isinstance(result, dict):
+            return []
+        info = result.get("serverInfo")
+        if not isinstance(info, dict):
+            info = {}
+        name = info.get("name")
+        version = info.get("version")
+        protocol = result.get("protocolVersion")
+        caps = result.get("capabilities")
+        return [
+            SessionCaptured(
+                server_name=name if isinstance(name, str) and name else "unknown",
+                server_version=version if isinstance(version, str) and version else "unknown",
+                protocol_version=(
+                    protocol if isinstance(protocol, str) and protocol else "unknown"
+                ),
+                capabilities=caps if isinstance(caps, dict) else {},
+            )
+        ]
 
     def drain(self) -> list[CaptureEvent]:
         """Calls still waiting for a response when the session ends become timeouts."""
@@ -264,6 +302,8 @@ class StoreSink:
         store: BaselineStore,
         config: ProxyConfig,
         now: Callable[[], str] = _utc_now,
+        *,
+        session_id: str | None = None,
     ) -> None:
         self._store = store
         self._config = config
@@ -271,6 +311,9 @@ class StoreSink:
         self._server_aid: int | None = None
         self._tool_aids: dict[str, int] = {}
         self._known_loaded = False
+        # One id per proxy/gateway sink (one stdio session or one long-lived HTTP route).
+        self._session_id = session_id if session_id is not None else uuid.uuid4().hex
+        self._session_written = False
 
     def _load_known(self) -> None:
         """Find the artefact rows earlier sessions used for this server and its tools.
@@ -301,21 +344,46 @@ class StoreSink:
         The message of the exception is cleaned before it is stored: it can quote the very
         text that made the write fail.
         """
-        self._store.append_record(
+        append_mcp(
+            self._store,
             self._server_artefact(),
-            "alert",
-            {
+            artefact_type="mcp_server",
+            server_id=self._config.server_id,
+            kind="alert",
+            payload={
                 "code": FAILED_CODE,
                 "stage": "store",
                 "event": _EVENT_NAMES.get(type(event), "unknown"),
                 "reason": type(exc).__name__,
                 "detail": _safe_text(exc),
             },
-            self._now(),
+            ts=self._now(),
         )
 
     def apply(self, event: CaptureEvent) -> None:
-        if isinstance(event, ToolsSnapshot):
+        if isinstance(event, SessionCaptured):
+            if self._session_written:
+                return
+            session = McpSessionPayload(
+                record="session",
+                server_id=self._config.server_id,
+                session_id=self._session_id,
+                server_name=event.server_name,
+                server_version=event.server_version,
+                protocol_version=event.protocol_version,
+                capabilities_digest=sha256_canonical(hashable(event.capabilities)),
+            )
+            append_mcp(
+                self._store,
+                self._server_artefact(),
+                artefact_type="mcp_server",
+                server_id=self._config.server_id,
+                kind="artefact",
+                payload=session,
+                ts=self._now(),
+            )
+            self._session_written = True
+        elif isinstance(event, ToolsSnapshot):
             tools = hashable(event.tools)
             pin = pinned_tools(self._store, self._config.server_id)
             if pin is None:
@@ -338,6 +406,7 @@ class StoreSink:
                     origin=self._config.origin,
                     tools=tools,
                     ts=self._now(),
+                    server_artefact_id=result.server_artefact_id,
                 )
                 # Nothing to compare a first list with, but it can be wrong on its own.
                 record_drift(
@@ -359,10 +428,12 @@ class StoreSink:
                     ts=self._now(),
                 )
         elif isinstance(event, CallCaptured):
-            payload = McpBehaviourPayload(
+            seq = event.order
+            classes = cast(list[ValueClass], value_classes(event.arguments))
+            behaviour = McpBehaviourPayload(
                 server_id=self._config.server_id,
                 tool_id=event.tool,
-                invocation_id=f"{event.order:06d}:{event.message_id}",
+                invocation_id=f"{self._session_id}:{seq}",
                 request_digest=event.request_digest,
                 response_digest=event.response_digest,
                 binaries_executed=[],
@@ -371,12 +442,21 @@ class StoreSink:
                 process_count=0,
                 duration_us=event.duration_us,
                 outcome=event.outcome,
+                response_bytes=event.response_size,
+                session_id=self._session_id,
+                seq=seq,
+                argument_shape_digest=sha256_canonical(argument_shape(event.arguments)),
+                value_classes=classes,
             )
-            self._store.append_record(
+            append_mcp(
+                self._store,
                 self._tool_aid(event.tool),
-                "behaviour",
-                payload.model_dump(mode="json"),
-                self._now(),
+                artefact_type="mcp_tool",
+                server_id=self._config.server_id,
+                tool_id=event.tool,
+                kind="behaviour",
+                payload=behaviour,
+                ts=self._now(),
             )
             record_observation(
                 self._store.path,
@@ -399,10 +479,13 @@ class StoreSink:
             except Exception:  # noqa: BLE001 — scoring must never stop capture
                 pass
         elif isinstance(event, CaptureFailure):
-            self._store.append_record(
+            append_mcp(
+                self._store,
                 self._server_artefact(),
-                "alert",
-                {
+                artefact_type="mcp_server",
+                server_id=self._config.server_id,
+                kind="alert",
+                payload={
                     "code": FAILED_CODE,
                     "stage": "capture",
                     "direction": event.direction,
@@ -410,20 +493,23 @@ class StoreSink:
                     "sha256": event.sha256,
                     "size": event.size,
                 },
-                self._now(),
+                ts=self._now(),
             )
         else:
-            self._store.append_record(
+            append_mcp(
+                self._store,
                 self._server_artefact(),
-                "alert",
-                {
+                artefact_type="mcp_server",
+                server_id=self._config.server_id,
+                kind="alert",
+                payload={
                     "code": "proxy_malformed_frame",
                     "direction": event.direction,
                     "reason": event.reason,
                     "sha256": event.sha256,
                     "size": event.size,
                 },
-                self._now(),
+                ts=self._now(),
             )
 
     def _server_artefact(self) -> int:

@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-24):** Merged Fasih **#29–#33**. **Green light:** scorer §11 and T-13 §10 answered (see Hamza section). Next: Hamza contract 1.1 MCP writers (fixes M1 off-chain) → MCP scorer switch; Fasih codes `common/scorer.py` + skills alerts + T-13. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
+3. **Active now (2026-11-24):** Contract **1.1 MCP writers** shipping (M1: behaviour carries `response_bytes` / shape digest / `value_classes` / session). Next: MCP scorer switch off `envelope_obs`; Fasih `common/scorer.py` + T-13. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
@@ -62,9 +62,8 @@ Rules:
 **Sign as:** Hamza Cursor (Hamza’s Cursor agent). Does not claim authorship of Fasih’s commits.
 
 **What I did**
-- Merged your stack **#29 → #30 → #31 → #32 → #33** (merge commits; author HamzaFarooq3333; no AI/Cursor co-author). Org `main` @ tip after #33.
-- **H1 / U1 / ADR-006** as before (Accepted; store formula code still follow-up).
-- **#32 digest fix:** accepted (DIGEST_FIELDS). **ADR-007 / decision 8:** accepted for Phase 1 claim + Dec direct writes.
+- Merged your stack **#29 → #33**; green light §11 / §10 posted (#34).
+- **Contract 1.1 MCP writers:** proxy/gateway fill `response_bytes`, `argument_shape_digest`, `value_classes`, `session_id`+`seq` on chained behaviour; `initialize` → session record; pin under `mcp_server` (`record: pin`); integrity words in `detail`; inventory fills `tool_digest`; writes go through `Event` (`cim.mcp.events.append_mcp`). Dashboard prefers integrity `detail`. `envelope_obs` still fed for today's scorer (switch is next).
 
 **GREEN LIGHT — scorer §11** ([`docs/T16_SHARED_SCORER_DESIGN.md`](docs/T16_SHARED_SCORER_DESIGN.md))
 1. Agree: `common/scorer.py`, integer milli-z, floor `max(1, mean/10)`, upward-only.
@@ -92,6 +91,5 @@ Rules:
 3. Keep announcing stages before new PRs.
 
 **What I am about to do**
-1. Contract 1.1 MCP writers (fill chained behaviour fields) — fixes M1 off-chain.
-2. MCP switch: `score_latest` → shared library; stop scoring from `envelope_obs`.
-3. ADR-006 store formula code; then M2–M5.
+1. MCP switch: `score_latest` → shared library; stop scoring from `envelope_obs`.
+2. ADR-006 store formula code; then M2–M5.
