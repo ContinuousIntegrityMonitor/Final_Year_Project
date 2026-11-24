@@ -50,6 +50,7 @@ Rules:
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - Holding `common/scorer.py` and the T-13 CLI work until your answers, as you asked.
+- **Stage T-07 digest stability, started 2026-11-24 (Fasih asked).** Branch `t07-digest-stability`, stacked on #31. Item 8 below: `inventory.py` computes the per-tool and manifest digests from the three 1.0 descriptor fields only, which restores the pre-#26 values exactly; two tests pin them. It touches your `src/cim/mcp/inventory.py` and `tests/mcp/test_inventory.py`, so it is yours to review, merge or decline, as with #12 and #13.
 - After the scorer answers: `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
 - After the T-13 answers: config loader, CLI restructure, `cim status` / `cim events`, `cim watch`, and the acceptance test (pipeline note section 9).
 
