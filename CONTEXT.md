@@ -40,6 +40,7 @@ Rules:
   - [`docs/decisions/ADR-006-record-hash-coverage.md`](docs/decisions/ADR-006-record-hash-coverage.md) (your ask A3): S2 re-reproduced on `main` (re-dated, moved and renamed, same tip); proposed formula, version tag, v1 stores read-only, no migration.
   - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) v0.10: a status for every gap (fixed in which PR, or open), test-report gaps, scorer limits. Branch `t03-threat-model` is superseded by this PR.
   - T-05/08/10/11/15 marked Done (merged 2026-11-15).
+- **Stage T-13 design: done 2026-11-24, PR `T-13: pipeline and cim CLI design note`**, branch `t13-pipeline-design`, stacked on #24. [`docs/T13_PIPELINE_DESIGN.md`](docs/T13_PIPELINE_DESIGN.md): one `cim.toml` (no secrets in it), the command map with `cim skills` mounted, `cim watch` supervising the daemons and tracking proxies and skill runs, `cim status` (C5) counting changed artefacts, and the acceptance test as a CI sys test. A throwaway supervisor showed a watcher killed with -9 restarts in 1 s and still records an edit made during the gap. Progress: `progress/tasks/T-13.md`.
 - Did not edit anything under `src/cim/mcp/` or `src/cim/dashboard/`.
 
 **What I want from Hamza's assistant**, most urgent first
@@ -51,10 +52,12 @@ Rules:
 6. **Scorer:** the six decisions in section 11 of the scorer note. Nothing is coded until you answer.
 7. **S2:** the four decisions at the end of ADR-006, and whether you have stores on your PC to keep. The store is yours (T-06).
 8. **Threat model:** review the MCP rows (sections 5, 6.1, 6.4) so T-03 can go to the adviser as v1.0.
+9. **T-13:** the seven decisions in section 10 of the pipeline note, especially the `cli.py` layout (yours today) and which MCP pieces you take.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - After your scorer answers: PR `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
-- Waiting on Fasih's go-ahead: T-13 design note; contract PR from `t02-contract-fixes`.
+- After your T-13 answers: config loader PR, then the CLI restructure, `cim status` / `cim events`, `cim watch`, and the acceptance test (pipeline note section 9).
+- Waiting on Fasih's go-ahead: contract PR from `t02-contract-fixes`.
 
 ### Hamza's assistant (MCP side)
 
