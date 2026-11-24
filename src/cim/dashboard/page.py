@@ -165,11 +165,83 @@ h1 {
 .warning strong { color: var(--danger); }
 .warning p { margin: 0.35rem 0 0; font-size: 0.9rem; }
 .alert-line { margin: 0.85rem 0 0; color: var(--muted); font-size: 0.9rem; }
-.rail h2, #home h2, #mcp-schema h2, #exchange h2 {
+.rail h2, #home h2, #mcp-schema h2, #exchange h2, .panel-title {
   margin: 0 0 0.55rem;
   font-size: 0.95rem;
   font-weight: 650;
 }
+.side-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+@media (max-width: 960px) {
+  .side-panels { grid-template-columns: 1fr; }
+}
+.panel-block {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  padding: 1rem 1.05rem;
+}
+.panel-block h2 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.panel-block h2 .tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.pill {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--line);
+}
+.pill.healthy {
+  color: var(--safe);
+  border-color: color-mix(in srgb, var(--safe) 45%, transparent);
+}
+.pill.learning {
+  color: #c9b66a;
+  border-color: color-mix(in srgb, #c9b66a 45%, transparent);
+}
+.pill.warning {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+}
+.skill-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.86rem;
+}
+.skill-line:first-of-type { border-top: 0; padding-top: 0; }
+.skill-line .meta { color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
+.bar {
+  height: 4px;
+  background: var(--pad);
+  border-radius: 2px;
+  margin-top: 0.3rem;
+  overflow: hidden;
+}
+.bar > i {
+  display: block;
+  height: 100%;
+  background: #c9b66a;
+  border-radius: 2px;
+}
+.bar.ready > i { background: var(--safe); }
 .print-pad {
   width: 100%;
   aspect-ratio: 1 / 1.15;
@@ -393,9 +465,11 @@ _SCRIPT = """
   var lineQueue = [];
   var pumping = false;
   function signature(data) {
+    var skillsN = data.skills && data.skills.summary ? data.skills.summary.skills : 0;
+    var skillWarn = data.skills && data.skills.summary ? data.skills.summary.warning : 0;
     return data.links.map(function (link) { return link.record_id; }).join(",") +
       "|" + data.chain_ok + "|" + data.broken_at + "|" + data.changes.length +
-      "|" + data.connected + "|" + data.alerts.length;
+      "|" + data.connected + "|" + data.alerts.length + "|" + skillsN + "|" + skillWarn;
   }
   function refresh(data) {
     var sig = signature(data);
@@ -414,6 +488,12 @@ _SCRIPT = """
     home.replaceChildren();
     home.appendChild(stats(data));
     home.appendChild(detailList(data));
+    var panels = document.getElementById("side-panels");
+    if (panels) {
+      panels.replaceChildren();
+      panels.appendChild(mcpPanel(data));
+      panels.appendChild(skillsPanel(data));
+    }
     showSchema(data);
   }
   function connectionLine(data) {
@@ -452,11 +532,93 @@ _SCRIPT = """
   }
   function stats(data) {
     var wrap = node("div", "stats");
-    wrap.appendChild(stat(data.tools.length, "Tools"));
-    wrap.appendChild(stat(data.calls.length, "Calls"));
-    wrap.appendChild(stat(data.changes.length, "Changes"));
+    var skills = (data.skills && data.skills.summary) ? data.skills.summary.skills : 0;
+    wrap.appendChild(stat(data.tools.length, "MCP tools"));
+    wrap.appendChild(stat(skills, "Skills"));
+    wrap.appendChild(stat(data.changes.length, "MCP changes"));
     wrap.appendChild(stat(data.alerts.length, "Alerts"));
     return wrap;
+  }
+  function pill(state) {
+    return node("span", "pill " + state, state);
+  }
+  function mcpPanel(data) {
+    var box = node("section", "panel-block");
+    box.id = "mcp-panel";
+    var h = node("h2", "panel-title", "MCP");
+    h.appendChild(node("span", "tag", "servers & tools"));
+    box.appendChild(h);
+    box.appendChild(node(
+      "p",
+      "note",
+      data.servers.length + " server(s), " + data.tools.length + " tool(s), " +
+      data.calls.length + " recent call(s)."
+    ));
+    if (!data.servers.length && !data.tools.length) {
+      box.appendChild(node("p", "empty", "No MCP servers in this store yet."));
+      return box;
+    }
+    data.servers.forEach(function (serverId) {
+      var tools = data.tools.filter(function (t) { return t.server_id === serverId; });
+      var line = node("div", "skill-line");
+      var left = node("div", "");
+      left.appendChild(node("div", "", serverId));
+      left.appendChild(node(
+        "div",
+        "meta",
+        tools.length ? tools.map(function (t) { return t.name; }).join(", ") : "no tools pinned"
+      ));
+      line.appendChild(left);
+      line.appendChild(pill(tools.length ? "healthy" : "learning"));
+      box.appendChild(line);
+    });
+    return box;
+  }
+  function skillsPanel(data) {
+    var box = node("section", "panel-block");
+    box.id = "skills-panel";
+    var h = node("h2", "panel-title", "Skills");
+    h.appendChild(node("span", "tag", "U1"));
+    box.appendChild(h);
+    var skills = data.skills;
+    if (!skills || !skills.skills || !skills.skills.length) {
+      box.appendChild(node("p", "empty", "No skills in this store yet."));
+      return box;
+    }
+    var s = skills.summary;
+    box.appendChild(node(
+      "p",
+      "note",
+      s.skills + " installed · " + s.healthy + " healthy · " +
+      s.learning + " learning · " + s.warning + " warning"
+    ));
+    var warmup = skills.warmup || data.warmup || 30;
+    skills.skills.forEach(function (row) {
+      var line = node("div", "skill-line");
+      var left = node("div", "");
+      left.appendChild(node("div", "", row.name || row.skill_id));
+      var bits = [];
+      if (row.integrity && row.integrity.state !== "unchanged") {
+        bits.push("files " + row.integrity.state +
+          (row.integrity.changed_paths && row.integrity.changed_paths.length
+            ? " (" + row.integrity.changed_paths.join(", ") + ")" : ""));
+      } else {
+        bits.push("files unchanged");
+      }
+      var obs = row.behaviour && row.behaviour.observations != null
+        ? row.behaviour.observations : 0;
+      bits.push(obs + " of " + warmup);
+      left.appendChild(node("div", "meta", bits.join(" · ")));
+      var bar = node("div", "bar" + (row.state === "healthy" ? " ready" : ""));
+      var fill = document.createElement("i");
+      fill.style.width = Math.min(100, (obs / warmup) * 100) + "%";
+      bar.appendChild(fill);
+      left.appendChild(bar);
+      line.appendChild(left);
+      line.appendChild(pill(row.state || "learning"));
+      box.appendChild(line);
+    });
+    return box;
   }
   function alertLine(data) {
     var i;
@@ -506,7 +668,26 @@ _SCRIPT = """
     box.appendChild(tools(data));
     box.appendChild(calls(data));
     box.appendChild(patterns(data));
+    box.appendChild(skillChanges(data));
     return box;
+  }
+  function skillChanges(data) {
+    var section = node("section", "");
+    section.appendChild(node("h2", "", "Skill changes"));
+    var rows = [];
+    if (data.skills && data.skills.changes) {
+      rows = data.skills.changes.map(function (change) {
+        var tr = document.createElement("tr");
+        tr.appendChild(cell("When", change.ts));
+        tr.appendChild(cell("Skill", change.skill_id));
+        tr.appendChild(cell("Change", change.change));
+        tr.appendChild(cell("Path", change.path || ""));
+        return tr;
+      });
+    }
+    if (!rows.length) section.appendChild(node("p", "empty", "No skill file changes."));
+    else section.appendChild(table(["When", "Skill", "Change", "Path"], rows));
+    return section;
   }
   function selfCheck(data) {
     if (data.empty) return node("p", "check", "Waiting for a session.");
@@ -804,6 +985,9 @@ def render_page(
         "</div>",
         "</header>",
         f'<div id="live" data-sig="{_e(_signature(board, live))}">{_body(board, live)}</div>',
+        '<div class="side-panels" id="side-panels">',
+        f"{_mcp_panel(board)}{_skills_panel(board)}",
+        "</div>",
         '<section id="mcp-schema">',
         "<h2>MCP schema</h2>",
         f'<pre id="schema-body">{_schema_body(board)}</pre>',
@@ -862,6 +1046,7 @@ def _body(board: Board, connected: bool) -> str:
         f"{_stats(board)}"
         "<details open><summary>See the list</summary>"
         f"{_changes(board)}{_tools(board)}{_calls(board)}{_patterns(board)}"
+        f"{_skill_changes(board)}"
         "</details></div></div>"
     )
 
@@ -895,16 +1080,78 @@ def _schema_body(board: Board) -> str:
 
 
 def _stats(board: Board) -> str:
+    skill_n = len(board.skills.skills) if board.skills is not None else 0
     cards = (
-        (len(board.tools), "Tools"),
-        (len(board.calls), "Calls"),
-        (len(board.changes), "Changes"),
+        (len(board.tools), "MCP tools"),
+        (skill_n, "Skills"),
+        (len(board.changes), "MCP changes"),
         (len(board.alerts), "Alerts"),
     )
     body = "".join(
         f'<div class="stat"><b>{value}</b><span>{label}</span></div>' for value, label in cards
     )
     return f'<div class="stats">{body}</div>'
+
+
+def _mcp_panel(board: Board) -> str:
+    if not board.servers and not board.tools:
+        body = '<p class="empty">No MCP servers in this store yet.</p>'
+    else:
+        lines: list[str] = []
+        for server_id in board.servers:
+            tools = [t for t in board.tools if t.server_id == server_id]
+            names = ", ".join(t.name for t in tools) if tools else "no tools pinned"
+            state = "healthy" if tools else "learning"
+            lines.append(
+                '<div class="skill-line"><div>'
+                f"<div>{_e(server_id)}</div>"
+                f'<div class="meta">{_e(names)}</div></div>'
+                f'<span class="pill {state}">{state}</span></div>'
+            )
+        body = (
+            f'<p class="note">{len(board.servers)} server(s), {len(board.tools)} tool(s), '
+            f"{len(board.calls)} recent call(s).</p>{''.join(lines)}"
+        )
+    return (
+        '<section class="panel-block" id="mcp-panel">'
+        '<h2 class="panel-title">MCP <span class="tag">servers &amp; tools</span></h2>'
+        f"{body}</section>"
+    )
+
+
+def _skills_panel(board: Board) -> str:
+    skills = board.skills
+    if skills is None or not skills.skills:
+        body = '<p class="empty">No skills in this store yet.</p>'
+    else:
+        summary = (
+            f"{len(skills.skills)} installed · {skills.count('healthy')} healthy · "
+            f"{skills.count('learning')} learning · {skills.count('warning')} warning"
+        )
+        lines: list[str] = [f'<p class="note">{_e(summary)}</p>']
+        for row in skills.skills:
+            obs = row.profile.observations if row.profile is not None else 0
+            if row.integrity != "unchanged":
+                paths = ", ".join(row.changed_paths) if row.changed_paths else ""
+                meta = f"files {row.integrity}" + (f" ({paths})" if paths else "")
+            else:
+                meta = "files unchanged"
+            meta = f"{meta} · {obs} of {WARMUP}"
+            width = min(100.0, (obs / WARMUP) * 100.0) if WARMUP else 0.0
+            ready = " ready" if row.state == "healthy" else ""
+            lines.append(
+                '<div class="skill-line"><div>'
+                f"<div>{_e(row.name or row.skill_id)}</div>"
+                f'<div class="meta">{_e(meta)}</div>'
+                f'<div class="bar{ready}"><i style="width:{width:.1f}%"></i></div>'
+                f'</div><span class="pill {row.state}">{_e(row.state)}</span></div>'
+            )
+        body = "".join(lines)
+    return (
+        '<section class="panel-block" id="skills-panel">'
+        '<h2 class="panel-title">Skills <span class="tag">U1</span></h2>'
+        f"{body}</section>"
+    )
 
 
 def _primary(on: bool) -> str:
@@ -969,9 +1216,11 @@ def _headline(board: Board) -> str:
 
 def _signature(board: Board, connected: bool) -> str:
     ids = ",".join(str(link.record_id) for link in board.links)
+    skill_n = len(board.skills.skills) if board.skills is not None else 0
+    skill_w = board.skills.count("warning") if board.skills is not None else 0
     return (
         f"{ids}|{board.chain_ok}|{board.broken_at}|{len(board.changes)}|"
-        f"{connected}|{len(board.alerts)}"
+        f"{connected}|{len(board.alerts)}|{skill_n}|{skill_w}"
     )
 
 
@@ -1035,6 +1284,28 @@ def _changes(board: Board) -> str:
             f"<th>What changed</th></tr></thead><tbody>{''.join(rows)}</tbody></table>"
         )
     return f"<section><h2>Changes</h2>{body}</section>"
+
+
+def _skill_changes(board: Board) -> str:
+    changes = board.skills.changes if board.skills is not None else ()
+    if not changes:
+        body = '<p class="empty">No skill file changes.</p>'
+    else:
+        rows = []
+        for change in changes:
+            rows.append(
+                "<tr>"
+                + _cell("When", _e(change.ts))
+                + _cell("Skill", _e(change.skill_id))
+                + _cell("Change", _e(change.change))
+                + _cell("Path", _e(change.path))
+                + "</tr>"
+            )
+        body = (
+            "<table><thead><tr><th>When</th><th>Skill</th><th>Change</th>"
+            f"<th>Path</th></tr></thead><tbody>{''.join(rows)}</tbody></table>"
+        )
+    return f"<section><h2>Skill changes</h2>{body}</section>"
 
 
 def _tools(board: Board) -> str:

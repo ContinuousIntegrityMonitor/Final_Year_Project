@@ -142,7 +142,7 @@ def _client_allowed(headers: object, *, listen_host: str, token: str) -> str | N
     origin = _header(headers, "Origin").strip()
     if origin:
         origin_host = urlsplit(origin).hostname or ""
-        if origin_host.lower() not in {"127.0.0.1", "localhost", "::1"} and origin != "null":
+        if origin == "null" or origin_host.lower() not in {"127.0.0.1", "localhost", "::1"}:
             return "invalid Origin"
     provided = _header(headers, "X-CIM-Demo-Token").strip()
     if not provided or provided != token:

@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-24):** Org `main` @ `fa869ce` includes Fasih PRs **#20–#26** (MCP test report, U1 skills board, scorer design note, T-17 skills attacks, threat model v0.10 + ADR-006 *Proposed*, T-13 design note, contract **1.1.0**). Local `main` matches. **Ball is with Hamza:** fix report **H1** (gateway Bearer without token), wire U1 into the dashboard, answer Fasih’s open decisions (scorer / S2 / T-13), then adopt 1.1 MCP writer fields. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md). Findings: [`docs/HAMZA_REVIEW.md`](docs/HAMZA_REVIEW.md) + [`docs/FASIH_MCP_TEST_REPORT.md`](docs/FASIH_MCP_TEST_REPORT.md).
+3. **Active now (2026-11-24):** Shipping **H1 + U1 wire-up**: gateway refuses to start without `CIM_HTTP_GATEWAY_TOKEN` when any route has `authorization_env`; dashboard `load_board` uses skills rail + MCP/Skills panels. ADR-006 **Accepted** (store formula code still a follow-up). Org tip before this ship was after PRs #20–#27. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
@@ -66,17 +66,17 @@ Rules:
 **Sign as:** Hamza Cursor (Hamza’s Cursor agent). Does not claim authorship of Fasih’s commits.
 
 **What I did**
-- Reviewed and **merged your PRs #20–#26** into org `main` (merge commits as `HamzaFarooq3333`; no AI/Cursor co-author). Tip `fa869ce`.
-- That lands: MCP test report + live stand-ins; U1 skills board; scorer design note; T-17 A3/A4; threat model v0.10 + ADR-006 *Proposed*; T-13 design note; contract **1.1.0** (additions only).
-- Approved each PR with a short review comment before merge. Design notes (#22, #25) and ADR-006 stay **docs / Proposed** until Hamza answers the decision lists — merging them does not start coding.
+- **H1:** gateway requires `CIM_HTTP_GATEWAY_TOKEN` when any route has `authorization_env` (refuse to start); no Bearer attach without it; reject `Origin: null` and non-JSON POSTs. Docs updated.
+- **U1 wired:** `load_board` skips skill payloads into MCP lists, uses `rail_label` / `skills_board`; page shows **MCP** and **Skills** panels + skill-changes list. Shape accepted (skill changes stay separate).
+- **ADR-006:** Accepted (option 3, no migration). Hash formula **code** not in this ship — follow-up store PR.
+- Earlier: merged your PRs #20–#26 / status #27.
 
 **What I want from Fasih**
-1. Hold coding on `common/scorer.py` and T-13 CLI reshape until Hamza posts decisions in this section (or on the design docs).
-2. Optional: you may prepare an H1 fix PR **only after** Hamza says which option (refuse to start vs never attach Bearer without token). Prefer Hamza owns H1–M5 in `src/cim/mcp/` / `dashboard/`.
+1. Hold `common/scorer.py` until Hamza answers scorer design §11.
+2. Hold T-13 CLI reshape until Hamza answers pipeline design §10.
 3. Keep announcing stages here before new PRs.
 
-**What I am about to do** (Hamza / this side)
-1. **H1 first** — fix gateway so stored Bearer is never attached without `CIM_HTTP_GATEWAY_TOKEN` (lean refuse-to-start when any route has `authorization_env`).
-2. Wire **U1** into `cim.dashboard.board` / page using [`docs/U1_SKILLS_BOARD_SHAPE.md`](docs/U1_SKILLS_BOARD_SHAPE.md).
-3. Answer scorer section 11, ADR-006 S2, and T-13 section 10; then adopt contract 1.1 MCP writer fields in a proxy PR.
-4. Keep / replace your live stand-in scripts (H2): **keep** them on `main`.
+**What I am about to do**
+1. Ship H1 + U1 board/page to org `main`.
+2. Answer scorer §11 and T-13 §10; implement ADR-006 in store (T-06).
+3. Adopt contract 1.1 MCP writer fields; then M2–M5.

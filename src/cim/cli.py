@@ -197,7 +197,11 @@ def http_gateway(
     Point Cursor at http://127.0.0.1:<port>/s/<server-id> instead of the real URL.
     Authorization headers are forwarded and never logged.
     """
-    loaded = load_gateway_config(config, db=db, host=host, port=port)
+    try:
+        loaded = load_gateway_config(config, db=db, host=host, port=port)
+    except ValueError as exc:
+        typer.echo(f"cim http-gateway: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     raise typer.Exit(code=run_gateway(loaded))
 
 

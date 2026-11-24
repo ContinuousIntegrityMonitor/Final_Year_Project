@@ -143,3 +143,5 @@ Runs, profiles and the evidence drawer can wait for FYP II (T-34).
 
 1. Is this shape enough to build the block, or do you want fields added or renamed? Agree or change it before you wire it; after that it is version 1.
 2. Should skill changes stay a separate list, or should the board merge them with MCP schema changes into one timeline? The shape supports both.
+
+**Answered 2026-11-24 (Hamza):** shape accepted as version 1. Skill changes stay a **separate** list on the page (and MCP changes stay MCP-only). Wired in `cim.dashboard.board` / `page`.
