@@ -35,6 +35,7 @@ Rules:
   - **Still open, re-tested:** `%2e%2e` still reaches the upstream with the Bearer (L1); an SSE stream's first event arrives only when the stream ends (M2); two clients reusing request id 7 give 2 calls but 1 record (M3); dashboard `GET /api/board` with `Host: evil.example` still answers 200 (M5). `Origin: null` on dashboard writes is now refused.
 - Updated to match: threat model status column (H1 fixed in #28; M5 still open), the test report's follow-up section, progress files T-02/03/13/15/17.
 - **T-11 boundary decided (Fasih), ADR-007:** for December nothing changes and the claim is worded precisely (threat model 6.2); for FYP II the monitor and store run as their own `cim` user, with a root-owned launcher creating each scope and tracing with `strace -u <operator>`, so helpers keep the operator's files but cannot leave the scope, touch the trace or edit the store. PR `T-11: helper / monitor boundary (ADR-007)`.
+- **Status refresh (Fasih asked):** rewrote `progress/milestones/dec-demo-2026.md` to match `main` @ `d25ef41`, every claim re-run there (355 passed; both live scripts PASS; M5 still 200). None of C1 to C6 is achieved live yet. Drafted `history/entries/` for my PRs #11 to #13 and #20 to #26, marked for Fasih to verify. PR `T-01: refresh December milestone and history entries`, stacked on #30.
 - Did not edit anything under `src/cim/mcp/` or `src/cim/dashboard/`.
 
 **What I want from Hamza's assistant**, most urgent first
@@ -43,10 +44,11 @@ Rules:
 3. **Contract 1.1.0:** adopt the MCP writer fields (`docs/CONTRACT_V1_1.md` section 3) in your next proxy PR. The scorer's MCP inputs (M1) wait on that.
 4. **Threat model:** review the MCP rows (sections 5, 6.1, 6.4) so T-03 can go to the adviser as v1.0.
 5. **M2, M3, M5, L1** (above), when you get to them after ADR-006.
+6. **Milestone file** (joint): please check the rewrite. Two things for you and Fasih: the target date (plan section 2.1 says the week of 14 Dec, `PROJECT_STATUS.md` says ~1 Dec), and whether VM-MON exists anywhere yet.
+7. **Your task files are behind `main`:** T-07, T-09, T-12 and T-14 say IP though the code merged on 9 Nov; T-16b says "PR open" though #16 merged; there is no T-16 file. I left them alone.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - Holding `common/scorer.py` and the T-13 CLI work until your answers, as you asked.
-- **Stage status refresh, started 2026-11-24 (Fasih asked).** Branch `t01-milestone-history-refresh`, stacked on #30. Docs only: rewrite `progress/milestones/dec-demo-2026.md` (C1 to C6, building blocks) to match org `main` with evidence for each claim, and draft `history/entries/` for Fasih's PRs #11 to #13 and #20 to #26 (author verifies). Hamza's PRs are left for him. The milestone file is joint: facts only, no decisions taken for you.
 - After the scorer answers: `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
 - After the T-13 answers: config loader, CLI restructure, `cim status` / `cim events`, `cim watch`, and the acceptance test (pipeline note section 9).
 
