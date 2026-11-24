@@ -1,6 +1,6 @@
 # Threat model — Continuous Integrity Monitor
 
-- **Status:** draft v0.11 for T-03. Written 2026-11-15 by Fasih (v0.9); v0.10 on 2026-11-24 (status per gap, test-report gaps); v0.11 the same day after PR #28 (H1 fixed, ADR-006 accepted; M5 and the other open rows re-tested). Not yet reviewed by Hamza, not signed off by the adviser.
+- **Status:** draft v0.12 for T-03 (v0.12: the 6.2 boundary decided in ADR-007). Written 2026-11-15 by Fasih (v0.9); v0.10 on 2026-11-24 (status per gap, test-report gaps); v0.11 the same day after PR #28 (H1 fixed, ADR-006 accepted; M5 and the other open rows re-tested). Not yet reviewed by Hamza, not signed off by the adviser.
 - **Scope:** Phase 1 (SEE) as built, with pointers to where Phase 2 takes over.
 - **What is different from a textbook model:** section 6 lists what the current code does not withstand, and for each gap whether it is fixed (and where) or still open. Each entry was reproduced and is recorded in `docs/HAMZA_REVIEW.md`, `docs/FASIH_MCP_TEST_REPORT.md` or the module it concerns, unless it says "from reading".
 
@@ -106,7 +106,9 @@ Short statements; the detail and the reproduction are in the place named. Review
 | Helpers run with a clean environment, so the lab cannot show a helper stealing a real variable. The T-17 A3 stand-in sends variable names and a bundled decoy | A3 | By design | `corpora/skills/meeting-brief/` |
 | Destinations are classed by address, never by name | A3 | Open | `collector.py` |
 
-All four have the same root: the helper and the monitor are the same user. The fix is one decision that is still open: run helpers as a separate unprivileged user on VM-MON, or in a cgroup namespace, or record them through audit events.
+All four have the same root: the helper and the monitor are the same user. **Decided in ADR-007:**
+- **Phase 1 keeps one user, and says so:** "Behaviour is attributed per invocation and cannot be missed by a short-lived process. Against a helper that actively evades the monitor (leaving its cgroup, tampering with its trace), Phase 1 gives no guarantee: helpers and the monitor share one user. Phase 2 separates them."
+- **Phase 2 separates the monitor, not the helpers:** the monitor and the store run as their own `cim` user. A root-owned launcher creates each scope at system level and traces the helper with `strace -u <operator>`, so helpers keep the operator's files and behaviour but cannot leave the scope, touch the trace or edit the store. Tracer detection stays open until the collector moves to eBPF (if T-33 needs it).
 
 ### 6.3 On TB3 (evidence store)
 
@@ -140,7 +142,7 @@ The chain has no key and no anchor outside the host, so it proves consistency, n
 
 ## 7. What to settle before December
 
-1. The same-user boundary for skills (6.2). It decides how much of A3 and A6 the demo can honestly claim.
+1. The same-user boundary for skills (6.2): decided in ADR-007. The demo claims attribution per invocation, not resistance to a helper that evades; use the wording in 6.2.
 2. What the store hash covers (S2): ADR-006 is accepted; the store code must land before either side keeps a store.
 3. The gateway is part of the December build (ADR-005), and the demo buttons sit behind `--demo` (PR #16). H1 is fixed (PR #28). M5 must be fixed before the board is shown on a network-connected machine.
 4. The scorer's inputs move into the chain (M1) before the C4 demo claims that a behaviour record cannot be edited unseen.

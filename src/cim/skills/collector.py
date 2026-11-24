@@ -13,7 +13,8 @@ Known limits:
 - A traced program can tell it is traced and behave differently. Setuid programs run without
   their extra privilege while traced.
 - The trace file belongs to the same user as the helper, like the cgroup (see scoped.py). A
-  helper that actively evades can tamper with it. Both need the stronger boundary.
+  helper that actively evades can tamper with it. ADR-007: accepted for Phase 1; in Phase 2 the
+  trace is written by a root-owned tracer into a directory only the monitor's user can write.
 - Only what the helper asks the kernel for by name is recorded. Data written through a
   descriptor it inherited, or received from another process, is not a file-write target.
 - A destination is classed by address. Which name was looked up is not recorded, so the
