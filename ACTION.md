@@ -65,3 +65,5 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-24 | H-assistant | Windows ship gates: posix skill paths in `digest.record_path`; `_prepush_ci.sh` runs common+MCP only on Windows (full suite stays on Ubuntu CI) | `src/cim/skills/digest.py`, `scripts/_prepush_ci.sh`, `scripts/_ship.sh` |
 | 2026-11-24 | H-assistant | Fixed ship hang: `prepush_local.sh` had no `--help`, so the scripts-help loop re-entered the full gates; add `--help`, skip self, skip check-env on Windows; refresh status MDs | `scripts/prepush_local.sh`, `CONTEXT.md`, `PROJECT_STATUS.md`, `progress/tasks/` |
 | 2026-11-24 | H-assistant | Status refresh after #35: CONTEXT Active-now + Hamza exchange; PROJECT_STATUS; T-07/09/12/14/16b → Done | `CONTEXT.md`, `PROJECT_STATUS.md`, `progress/tasks/` |
+| 2026-11-24 | Hamza | Merged PR #36 (Windows ship gates / prepush_local --help recursion) to org `main` | PR #36 → `main` @ `384882f` |
+| 2026-11-24 | H-assistant | MCP `score_latest` reads chained behaviour (1.1 fields); no longer scores from `envelope_obs` (M1) | `src/cim/mcp/alert.py`, `tests/mcp/test_behaviour_alert.py` |
