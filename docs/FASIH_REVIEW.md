@@ -84,6 +84,21 @@ the proxy to log have no field today, so they are not stored:
 
 Checklist for you: accept / change / reject each row. Hamza will not edit `common/schema/` until you agree.
 
+#### Fasih's answers (drafted 2026-11-15; agreed by Fasih 2026-11-24 and built as contract 1.1.0, see `docs/CONTRACT_V1_1.md`)
+
+| Row | Answer | Reason |
+|---|---|---|
+| Response size | **Accept**, named `response_bytes` | Optional integer, so every v1.0 record still validates. The name says the unit, like `size_bytes` and `duration_us`. |
+| `method` + order in `invocation_id` | **Change** | A field that can only ever hold `"tools/call"` carries no information, and order would still have to be parsed out of the id. Instead: `seq: StrictInt >= 1` for the order inside a session and `session_id: str`. `invocation_id` then becomes `<session_id>:<seq>` and is unique across sessions (today it repeats: `docs/HAMZA_REVIEW.md` P3). |
+| `McpSessionPayload` under `artefact` | **Accept the payload, change how it is told apart** | The validator picks a payload class from artefact type and kind alone, so two shapes under `mcp_server` + `artefact` cannot be distinguished. Add a `record` field (`"baseline"`, `"session"`, `"pin"`) to MCP artefact payloads. That also gives the pin record a contract shape (P4). |
+| `ProxyAlertPayload` | **Accept** | Keep `code` and `reason` as the two fields every alert has, so the skills side can add its own alert payloads later with the same two. |
+
+Three more items I would like in the same revision, from `docs/HAMZA_REVIEW.md`:
+
+- a `detail` field on integrity payloads, so `path` holds a path again, and digests filled in on drift records (P4);
+- a decision on what a tool digest covers: today `title`, `annotations` and `outputSchema` are outside it (D3);
+- three validation fixes that are already written and tested on `t02-contract-fixes` as contract revision 1.0.1 (section 3, B1 to B3).
+
 ### Priority 3 — Your sole path (not blocking T-06 merge)
 
 | Task | Status | Your next |

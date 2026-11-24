@@ -24,3 +24,13 @@ def test_floats_rejected(bad: object) -> None:
 def test_non_string_key_rejected() -> None:
     with pytest.raises(ValueError):
         canonical_json({1: "a"})
+
+
+@pytest.mark.parametrize("bad", ["\ud800", {"a": ["ok", "x\udfffy"]}, {"k\ud800": 1}])
+def test_text_that_cannot_be_utf8_is_rejected_by_name(bad: object) -> None:
+    with pytest.raises(ValueError, match="lone surrogate"):
+        canonical_json(bad)
+
+
+def test_everything_canonical_json_accepts_can_be_hashed() -> None:
+    canonical_json({"emoji": "\U0001f600", "nul": "\x00", "accent": "é"}).encode("utf-8")
