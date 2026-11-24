@@ -299,7 +299,13 @@ def verify_chain(
     if expect_tip is not None and result.tip != expect_tip.lower():
         typer.echo(f"verify-chain: tip is {result.tip}, not the expected {expect_tip.lower()}")
         raise typer.Exit(code=1)
-    typer.echo(f"verify-chain: ok ({result.count} records) tip={result.tip}")
+    if result.hash_version == 1:
+        typer.echo(
+            f"verify-chain: ok ({result.count} records, "
+            f"hash v1: ts and artefacts not covered) tip={result.tip}"
+        )
+    else:
+        typer.echo(f"verify-chain: ok ({result.count} records) tip={result.tip}")
 
 
 if __name__ == "__main__":
