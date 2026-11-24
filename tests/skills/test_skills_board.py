@@ -263,23 +263,19 @@ def test_is_skill_payload_splits_a_shared_store_cleanly(store: BaselineStore, ro
     assert not is_skill_payload(None) and not is_skill_payload({"skill_id": 3})
 
 
-def test_board_without_the_wiring_still_mislabels_skill_records(
-    store: BaselineStore, root: Path
-) -> None:
-    """Documents U1 until `load_board` calls `rail_label` (docs/U1_SKILLS_BOARD_SHAPE.md).
-
-    Once the board carries a skills section this test skips itself: delete it then.
-    """
+def test_dashboard_load_board_wires_skills_section(store: BaselineStore, root: Path) -> None:
+    """U1: skill records leave MCP lists and appear under board.skills."""
     from cim.dashboard.board import load_board
 
     (root / "alpha" / "SKILL.md").write_text("changed\n", encoding="utf-8")
     sweep(store, [root], ts=LATER)
     run(store, "alpha", 1)
     board = load_board(store.path)
-    if getattr(board, "skills", None) is not None:
-        pytest.skip("the board is wired: U1 is fixed; delete this test")
-    assert [c.tool for c in board.calls] == ["unknown"]
-    assert [c.server_id for c in board.changes] == [""]
+    assert board.skills is not None
+    assert board.calls == ()
+    assert board.changes == ()
+    assert any(row.skill_id == "alpha" and row.state == "warning" for row in board.skills.skills)
+    assert any(link.label.startswith("alpha:") for link in board.links)
 
 
 def test_rail_labels() -> None:

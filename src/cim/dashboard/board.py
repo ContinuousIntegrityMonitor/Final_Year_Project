@@ -10,6 +10,8 @@ from typing import Any
 
 from cim.common.store import BaselineStore
 from cim.mcp.envelope import ToolEnvelope, envelopes
+from cim.skills.board import SkillsBoard, rail_label, skills_board
+from cim.skills.board import as_dict as skills_dict
 
 _CALL_LIMIT = 40
 _LINK_LIMIT = 18
@@ -77,6 +79,7 @@ class Board:
     earlier_links: int
     servers: tuple[str, ...]
     empty: bool
+    skills: SkillsBoard | None = None
 
 
 def load_board(db: Path) -> Board:
@@ -95,6 +98,14 @@ def load_board(db: Path) -> Board:
     for record in records:
         payload = _object(record.payload)
         if payload is None:
+            continue
+        skill_link = rail_label(record.kind, payload)
+        if skill_link is not None:
+            # Skills record: fingerprint rail only; skills section builds from all records.
+            mark, label = skill_link
+            if mark == "baseline":
+                mark = "pin"
+            links_all.append(ChainLink(record.id, mark, label, record.ts))
             continue
         if payload.get("code") == "mcp_pin":
             _remember_server(servers, payload.get("server_id"))
@@ -163,6 +174,7 @@ def load_board(db: Path) -> Board:
         for server_id in servers:
             patterns.extend(envelopes(db, server_id))
     tools = tuple(tool for server_id in servers for tool in tools_by_server.get(server_id, []))
+    skills = skills_board(records)
     return Board(
         chain_ok=chain.ok,
         record_count=chain.count,
@@ -176,7 +188,8 @@ def load_board(db: Path) -> Board:
         links=tuple(links_all[-_LINK_LIMIT:]),
         earlier_links=max(0, len(links_all) - _LINK_LIMIT),
         servers=tuple(servers),
-        empty=chain.count == 0 and not patterns,
+        empty=chain.count == 0 and not patterns and not skills.skills,
+        skills=skills,
     )
 
 
@@ -250,6 +263,7 @@ def as_dict(board: Board) -> dict[str, Any]:
             }
             for link in board.links
         ],
+        "skills": skills_dict(board.skills) if board.skills is not None else None,
     }
 
 

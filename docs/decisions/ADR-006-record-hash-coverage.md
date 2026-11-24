@@ -1,7 +1,7 @@
 # ADR-006: What the record hash covers (S2)
 
 - **Date:** 2026-11-24
-- **Status:** Proposed. Needs both members: it changes the formula in plan section 4.7 and every stored hash.
+- **Status:** Accepted (Hamza, 2026-11-24). Option 3 + no migration; implement in a follow-up store PR (T-06). Changes plan section 4.7 and every new store’s hashes.
 - **Proposed by:** Fasih
 - **Finding:** S2 in [`docs/HAMZA_REVIEW.md`](../HAMZA_REVIEW.md); ask A3 in [`docs/FASIH_ASK_2026-11-19.md`](../FASIH_ASK_2026-11-19.md).
 

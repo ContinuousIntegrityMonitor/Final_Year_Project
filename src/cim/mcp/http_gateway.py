@@ -10,6 +10,10 @@ Authorization and Cookie headers are forwarded and never written into the store.
 Capture stores digests only (same as T-09). Optional ``authorization_env`` on a
 route injects ``Authorization: Bearer <env>`` when the client did not send one
 (for OAuth URL servers that Cursor cannot re-auth against localhost).
+
+H1: if any route sets ``authorization_env``, ``access_token`` /
+``CIM_HTTP_GATEWAY_TOKEN`` is required before the gateway starts. The stored
+Bearer is never attached without that gateway token.
 """
 
 from __future__ import annotations
@@ -71,7 +75,8 @@ class GatewayConfig:
     port: int
     routes: tuple[GatewayRoute, ...]
     # Per-run shared secret (env CIM_HTTP_GATEWAY_TOKEN). Required before any
-    # stored Bearer token is attached. Empty means "dev only" — still Host-checked.
+    # stored Bearer token is attached (H1). Empty is allowed only when no route
+    # uses authorization_env.
     access_token: str = ""
 
     def route(self, server_id: str) -> GatewayRoute | None:
@@ -79,6 +84,21 @@ class GatewayConfig:
             if route.id == server_id:
                 return route
         return None
+
+    def routes_needing_bearer(self) -> tuple[GatewayRoute, ...]:
+        return tuple(r for r in self.routes if r.authorization_env)
+
+
+def require_gateway_token(config: GatewayConfig) -> None:
+    """Refuse to run when a route would lend a stored Bearer without a gateway token."""
+    needy = config.routes_needing_bearer()
+    if needy and not config.access_token:
+        names = ", ".join(r.id for r in needy)
+        raise ValueError(
+            "CIM_HTTP_GATEWAY_TOKEN (or access_token) is required when any route "
+            f"sets authorization_env (routes: {names}). Refusing to start so a "
+            "local caller cannot use the stored Bearer without the gateway token."
+        )
 
 
 def load_gateway_config(
@@ -113,20 +133,24 @@ def load_gateway_config(
                 upstream=upstream,
                 origin=str(item.get("origin") or "cursor"),
                 root=str(item.get("root") or f"cursor-{rid}"),
-                authorization_env=auth_env,
+                authorization_env=(
+                    auth_env.strip() if isinstance(auth_env, str) and auth_env.strip() else None
+                ),
             )
         )
     db_value = db or Path(str(raw.get("db") or "logs/cursor-http.sqlite"))
     host_value = host or str(raw.get("host") or "127.0.0.1")
     port_value = port if port is not None else int(raw.get("port") or 8877)
     access = str(raw.get("access_token") or os.environ.get("CIM_HTTP_GATEWAY_TOKEN") or "")
-    return GatewayConfig(
+    config = GatewayConfig(
         db=db_value,
         host=host_value,
         port=port_value,
         routes=tuple(routes),
         access_token=access.strip(),
     )
+    require_gateway_token(config)
+    return config
 
 
 def _log(message: str) -> None:
@@ -226,6 +250,8 @@ def _client_allowed(
     *,
     listen_host: str,
     access_token: str,
+    method: str = "GET",
+    content_type: str = "",
 ) -> str | None:
     """Return an error reason if the client must be refused; else None."""
     host = _header(headers, "Host")
@@ -235,9 +261,16 @@ def _client_allowed(
         return "invalid Host"
     origin = _header(headers, "Origin").strip()
     if origin:
-        origin_host = urlsplit(origin).hostname or ""
-        if origin_host.lower() not in {"127.0.0.1", "localhost", "::1"} and origin != "null":
+        # Origin "null" (sandboxed iframe / file://) must not reach a Bearer route.
+        if origin == "null":
             return "invalid Origin"
+        origin_host = urlsplit(origin).hostname or ""
+        if origin_host.lower() not in {"127.0.0.1", "localhost", "::1"}:
+            return "invalid Origin"
+    if method.upper() == "POST":
+        ctype = content_type.split(";", 1)[0].strip().lower()
+        if ctype not in {"application/json", "application/json-rpc"}:
+            return "Content-Type must be application/json"
     if access_token:
         provided = _header(headers, "X-CIM-Gateway-Token").strip()
         if provided != access_token:
@@ -340,8 +373,14 @@ class _StoreWriter:
                     self._queue.task_done()
 
 
-def _authorization_for(route: GatewayRoute, env: Mapping[str, str]) -> str | None:
-    if not route.authorization_env:
+def _authorization_for(
+    route: GatewayRoute,
+    env: Mapping[str, str],
+    *,
+    access_token: str,
+) -> str | None:
+    """Attach stored Bearer only when the gateway token is configured (H1)."""
+    if not access_token or not route.authorization_env:
         return None
     token = env.get(route.authorization_env, "").strip()
     if not token:
@@ -410,6 +449,8 @@ def make_handler(
                 {k: v for k, v in self.headers.items()},
                 listen_host=config.host,
                 access_token=config.access_token,
+                method=method,
+                content_type=self.headers.get("Content-Type", ""),
             )
             if refused is not None:
                 self.send_error(401, refused)
@@ -430,10 +471,10 @@ def make_handler(
             for event in _capture_client(session, req_bodies):
                 writer.put(server_id, event)
 
-            # Attach stored Bearer only after the client passed access checks (G1).
+            # Attach stored Bearer only after the client passed access checks (G1/H1).
             headers = filter_request_headers(
                 {k: v for k, v in self.headers.items()},
-                authorization=_authorization_for(route, source),
+                authorization=_authorization_for(route, source, access_token=config.access_token),
             )
             request = Request(upstream_url, data=body if method != "GET" else None, method=method)
             for key, value in headers.items():
@@ -489,6 +530,7 @@ def serve_gateway(
     env: Mapping[str, str] | None = None,
     opener: Callable[..., Any] | None = None,
 ) -> ThreadingHTTPServer:
+    require_gateway_token(config)
     sessions: dict[str, _RouteSession] = {}
     writer = _StoreWriter(config.db, config.routes)
     writer.start()

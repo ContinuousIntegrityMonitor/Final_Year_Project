@@ -130,9 +130,11 @@ def start_gateway(
     env.pop("CIM_HTTP_GATEWAY_TOKEN", None)
     if token:
         env["CIM_HTTP_GATEWAY_TOKEN"] = token
+    bindir = "Scripts" if os.name == "nt" else "bin"
+    cim = repo / ".venv" / bindir / ("cim.exe" if os.name == "nt" else "cim")
     proc = subprocess.Popen(
         [
-            str(repo / ".venv/bin/cim"),
+            str(cim),
             "http-gateway",
             "--config",
             str(cfg),
@@ -275,39 +277,72 @@ def main(repo: Path, out: Path) -> int:
         all(x["auth"] == f"Bearer {SECRET}" for x in seen[:before]),
     )
 
-    # ---- 3: probes, token off ----------------------------------------------------------
+    # ---- 3: probes (H1: gateway with authorization_env refuses to start without token) --
     db2 = out / "http-probe.sqlite"
     port2 = free_port()
-    gw2 = start_gateway(repo, cfg, db2, port2, None)
-    seen.clear()
-    # a. what a sandboxed iframe / file:// page can send without a preflight
-    s, b = post(
-        port2,
-        "/s/fake",
-        '{"jsonrpc":"2.0","id":1,"method":"tools/call",'
-        '"params":{"name":"echo","arguments":{"text":"from a web page"}}}',
-        {"Content-Type": "text/plain", "Origin": "null"},
+    env_probe = os.environ.copy()
+    env_probe["CIM_MCP_AUTH_FAKE"] = SECRET
+    env_probe.pop("CIM_HTTP_GATEWAY_TOKEN", None)
+    bindir = "Scripts" if os.name == "nt" else "bin"
+    cim_bin = repo / ".venv" / bindir / ("cim.exe" if os.name == "nt" else "cim")
+    proc = subprocess.Popen(
+        [
+            str(cim_bin),
+            "http-gateway",
+            "--config",
+            str(cfg),
+            "--db",
+            str(db2),
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port2),
+        ],
+        cwd=str(repo),
+        env=env_probe,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
     )
-    print(
-        f"probe a (no token, Origin null, text/plain): status {s}, "
-        f"upstream saw auth={seen[-1]['auth'] if seen else None!r}"
-    )
-    # b. encoded dot-segments
+    try:
+        _, err_probe = proc.communicate(timeout=15)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        _, err_probe = proc.communicate()
+        failures.append("H1: gateway without token should have exited")
+        print("probe a (H1 refuse start): FAIL timed out")
+    else:
+        print(
+            f"probe a (H1 refuse start without CIM_HTTP_GATEWAY_TOKEN): "
+            f"exit={proc.returncode} err={err_probe.strip()[:160]!r}"
+        )
+        if proc.returncode == 0 or "CIM_HTTP_GATEWAY_TOKEN" not in err_probe:
+            failures.append("H1: expected refuse-to-start mentioning CIM_HTTP_GATEWAY_TOKEN")
+
+    # b–d still need a running gateway; use the token.
+    port3 = free_port()
+    gw2 = start_gateway(repo, cfg, db2, port3, GW_TOKEN)
     seen.clear()
     s, _ = post(
-        port2,
+        port3,
         "/s/fake/%2e%2e/admin",
         {"jsonrpc": "2.0", "id": 2, "method": "ping"},
-        {"Content-Type": "application/json"},
+        {
+            "Content-Type": "application/json",
+            "X-CIM-Gateway-Token": GW_TOKEN,
+        },
     )
     print(
         f"probe b (%2e%2e): status {s}, upstream path={seen[-1]['path'] if seen else None!r}, "
         f"auth attached={bool(seen and seen[-1]['auth'])}"
     )
-    # c. long-lived SSE stream
-    conn = http.client.HTTPConnection("127.0.0.1", port2, timeout=10)
+    conn = http.client.HTTPConnection("127.0.0.1", port3, timeout=10)
     t0 = time.monotonic()
-    conn.request("GET", "/s/fake/stream", headers={"Accept": "text/event-stream"})
+    conn.request(
+        "GET",
+        "/s/fake/stream",
+        headers={"Accept": "text/event-stream", "X-CIM-Gateway-Token": GW_TOKEN},
+    )
     resp = conn.getresponse()
     first = resp.read(20)
     print(
@@ -315,12 +350,11 @@ def main(repo: Path, out: Path) -> int:
         f"(upstream sent its first event at ~0s and closed at ~6s): {first!r}"
     )
     conn.close()
-    # d. two clients, same JSON-RPC id, overlapping
     n_before = sum(1 for k, _ in records(db2) if k == "behaviour") if db2.exists() else 0
 
     def call(text: str) -> None:
         post(
-            port2,
+            port3,
             "/s/fake",
             {
                 "jsonrpc": "2.0",
@@ -328,7 +362,10 @@ def main(repo: Path, out: Path) -> int:
                 "method": "tools/call",
                 "params": {"name": "echo", "arguments": {"text": text}},
             },
-            {"Content-Type": "application/json"},
+            {
+                "Content-Type": "application/json",
+                "X-CIM-Gateway-Token": GW_TOKEN,
+            },
         )
 
     ta = threading.Thread(target=call, args=("slow",))

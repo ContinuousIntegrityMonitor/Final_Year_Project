@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CIM — Fasih dashboard preview (Dec FYP I)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #12151a;
+  --bg-2: #171b22;
+  --surface: #1c222c;
+  --surface-2: #232a36;
+  --ink: #e8eaed;
+  --muted: #9aa3ad;
+  --line: rgba(232, 234, 237, 0.12);
+  --accent: #6b8cae;
+  --safe: #3d9a6a;
+  --warn: #c45c26;
+  --danger: #c62828;
+  --learn: #8a7a4a;
+  --pad: #151a21;
+  --rail: #2a3340;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font: 14px/1.45 "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(107, 140, 174, 0.18), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(61, 154, 106, 0.08), transparent 50%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 40%);
+}
+button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+}
+button.primary { background: var(--accent); color: #12151a; border-color: transparent; }
+button.ghost { background: transparent; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.banner {
+  background: #2a2418;
+  border-bottom: 1px solid rgba(196, 92, 38, 0.35);
+  color: #e8dcc8;
+  font-size: 0.82rem;
+  padding: 0.55rem 1.25rem;
+  text-align: center;
+}
+.banner strong { color: #f0c090; font-weight: 600; }
+.banner code { font-family: "IBM Plex Mono", monospace; font-size: 0.78rem; }
+
+.shell { max-width: 78rem; margin: 0 auto; padding: 1rem 1.25rem 3rem; }
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1rem;
+}
+.brand .eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+h1 { margin: 0.15rem 0 0; font-size: 1.45rem; font-weight: 650; }
+.sub { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.88rem; max-width: 38rem; }
+.top-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+
+.chain-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--safe);
+}
+.chain-banner.warn {
+  border-left-color: var(--danger);
+  background: #241818;
+}
+.chain-banner .label { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.chain-banner .value { font-family: "IBM Plex Mono", monospace; font-size: 0.9rem; margin-top: 0.15rem; }
+.chain-banner .meta { color: var(--muted); font-size: 0.82rem; }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 0.95fr;
+  gap: 0.85rem;
+}
+@media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.panel.span-2 { grid-column: span 2; }
+@media (max-width: 960px) { .panel.span-2 { grid-column: span 1; } }
+.panel-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.panel-h h2 {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.panel-h .hint { font-size: 0.75rem; color: var(--muted); }
+.panel-b { padding: 0.75rem 0.85rem; flex: 1; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+}
+.pill.healthy { color: var(--safe); border-color: rgba(61,154,106,.4); background: rgba(61,154,106,.12); }
+.pill.learning { color: #d4c07a; border-color: rgba(138,122,74,.45); background: rgba(138,122,74,.15); }
+.pill.warning { color: #e8a070; border-color: rgba(196,92,38,.45); background: rgba(196,92,38,.15); }
+.pill.empty { color: var(--muted); }
+
+.stat-row {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.stat {
+  flex: 1;
+  min-width: 4.5rem;
+  padding: 0.45rem 0.55rem;
+  background: var(--pad);
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+.stat .n { font-size: 1.25rem; font-weight: 650; line-height: 1.1; }
+.stat .k { font-size: 0.7rem; color: var(--muted); margin-top: 0.1rem; }
+
+.list { list-style: none; margin: 0; padding: 0; }
+.list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+  align-items: start;
+}
+.list li:first-child { border-top: 0; padding-top: 0; }
+.list .name { font-weight: 600; font-size: 0.9rem; }
+.list .desc { color: var(--muted); font-size: 0.78rem; }
+.list .mono { font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; color: var(--muted); }
+.list button.row {
+  text-align: left;
+  width: 100%;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.75rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0.5rem 0;
+  font-weight: inherit;
+}
+.list button.row:hover { background: rgba(107,140,174,0.08); }
+
+.rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+.chip {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  background: var(--rail);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.chip.s { border-color: rgba(107,140,174,.35); color: #a8c0d8; }
+.chip.m { border-color: rgba(61,154,106,.35); color: #8fc9ab; }
+.chip.w { border-color: rgba(196,92,38,.4); color: #e8a070; }
+
+.bar {
+  height: 6px;
+  background: var(--pad);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 0.35rem;
+}
+.bar > span { display: block; height: 100%; background: var(--learn); border-radius: 3px; }
+
+.lower {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+@media (max-width: 960px) { .lower { grid-template-columns: 1fr; } }
+
+.drawer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+.drawer.open { pointer-events: auto; }
+.drawer-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.drawer.open .drawer-mask { opacity: 1; }
+.drawer-panel {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: min(28rem, 100%);
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -12px 0 40px rgba(0,0,0,0.35);
+}
+.drawer.open .drawer-panel { transform: translateX(0); }
+.drawer-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+.drawer-h h2 { margin: 0; font-size: 1rem; }
+.drawer-b { padding: 1rem; overflow: auto; flex: 1; }
+.evidence {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.evidence .step {
+  padding: 0.55rem 0.65rem;
+  margin-bottom: 0.45rem;
+  background: var(--pad);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent);
+}
+.evidence .step.warn { border-left-color: var(--warn); }
+.evidence .ts { color: var(--muted); }
+
+.foot {
+  margin-top: 1.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.foot a { color: var(--accent); }
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; }
+.dot.healthy { background: var(--safe); }
+.dot.learning { background: #d4c07a; }
+.dot.warning { background: var(--warn); }
+
+.note {
+  margin-top: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: var(--pad);
+  border-radius: 6px;
+  border: 1px dashed var(--line);
+}
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <strong>Mockup only</strong> — Fasih’s December board from
+  <code>docs/DASHBOARD_RESEARCH_NOTES.md</code> + U1 skills section.
+  Not wired to a live store. States shown: Learning / Healthy / Warning (no Paused / Quarantined in FYP I).
+</div>
+
+<div class="shell">
+  <header class="top">
+    <div class="brand">
+      <p class="eyebrow">Continuous Integrity Monitor</p>
+      <h1>Operator board</h1>
+      <p class="sub">Local, read-only for December. One host, one store. Skills and MCP share the same five-state language.</p>
+    </div>
+    <div class="top-actions">
+      <button type="button" id="btn-theme" class="ghost" title="Toggle light/dark">Theme</button>
+      <button type="button" class="ghost" disabled title="FYP II">Export</button>
+      <button type="button" class="primary" id="btn-verify">Verify now</button>
+    </div>
+  </header>
+
+  <!-- 1. Record integrity -->
+  <section class="chain-banner" id="sec-integrity" aria-label="Record integrity">
+    <div>
+      <div class="label">1 · Record integrity</div>
+      <div class="value">Chain OK · tip <span id="tip">b49553a0…485f</span></div>
+      <div class="meta">42 records · last write 2026-11-23T18:58:36Z · full re-verify on demand</div>
+    </div>
+    <div style="display:flex;gap:0.5rem;align-items:center;">
+      <span class="pill healthy">Healthy</span>
+      <button type="button" class="ghost" id="btn-copy-tip">Copy tip</button>
+    </div>
+  </section>
+
+  <div class="legend">
+    <span><i class="dot healthy"></i> Healthy — enough observations, nothing open</span>
+    <span><i class="dot learning"></i> Learning — fewer than 30 observations</span>
+    <span><i class="dot warning"></i> Warning — alert or unreviewed change</span>
+  </div>
+
+  <div class="grid" style="margin-top:0.85rem;">
+
+    <!-- 2. MCP servers and tools -->
+    <section class="panel" aria-labelledby="h-mcp">
+      <div class="panel-h">
+        <h2 id="h-mcp">2 · MCP servers &amp; tools</h2>
+        <span class="hint">MCP</span>
+      </div>
+      <div class="panel-b">
+        <div class="stat-row">
+          <div class="stat"><div class="n">2</div><div class="k">servers</div></div>
+          <div class="stat"><div class="n">8</div><div class="k">tools pinned</div></div>
+          <div class="stat"><div class="n">1</div><div class="k">learning</div></div>
+        </div>
+        <ul class="list">
+          <li>
+            <div>
+              <div class="name">playwright</div>
+              <div class="desc">stdio proxy · 6 tools · last list 18:52</div>
+            </div>
+            <span class="pill healthy">Healthy</span>
+          </li>
+          <li>
+            <div>
+              <div class="name">echo-lab</div>
+              <div class="desc">http-gateway /s/echo · 2 tools</div>
+            </div>
+            <span class="pill learning">Learning</span>
+          </li>
+        </ul>
+        <div class="note">Open a tool’s approved definition (FYP I: show digest). Quarantine unit = tool (plan), not whole server.</div>
+      </div>
+    </section>
+
+    <!-- 3. Skills -->
+    <section class="panel" aria-labelledby="h-skills">
+      <div class="panel-h">
+        <h2 id="h-skills">3 · Skills</h2>
+        <span class="hint">Skills · U1</span>
+      </div>
+      <div class="panel-b">
+        <div class="stat-row">
+          <div class="stat"><div class="n">14</div><div class="k">installed</div></div>
+          <div class="stat"><div class="n">11</div><div class="k">learning</div></div>
+          <div class="stat"><div class="n">3</div><div class="k">warning</div></div>
+        </div>
+        <ul class="list">
+          <li>
+            <div>
+              <div class="name">word-count</div>
+              <div class="desc">Integrity changed · SKILL.md · behaviour 1 of 30</div>
+              <div class="bar" title="Warm-up"><span style="width:3.3%"></span></div>
+            </div>
+            <span class="pill warning">Warning</span>
+          </li>
+          <li>
+            <div>
+              <div class="name">meeting-brief</div>
+              <div class="desc">Unchanged files · never run → still Learning</div>
+              <div class="bar"><span style="width:0%"></span></div>
+            </div>
+            <span class="pill learning">Learning</span>
+          </li>
+          <li>
+            <div>
+              <div class="name">notes-sync</div>
+              <div class="desc">Unchanged · 30 of 30 · destination private_ip:9 seen</div>
+              <div class="bar"><span style="width:100%;background:var(--safe)"></span></div>
+            </div>
+            <span class="pill warning">Warning</span>
+          </li>
+          <li>
+            <div>
+              <div class="name">json-format</div>
+              <div class="desc">Unchanged · 12 of 30</div>
+              <div class="bar"><span style="width:40%"></span></div>
+            </div>
+            <span class="pill learning">Learning</span>
+          </li>
+        </ul>
+        <div class="note">Quiet during warm-up must not look healthy — show “N of 30”. C1: every installed skill on screen.</div>
+      </div>
+    </section>
+
+    <!-- 8. Connection and collectors -->
+    <section class="panel" aria-labelledby="h-conn">
+      <div class="panel-h">
+        <h2 id="h-conn">8 · Connection &amp; collectors</h2>
+        <span class="hint">Shared</span>
+      </div>
+      <div class="panel-b">
+        <ul class="list">
+          <li>
+            <div>
+              <div class="name">cim proxy</div>
+              <div class="desc">stdio · Playwright session</div>
+            </div>
+            <span class="pill healthy">Running</span>
+          </li>
+          <li>
+            <div>
+              <div class="name">http-gateway</div>
+              <div class="desc">:8877 · token set</div>
+            </div>
+            <span class="pill healthy">Running</span>
+          </li>
+          <li>
+            <div>
+              <div class="name">skills watcher</div>
+              <div class="desc">corpus roots · sweep 30s</div>
+            </div>
+            <span class="pill healthy">Running</span>
+          </li>
+          <li>
+            <div>
+              <div class="name">skills collector</div>
+              <div class="desc">syscall trace</div>
+            </div>
+            <span class="pill learning">Idle</span>
+          </li>
+        </ul>
+        <div class="note">Pause / quarantine controls are FYP II. December: observe only — do not show “Disconnected” unless something really refused.</div>
+      </div>
+    </section>
+
+    <!-- 4. Changes -->
+    <section class="panel span-2" aria-labelledby="h-changes">
+      <div class="panel-h">
+        <h2 id="h-changes">4 · Changes</h2>
+        <span class="hint">Shared · newest first</span>
+      </div>
+      <div class="panel-b">
+        <ul class="list">
+          <li>
+            <div>
+              <div class="name">skill · word-count · modify</div>
+              <div class="desc">SKILL.md · old…a1 → new…c9</div>
+              <div class="mono">record 18 · 2026-11-23T18:58:23Z</div>
+            </div>
+            <span class="pill warning">Unreviewed</span>
+          </li>
+          <li>
+            <div>
+              <div class="name">mcp · shout · schema</div>
+              <div class="desc">description field changed on tools/list</div>
+              <div class="mono">record 12 · 2026-11-23T18:50:01Z</div>
+            </div>
+            <span class="pill warning">Unreviewed</span>
+          </li>
+          <li>
+            <div>
+              <div class="name">skill · json-format · modify</div>
+              <div class="desc">scripts/fmt.py</div>
+              <div class="mono">record 9 · 2026-11-23T17:12:40Z</div>
+            </div>
+            <span class="pill empty">Seen</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 5. Behaviour -->
+    <section class="panel" aria-labelledby="h-beh">
+      <div class="panel-h">
+        <h2 id="h-beh">5 · Behaviour</h2>
+        <span class="hint">Shared</span>
+      </div>
+      <div class="panel-b">
+        <div class="label" style="font-size:0.72rem;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;">Fingerprint rail</div>
+        <div class="rail" aria-label="Recent activity">
+          <span class="chip m">playwright: navigate</span>
+          <span class="chip m">playwright: navigate</span>
+          <span class="chip m">echo: warm</span>
+          <span class="chip s">word-count: run</span>
+          <span class="chip s">json-format: modify SKILL.md</span>
+          <span class="chip w">shout: private_ip</span>
+          <span class="chip w">notes-sync: private_ip:9</span>
+        </div>
+        <ul class="list" style="margin-top:0.75rem;">
+          <li>
+            <div>
+              <div class="name">shout</div>
+              <div class="desc">MCP · warmed · value class left envelope</div>
+            </div>
+            <span class="pill warning">Needs a look</span>
+          </li>
+          <li>
+            <div>
+              <div class="name">browser_navigate</div>
+              <div class="desc">MCP · 31 of 30+ · matches usual hosts</div>
+            </div>
+            <span class="pill healthy">Normal</span>
+          </li>
+          <li>
+            <div>
+              <div class="name">notes-sync</div>
+              <div class="desc">Skill · destination not in warm-up window</div>
+            </div>
+            <span class="pill warning">Needs a look</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="lower">
+    <!-- 6. Alerts -->
+    <section class="panel" aria-labelledby="h-alerts">
+      <div class="panel-h">
+        <h2 id="h-alerts">6 · Alerts</h2>
+        <span class="hint">Must stay prompt</span>
+      </div>
+      <div class="panel-b">
+        <div class="stat-row">
+          <div class="stat"><div class="n" style="color:var(--warn)">2</div><div class="k">open</div></div>
+          <div class="stat"><div class="n">0</div><div class="k">closed today</div></div>
+        </div>
+        <ul class="list">
+          <li>
+            <button type="button" class="row" data-open-evidence="mcp">
+              <div>
+                <div class="name">mcp_behaviour_drift</div>
+                <div class="desc">shout changed how it is used: value class private_ip</div>
+                <div class="mono">record 28 · after warm-up 30</div>
+              </div>
+              <span class="pill warning">Open</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="row" data-open-evidence="skill">
+              <div>
+                <div class="name">skill_behaviour_drift</div>
+                <div class="desc">notes-sync · destination private_ip:9 (prototype scorer)</div>
+                <div class="mono">record 30 · skills half</div>
+              </div>
+              <span class="pill warning">Open</span>
+            </button>
+          </li>
+        </ul>
+        <div class="note">Empty and Healthy look the same here — say “no open alerts” and when the last one closed. Click an alert → evidence drawer.</div>
+      </div>
+    </section>
+
+    <!-- 7. Evidence drawer teaser (also opens as side panel) -->
+    <section class="panel" aria-labelledby="h-ev">
+      <div class="panel-h">
+        <h2 id="h-ev">7 · Evidence drawer</h2>
+        <span class="hint">Shared</span>
+      </div>
+      <div class="panel-b">
+        <p style="margin:0 0 0.65rem;color:var(--muted);font-size:0.85rem;">
+          For one alert or change: the records behind it, in order, with chain position.
+          Copy ids / hashes; export case (FYP II).
+        </p>
+        <button type="button" class="primary" data-open-evidence="mcp">Open sample: shout private_ip</button>
+        <div class="note" style="margin-top:0.75rem;">
+          Not recommended on the board: “clear” or “tamper” demo controls.
+          Demo reset = separate command on a store it created.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="foot">
+    Source: <a href="../DASHBOARD_RESEARCH_NOTES.md">DASHBOARD_RESEARCH_NOTES.md</a>
+    · U1 shape <a href="../U1_SKILLS_BOARD_SHAPE.md">U1_SKILLS_BOARD_SHAPE.md</a>
+    · Visual language matches current <code>cim dashboard</code> (IBM Plex).
+    Open this file in a browser: <code>docs/mockups/fasih-dashboard-preview.html</code>
+  </footer>
+</div>
+
+<!-- 7. Evidence drawer (overlay) -->
+<div class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-mask" data-close></div>
+  <aside class="drawer-panel" role="dialog" aria-labelledby="drawer-title">
+    <div class="drawer-h">
+      <h2 id="drawer-title">Evidence</h2>
+      <button type="button" class="ghost" data-close>Close</button>
+    </div>
+    <div class="drawer-b">
+      <div id="evidence-mcp" class="evidence" hidden>
+        <div class="step"><span class="ts">#1 artefact</span><br />mcp_tool shout · origin playwright</div>
+        <div class="step"><span class="ts">#2–#31 behaviour</span><br />warm-up navigate / shout · public hosts only</div>
+        <div class="step warn"><span class="ts">#32 behaviour</span><br />shout("10.0.0.5") · class private_ip</div>
+        <div class="step warn"><span class="ts">#33 alert</span><br />mcp_behaviour_drift · tip still b49553a0…485f</div>
+        <p style="color:var(--muted);margin:0.75rem 0 0;">verify-chain: ok · operator: acknowledge / open profile</p>
+      </div>
+      <div id="evidence-skill" class="evidence" hidden>
+        <div class="step"><span class="ts">#14 artefact</span><br />skill notes-sync · tree digest …</div>
+        <div class="step"><span class="ts">#20–#49 behaviour</span><br />30 warm-up runs · local writes only</div>
+        <div class="step warn"><span class="ts">#50 behaviour</span><br />destination private_ip:9 · 26283 µs</div>
+        <div class="step warn"><span class="ts">#51 alert</span><br />skill_behaviour_drift (after shared scorer lands)</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+(function () {
+  const root = document.documentElement;
+  document.getElementById("btn-theme").addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
+    if (root.dataset.theme === "light") {
+      root.style.setProperty("--bg", "#eef1f4");
+      root.style.setProperty("--bg-2", "#e4e8ee");
+      root.style.setProperty("--surface", "#ffffff");
+      root.style.setProperty("--surface-2", "#f7f8fa");
+      root.style.setProperty("--ink", "#1a2330");
+      root.style.setProperty("--muted", "#5b6775");
+      root.style.setProperty("--line", "rgba(26,35,48,0.12)");
+      root.style.setProperty("--pad", "#e8ecf1");
+      root.style.setProperty("--rail", "#e0e5eb");
+      root.style.colorScheme = "light";
+    } else {
+      root.removeAttribute("style");
+      root.dataset.theme = "dark";
+    }
+  });
+
+  document.getElementById("btn-copy-tip").addEventListener("click", async () => {
+    const t = document.getElementById("tip").textContent;
+    try { await navigator.clipboard.writeText(t); } catch (_) {}
+    const b = document.getElementById("btn-copy-tip");
+    b.textContent = "Copied";
+    setTimeout(() => { b.textContent = "Copy tip"; }, 1200);
+  });
+
+  document.getElementById("btn-verify").addEventListener("click", () => {
+    const b = document.getElementById("btn-verify");
+    b.textContent = "Verifying…";
+    b.disabled = true;
+    setTimeout(() => {
+      b.textContent = "Verify now";
+      b.disabled = false;
+    }, 700);
+  });
+
+  const drawer = document.getElementById("drawer");
+  function openEvidence(kind) {
+    document.getElementById("evidence-mcp").hidden = kind !== "mcp";
+    document.getElementById("evidence-skill").hidden = kind !== "skill";
+    document.getElementById("drawer-title").textContent =
+      kind === "mcp" ? "Evidence · shout private_ip" : "Evidence · notes-sync";
+    drawer.classList.add("open");
+    drawer.setAttribute("aria-hidden", "false");
+  }
+  function closeEvidence() {
+    drawer.classList.remove("open");
+    drawer.setAttribute("aria-hidden", "true");
+  }
+  document.querySelectorAll("[data-open-evidence]").forEach((el) => {
+    el.addEventListener("click", () => openEvidence(el.getAttribute("data-open-evidence")));
+  });
+  document.querySelectorAll("[data-close]").forEach((el) => {
+    el.addEventListener("click", closeEvidence);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeEvidence();
+  });
+})();
+</script>
+</body>
+</html>

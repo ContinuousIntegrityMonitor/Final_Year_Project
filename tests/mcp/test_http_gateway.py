@@ -11,6 +11,8 @@ from typing import Any
 from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
+import pytest
+
 from cim.common.store import BaselineStore
 from cim.mcp.http_gateway import (
     GatewayConfig,
@@ -18,6 +20,7 @@ from cim.mcp.http_gateway import (
     join_upstream,
     load_gateway_config,
     parse_jsonrpc_bodies,
+    require_gateway_token,
     serve_gateway,
 )
 
@@ -194,7 +197,10 @@ def test_gateway_records_list_and_call(tmp_path: Path) -> None:
                 assert exc.code == 401
             else:
                 raise AssertionError("expected missing gateway token")
-            headers = {"X-CIM-Gateway-Token": "gw-secret"}
+            headers = {
+                "Content-Type": "application/json",
+                "X-CIM-Gateway-Token": "gw-secret",
+            }
             with urlopen(
                 Request(base, data=list_body, method="POST", headers=headers), timeout=5
             ) as resp:
@@ -266,6 +272,7 @@ def test_gateway_does_not_follow_redirects(tmp_path: Path) -> None:
                     authorization_env="CIM_TEST_TOKEN",
                 ),
             ),
+            access_token="gw-secret",
         )
         gateway = serve_gateway(config, env={"CIM_TEST_TOKEN": "secret-token"})
         threading.Thread(target=gateway.serve_forever, daemon=True).start()
@@ -281,13 +288,136 @@ def test_gateway_does_not_follow_redirects(tmp_path: Path) -> None:
 
             opener = build_opener(_NoFollow)
             try:
-                opener.open(Request(base, data=body, method="POST"), timeout=5)
+                opener.open(
+                    Request(
+                        base,
+                        data=body,
+                        method="POST",
+                        headers={
+                            "Content-Type": "application/json",
+                            "X-CIM-Gateway-Token": "gw-secret",
+                        },
+                    ),
+                    timeout=5,
+                )
             except HTTPError as exc:
                 assert exc.code == 302
                 assert "127.0.0.1:9" in (exc.headers.get("Location") or "")
             else:
                 raise AssertionError("expected 302 passed through")
             assert seen == ["Bearer secret-token"]
+        finally:
+            gateway.shutdown()
+            writer = getattr(gateway, "cim_writer", None)
+            if writer is not None:
+                writer.stop()
+            gateway.server_close()
+    finally:
+        upstream.shutdown()
+        upstream.server_close()
+
+
+def test_h1_refuses_start_when_authorization_env_without_gateway_token(tmp_path: Path) -> None:
+    path = tmp_path / "gw.json"
+    path.write_text(
+        json.dumps(
+            {
+                "routes": [
+                    {
+                        "id": "roma",
+                        "upstream": "http://127.0.0.1:1/mcp",
+                        "authorization_env": "CIM_MCP_AUTH_ROMA",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="CIM_HTTP_GATEWAY_TOKEN"):
+        load_gateway_config(path, db=tmp_path / "s.sqlite")
+
+
+def test_h1_serve_refuses_without_token_when_bearer_route(tmp_path: Path) -> None:
+    config = GatewayConfig(
+        db=tmp_path / "s.sqlite",
+        host="127.0.0.1",
+        port=0,
+        routes=(
+            GatewayRoute(
+                id="demo",
+                upstream="http://127.0.0.1:1/mcp",
+                authorization_env="CIM_TEST_TOKEN",
+            ),
+        ),
+        access_token="",
+    )
+    with pytest.raises(ValueError, match="CIM_HTTP_GATEWAY_TOKEN"):
+        require_gateway_token(config)
+    with pytest.raises(ValueError, match="CIM_HTTP_GATEWAY_TOKEN"):
+        serve_gateway(config)
+
+
+def test_h1_origin_null_and_non_json_post_are_refused(tmp_path: Path) -> None:
+    upstream, upstream_url = _start_fake()
+    db = tmp_path / "store.sqlite"
+    try:
+        config = GatewayConfig(
+            db=db,
+            host="127.0.0.1",
+            port=0,
+            routes=(
+                GatewayRoute(
+                    id="demo",
+                    upstream=upstream_url,
+                    authorization_env="CIM_TEST_TOKEN",
+                ),
+            ),
+            access_token="gw-secret",
+        )
+        gateway = serve_gateway(config, env={"CIM_TEST_TOKEN": "secret-token"})
+        threading.Thread(target=gateway.serve_forever, daemon=True).start()
+        try:
+            base = f"http://127.0.0.1:{gateway.server_address[1]}/s/demo"
+            body = json.dumps(
+                {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
+            ).encode()
+            before = len(_FakeMcp.seen_auth)
+            try:
+                urlopen(
+                    Request(
+                        base,
+                        data=body,
+                        method="POST",
+                        headers={
+                            "Content-Type": "application/json",
+                            "X-CIM-Gateway-Token": "gw-secret",
+                            "Origin": "null",
+                        },
+                    ),
+                    timeout=5,
+                )
+            except HTTPError as exc:
+                assert exc.code == 401
+            else:
+                raise AssertionError("expected Origin null refusal")
+            try:
+                urlopen(
+                    Request(
+                        base,
+                        data=body,
+                        method="POST",
+                        headers={
+                            "Content-Type": "text/plain",
+                            "X-CIM-Gateway-Token": "gw-secret",
+                        },
+                    ),
+                    timeout=5,
+                )
+            except HTTPError as exc:
+                assert exc.code == 401
+            else:
+                raise AssertionError("expected Content-Type refusal")
+            assert len(_FakeMcp.seen_auth) == before
         finally:
             gateway.shutdown()
             writer = getattr(gateway, "cim_writer", None)

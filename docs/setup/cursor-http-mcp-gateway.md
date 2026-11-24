@@ -29,8 +29,20 @@ Default listen: `http://127.0.0.1:8877`. Routes are under `/s/<id>`:
 ## Auth (no secrets in the hash chain)
 
 - Client `Authorization` / `Cookie` headers are **forwarded** and **never** written into the store (only digests of tool args/results).
-- Cursor’s built-in OAuth against the **real** host does not run when the MCP URL is localhost. For OAuth servers, set a Bearer token in the environment named in the route’s `authorization_env` (see `config/cursor-http-gateway.json`), e.g. `CIM_MCP_AUTH_ROMA`. The gateway adds `Authorization: Bearer …` only when the client did not send one.
-- Graphiti on loopback usually needs no token.
+- **Gateway token (required when any route has `authorization_env`):** set
+  `CIM_HTTP_GATEWAY_TOKEN` in the environment before starting the gateway. Cursor
+  must send it on every request:
+
+  ```json
+  "headers": { "X-CIM-Gateway-Token": "<same value as CIM_HTTP_GATEWAY_TOKEN>" }
+  ```
+
+  Without this token the gateway **refuses to start** if a route would attach a
+  stored Bearer (H1). Routes with no `authorization_env` (e.g. local Graphiti)
+  can still run with an empty gateway token.
+- Cursor’s built-in OAuth against the **real** host does not run when the MCP URL is localhost. For OAuth servers, set a Bearer token in the environment named in the route’s `authorization_env` (see `config/cursor-http-gateway.json`), e.g. `CIM_MCP_AUTH_ROMA`. The gateway adds `Authorization: Bearer …` only when the client passed the gateway token and did not send its own Authorization.
+- Graphiti on loopback usually needs no Bearer; if every other route uses `authorization_env`, you still need `CIM_HTTP_GATEWAY_TOKEN` for the process to start.
+- POST bodies must use `Content-Type: application/json`. `Origin: null` is refused.
 
 ## Dashboard
 
