@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-24):** Org `main` includes **#29–#36** (@ `384882f`). Shipping MCP `score_latest` chain switch (M1 / off `envelope_obs`). Next after merge: ADR-006 store code / M2–M5; Fasih `common/scorer.py` + T-13 (green-lit). Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
+3. **Active now (2026-11-24):** Org `main` includes **#29–#37** (@ `0ab17e6`). MCP `score_latest` on chain (#37, M1 closed). Next: wait/wire Fasih `common/scorer.py`; ADR-006 store code; M2–M5. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
@@ -64,7 +64,7 @@ Rules:
 **What I did**
 - Merged your stack **#29 → #33**; green light §11 / §10 posted (#34). Digest fix #32 and skills exec #33 included.
 - **Contract 1.1 MCP writers (#35):** behaviour on the chain carries `response_bytes`, `argument_shape_digest`, `value_classes`, `session_id`+`seq`; session from `initialize`; pin under `mcp_server`; integrity `detail`; inventory `tool_digest`; `append_mcp` / `Event` validation.
-- **MCP scorer switch (shipping):** `score_latest` reads those chained fields; wiping `envelope_obs` no longer silences alerts (M1). Fixed rules kept until Fasih lands `common/scorer.py`.
+- **MCP scorer switch (#37):** `score_latest` reads those chained fields; wiping `envelope_obs` no longer silences alerts (M1). Fixed rules kept until Fasih lands `common/scorer.py`.
 - **Ship gates (#36):** Windows `_ship.sh` fixed (`prepush_local` `--help` recursion); posix skill paths.
 
 **GREEN LIGHT — scorer §11** (already posted; Fasih unblocked)
@@ -81,6 +81,5 @@ Rules:
 3. Please note: small `digest.record_path` posix fix is for Windows ship gates (skills territory, one line); review if you want a follow-up.
 
 **What I am about to do**
-1. Merge the MCP chain-scorer switch PR.
-2. After Fasih's `common/scorer.py`: wire `score_latest` to the shared library (A1 / alert payload).
-3. ADR-006 store formula code; then M2–M5.
+1. After Fasih's `common/scorer.py`: wire `score_latest` to the shared library (A1 / alert payload).
+2. ADR-006 store formula code; then M2–M5.
