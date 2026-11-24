@@ -1,6 +1,6 @@
 # Threat model — Continuous Integrity Monitor
 
-- **Status:** draft v0.10 for T-03. Written 2026-11-15 by Fasih (v0.9); updated 2026-11-24 to what has been fixed since and what the MCP test report found. Not yet reviewed by Hamza, not signed off by the adviser.
+- **Status:** draft v0.11 for T-03. Written 2026-11-15 by Fasih (v0.9); v0.10 on 2026-11-24 (status per gap, test-report gaps); v0.11 the same day after PR #28 (H1 fixed, ADR-006 accepted; M5 and the other open rows re-tested). Not yet reviewed by Hamza, not signed off by the adviser.
 - **Scope:** Phase 1 (SEE) as built, with pointers to where Phase 2 takes over.
 - **What is different from a textbook model:** section 6 lists what the current code does not withstand, and for each gap whether it is fixed (and where) or still open. Each entry was reproduced and is recorded in `docs/HAMZA_REVIEW.md`, `docs/FASIH_MCP_TEST_REPORT.md` or the module it concerns, unless it says "from reading".
 
@@ -82,7 +82,7 @@ Two attacks the plan does not name but the build must answer, because CIM introd
 
 ## 6. What the current build does not withstand
 
-Short statements; the detail and the reproduction are in the place named. Review findings are in `docs/HAMZA_REVIEW.md` (letters and numbers such as D1), test-report findings in `docs/FASIH_MCP_TEST_REPORT.md` (H1, M1, L1 and so on). Status as of 2026-11-24, on `main` at `a816817`.
+Short statements; the detail and the reproduction are in the place named. Review findings are in `docs/HAMZA_REVIEW.md` (letters and numbers such as D1), test-report findings in `docs/FASIH_MCP_TEST_REPORT.md` (H1, M1, L1 and so on). Status as of 2026-11-24, on `main` at `d25ef41` (after PR #28).
 
 ### 6.1 On TB1 (MCP server)
 
@@ -112,7 +112,7 @@ All four have the same root: the helper and the monitor are the same user. The f
 
 | Gap | Row | Status | Where |
 |-----|-----|--------|-------|
-| `ts`, `artefact_id` and the whole `artefact` table are outside the hash: a record can be re-dated, moved to another tool, or its tool renamed, and the tip does not change | A5 | Open. Re-reproduced 2026-11-24; fix proposed in ADR-006 | S2; `docs/decisions/ADR-006-record-hash-coverage.md` |
+| `ts`, `artefact_id` and the whole `artefact` table are outside the hash: a record can be re-dated, moved to another tool, or its tool renamed, and the tip does not change | A5 | Open. Re-reproduced 2026-11-24. ADR-006 accepted (PR #28); the store code is still to come (T-06) | S2; `docs/decisions/ADR-006-record-hash-coverage.md` |
 | Deleting the newest records, or rewriting the whole chain, leaves a valid chain | A5 | Mitigated, PR #11: `verify-chain` prints the tip and count, and `--expect-tip` / `--min-count` check them. Works only if the tip is kept off the host | S3 |
 | Two writers break the chain without any attack | A5 (false alarm) | Fixed, PR #11 | S1 |
 | The MCP observations the scorer reads are outside the chain: one `UPDATE` silences an alert while `verify-chain` passes | A2, A5 | Open. Reproduced 2026-11-23; the scorer design moves the inputs into the chained payload (contract v1.1) | E1, M1; scorer design section 6 |
@@ -123,9 +123,9 @@ The chain has no key and no anchor outside the host, so it proves consistency, n
 
 | Gap | Row | Status | Where |
 |-----|-----|--------|-------|
-| The dashboard has endpoints that wipe and rewrite the store, with no check on the caller | A5, A7 | Fixed, PR #16: off unless `--demo`, and then token, `Host` and `Origin` checked. `--demo` on a real store can still clear it | X1 |
-| The dashboard's read routes have no `Host` check: a DNS-rebinding page can read the board, and in `--demo` mode the page carries the token (writes stay refused) | A7 | Open | M5 |
-| With no gateway token set (the documented setup), the gateway attaches stored bearer tokens to any local caller, including a web page sending `Origin: null` with a plain-text body | A7 | Partly fixed, PR #16 (Host, Origin and an optional token). Open, High | G1, H1 |
+| The dashboard has endpoints that wipe and rewrite the store, with no check on the caller | A5, A7 | Fixed, PR #16: off unless `--demo`, and then token, `Host` and `Origin` checked; `Origin: null` refused since PR #28. `--demo` on a real store can still clear it | X1 |
+| The dashboard's read routes have no `Host` check: a DNS-rebinding page can read the board, and in `--demo` mode the page carries the token (writes stay refused) | A7 | Open (re-tested after PR #28: `GET /api/board` with `Host: evil.example` answers 200) | M5 |
+| With no gateway token set (the documented setup), the gateway attaches stored bearer tokens to any local caller, including a web page sending `Origin: null` with a plain-text body | A7 | Fixed, PR #28: the gateway refuses to start when a route has `authorization_env` and no gateway token is set, and refuses `Origin: null` and non-JSON POSTs (checked: exits 2 at start) | G1, H1 |
 | The gateway's path can leave the configured endpoint, and a redirect carries the token elsewhere | A7 | Fixed, PR #16. `%2e%2e` still reaches the upstream with the token (Low) | G2, G3, L1 |
 | The demo alert on the board is written by the button, not by the detector | AS6 | Fixed, PR #16: the real scorer | X2 |
 
@@ -141,7 +141,7 @@ The chain has no key and no anchor outside the host, so it proves consistency, n
 ## 7. What to settle before December
 
 1. The same-user boundary for skills (6.2). It decides how much of A3 and A6 the demo can honestly claim.
-2. What the store hash covers (S2), before either side keeps a store: ADR-006 is the proposal.
-3. The gateway is part of the December build (ADR-005), and the demo buttons sit behind `--demo` (PR #16). So H1 must be fixed before the gateway is shown with any route that has `authorization_env`, and M5 before the board is shown on a network-connected machine.
+2. What the store hash covers (S2): ADR-006 is accepted; the store code must land before either side keeps a store.
+3. The gateway is part of the December build (ADR-005), and the demo buttons sit behind `--demo` (PR #16). H1 is fixed (PR #28). M5 must be fixed before the board is shown on a network-connected machine.
 4. The scorer's inputs move into the chain (M1) before the C4 demo claims that a behaviour record cannot be edited unseen.
 5. The wording of the claim for A5 in Phase 1. Today: "edits to recorded payloads are detected", not "the record cannot be tampered with". After ADR-006: "edits to recorded payloads, dates and attribution are detected; a rebuilt chain is detected only against a tip kept off the host".
