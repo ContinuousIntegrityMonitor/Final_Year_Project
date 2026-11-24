@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 
 from cim.common.store import BaselineStore
+from cim.skills.attacks import prepare, run_a3, run_a4
+from cim.skills.attacks import render as render_attack
 from cim.skills.board import as_dict, load_skills_board, render
 from cim.skills.collector import observe, record_behaviour, tracer_available
 from cim.skills.corpus import (
@@ -158,6 +160,32 @@ def _envelope(args: argparse.Namespace) -> int:
     return 0
 
 
+def _attack(args: argparse.Namespace) -> int:
+    if not scope_available():
+        raise SystemExit("attack: needs a systemd user session (cgroup scope per invocation)")
+    if not tracer_available():
+        raise SystemExit("attack: needs strace, and permission to trace a child process")
+    listener: tuple[str, int] | None = None
+    if args.listener:
+        host, _, port = args.listener.rpartition(":")
+        if not host or not port.isdigit():
+            raise SystemExit("attack: --listener must be HOST:PORT")
+        listener = (host, int(port))
+    try:
+        root = prepare(args.work, args.corpus or default_root())
+    except FileExistsError as exc:
+        raise SystemExit(f"attack: {exc}") from exc
+    with BaselineStore(args.work / "store.sqlite") as store:
+        if args.attack == "A3":
+            report = run_a3(store, root, warmup=args.warmup, listener=listener)
+        else:
+            report = run_a4(store, root, warmup=args.warmup)
+    for line in render_attack(report):
+        print(line)
+    print(f"attack {args.attack}: store {args.work / 'store.sqlite'}")
+    return 0 if report.passed else 1
+
+
 def _board(args: argparse.Namespace) -> int:
     if not args.db.is_file():  # inspecting must not create a store
         print(f"board: no store at {args.db}", file=sys.stderr)
@@ -227,6 +255,19 @@ def main(argv: list[str] | None = None) -> int:
     shown.add_argument("--db", type=Path, required=True, help="baseline store path")
     shown.add_argument("--json", action="store_true", help="print the JSON the page reads")
     shown.set_defaults(handler=_board)
+    attack = commands.add_parser(
+        "attack", help="run a T-17 skills attack (A3 trigger, A4 legitimate update) on a copy"
+    )
+    attack.add_argument("attack", choices=("A3", "A4"))
+    attack.add_argument(
+        "--work", type=Path, required=True, help="empty directory for the corpus copy and store"
+    )
+    attack.add_argument("--corpus", type=Path, help="corpus directory (default: corpora/skills)")
+    attack.add_argument("--warmup", type=int, default=30, help="benign runs before the attack")
+    attack.add_argument(
+        "--listener", help="A3 only: HOST:PORT to send to (default: a local loopback listener)"
+    )
+    attack.set_defaults(handler=_attack)
     args = parser.parse_args(argv)
     return int(args.handler(args))
 
