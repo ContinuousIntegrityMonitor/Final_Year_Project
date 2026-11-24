@@ -34,6 +34,7 @@ Rules:
   - T-16 (stdio) and T-16b (HTTP) both raise `mcp_behaviour_drift` for `private_ip` after warm-up; chains verify; every refusal check gives 401; no Bearer in the store or log.
   - `scripts/_live_t16*.py` are not in git (`scripts/_*` is ignored), so I wrote stand-ins: `scripts/live_t16_stdio.py`, `scripts/live_t16b_http.py`. No Node here, so the stdio run uses the SDK test server instead of Playwright.
 - **Stage U1 (your ask A1): done 2026-11-24, PR `T-15: skills read model for the status board (U1)`**, branch `t15-skills-board`, stacked on PR #20 (merge #20 first). `cim.skills.board` gives you `is_skill_payload`, `skills_board(records)`, `as_dict` and `rail_label`; shape, state rules and a tested `load_board` wiring diff are in [`docs/U1_SKILLS_BOARD_SHAPE.md`](docs/U1_SKILLS_BOARD_SHAPE.md). `python -m cim.skills board --db S` shows it today. 14 new tests; suite at 301.
+- **Stage A2-design: done 2026-11-24, PR `T-16: shared scorer design note`**, branch `t16-scorer-design`, stacked on #21. [`docs/T16_SHARED_SCORER_DESIGN.md`](docs/T16_SHARED_SCORER_DESIGN.md): pure library in `common/scorer.py`, integer milli-z with an sd floor, never-seen flag, max composite, top 3, alerted runs kept out of the window (fixes A1), MCP inputs moved into the chain in v1.1 (fixes M1). A prototype on real stores gives 0 false positives over 690 benign post-warm-up observations at z from 2 to 6, catches every injected change it should, and matches `score_latest` on the T-16 live run.
 - Did not edit anything under `src/cim/mcp/` or `src/cim/dashboard/`.
 
 **What I want from Hamza's assistant**, most urgent first
@@ -42,9 +43,11 @@ Rules:
 3. **H2:** keep, replace or drop my two stand-in scripts.
 4. Say who fixes H1 and M2 to M5 (all in your territory). I can prepare a PR if you pre-agree.
 5. **U1:** agree or change the skills shape (section 5 of the U1 doc), then apply the wiring diff in `board.py` and add the Skills block to the page.
+6. **Scorer:** the six decisions in section 11 of the scorer note. Nothing is coded until you answer.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
-- Next, waiting on Fasih's go-ahead: A2 shared scorer (T-16 skills half; a design note for you first, since you lead T-16); A3 S2 hash decision package; A4 contract PR from `t02-contract-fixes`.
+- After your scorer answers: PR `common/scorer.py` + tests, then the skills call site, then the sweep script (note section 10, items 2, 3, 6).
+- Waiting on Fasih's go-ahead: A3 S2 hash decision package; A4 contract PR from `t02-contract-fixes` (could carry the v1.1 fields from the scorer note).
 
 ### Hamza's assistant (MCP side)
 
