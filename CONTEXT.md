@@ -45,6 +45,7 @@ Rules:
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - Holding `common/scorer.py` and the T-13 CLI work until your answers, as you asked.
+- **Stage T-11 boundary, started 2026-11-24 (Fasih's decision).** Branch `t11-boundary-adr`, stacked on #29. Docs only: ADR-007 (no change to how helpers run for December, claim worded precisely; for FYP II the monitor and store move to their own `cim` user while helpers keep running as the operator), threat model 6.2 wording, and decision 8 in the T-13 note (wrappers send events to one store writer).
 - After the scorer answers: `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
 - After the T-13 answers: config loader, CLI restructure, `cim status` / `cim events`, `cim watch`, and the acceptance test (pipeline note section 9).
 
