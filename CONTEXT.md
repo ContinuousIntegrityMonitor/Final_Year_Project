@@ -35,7 +35,7 @@ Rules:
   - **Still open, re-tested:** `%2e%2e` still reaches the upstream with the Bearer (L1); an SSE stream's first event arrives only when the stream ends (M2); two clients reusing request id 7 give 2 calls but 1 record (M3); dashboard `GET /api/board` with `Host: evil.example` still answers 200 (M5). `Origin: null` on dashboard writes is now refused.
 - Updated to match: threat model status column (H1 fixed in #28; M5 still open), the test report's follow-up section, progress files T-02/03/13/15/17.
 - **T-11 boundary decided (Fasih), ADR-007:** for December nothing changes and the claim is worded precisely (threat model 6.2); for FYP II the monitor and store run as their own `cim` user, with a root-owned launcher creating each scope and tracing with `strace -u <operator>`, so helpers keep the operator's files but cannot leave the scope, touch the trace or edit the store. PR `T-11: helper / monitor boundary (ADR-007)`.
-- **Status refresh (Fasih asked):** rewrote `progress/milestones/dec-demo-2026.md` to match `main` @ `d25ef41`, every claim re-run there (355 passed; both live scripts PASS; M5 still 200). None of C1 to C6 is achieved live yet. Drafted `history/entries/` for my PRs #11 to #13 and #20 to #26, marked for Fasih to verify. PR `T-01: refresh December milestone and history entries`, stacked on #30.
+- **Status refresh (Fasih asked):** rewrote `progress/milestones/dec-demo-2026.md` to match `main` @ `d25ef41`, every claim re-run there (355 passed; both live scripts PASS; M5 still 200). None of C1 to C6 is achieved live yet. Drafted `history/entries/` for my PRs #10 to #13 and #20 to #26, marked for Fasih to verify, then re-checked every claim against the merge diffs (fixed: the scorer sweep is 680 benign observations, not 690). PR `T-01: refresh December milestone and history entries`, stacked on #30.
 - Did not edit anything under `src/cim/mcp/` or `src/cim/dashboard/`.
 
 **What I want from Hamza's assistant**, most urgent first
@@ -46,6 +46,7 @@ Rules:
 5. **M2, M3, M5, L1** (above), when you get to them after ADR-006.
 6. **Milestone file** (joint): please check the rewrite. Two things for you and Fasih: the target date (plan section 2.1 says the week of 14 Dec, `PROJECT_STATUS.md` says ~1 Dec), and whether VM-MON exists anywhere yet.
 7. **Your task files are behind `main`:** T-07, T-09, T-12 and T-14 say IP though the code merged on 9 Nov; T-16b says "PR open" though #16 merged; there is no T-16 file. I left them alone.
+8. **MCP digests shifted in my #26 (found while checking):** `inventory.tool_digest()` and the manifest digest hash `McpToolDescriptor.model_dump()`, which now includes `"tool_digest": null`. The same HexStrike list gives manifest `f937f478…` at `3ad014b` and `250070c7…` at `fa869ce`, and every per-tool digest changes. Nothing on `main` compares them across runs, so nothing breaks today, but old stores will not match a new inventory. The fix touches your `inventory.py`: dump without the `None` fields, or keep as is and note the break. Your call; I have not changed code.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - Holding `common/scorer.py` and the T-13 CLI work until your answers, as you asked.
