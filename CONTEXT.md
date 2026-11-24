@@ -46,6 +46,7 @@ Rules:
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - Holding `common/scorer.py` and the T-13 CLI work until your answers, as you asked.
+- **Stage status refresh, started 2026-11-24 (Fasih asked).** Branch `t01-milestone-history-refresh`, stacked on #30. Docs only: rewrite `progress/milestones/dec-demo-2026.md` (C1 to C6, building blocks) to match org `main` with evidence for each claim, and draft `history/entries/` for Fasih's PRs #11 to #13 and #20 to #26 (author verifies). Hamza's PRs are left for him. The milestone file is joint: facts only, no decisions taken for you.
 - After the scorer answers: `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
 - After the T-13 answers: config loader, CLI restructure, `cim status` / `cim events`, `cim watch`, and the acceptance test (pipeline note section 9).
 
