@@ -6,9 +6,12 @@ These stay here, not in the shared `cim` CLI, until pipeline integration (T-13).
 from __future__ import annotations
 
 import argparse
+import json
+import sys
 from pathlib import Path
 
 from cim.common.store import BaselineStore
+from cim.skills.board import as_dict, load_skills_board, render
 from cim.skills.collector import observe, record_behaviour, tracer_available
 from cim.skills.corpus import (
     default_root,
@@ -155,6 +158,19 @@ def _envelope(args: argparse.Namespace) -> int:
     return 0
 
 
+def _board(args: argparse.Namespace) -> int:
+    if not args.db.is_file():  # inspecting must not create a store
+        print(f"board: no store at {args.db}", file=sys.stderr)
+        return 2
+    board = load_skills_board(args.db)
+    if args.json:
+        print(json.dumps(as_dict(board), indent=2))
+        return 0
+    for line in render(board):
+        print(line)
+    return 0
+
+
 def _store_options(command: argparse.ArgumentParser) -> None:
     command.add_argument("--db", type=Path, required=True, help="baseline store path")
     command.add_argument(
@@ -205,6 +221,12 @@ def main(argv: list[str] | None = None) -> int:
     envelope.add_argument("--db", type=Path, required=True, help="baseline store path")
     envelope.add_argument("--skill", help="one skill id (default: all)")
     envelope.set_defaults(handler=_envelope)
+    shown = commands.add_parser(
+        "board", help="show what the status board's skills section holds (U1)"
+    )
+    shown.add_argument("--db", type=Path, required=True, help="baseline store path")
+    shown.add_argument("--json", action="store_true", help="print the JSON the page reads")
+    shown.set_defaults(handler=_board)
     args = parser.parse_args(argv)
     return int(args.handler(args))
 
