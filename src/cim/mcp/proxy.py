@@ -481,7 +481,7 @@ class StoreSink:
                 outcome=event.outcome,
             )
             # T-16: score after the observation is committed. Scoring must never
-            # stop capture (fail-open); a scorer fault is logged by the writer.
+            # stop capture (fail-open); a scorer fault leaves proxy_capture_failed.
             try:
                 score_latest(
                     self._store,
@@ -490,8 +490,24 @@ class StoreSink:
                     tool=event.tool,
                     ts=self._now(),
                 )
-            except Exception:  # noqa: BLE001 — scoring must never stop capture
-                pass
+            except Exception as exc:  # noqa: BLE001 — scoring must never stop capture
+                try:
+                    append_mcp(
+                        self._store,
+                        self._server_artefact(),
+                        artefact_type="mcp_server",
+                        server_id=self._config.server_id,
+                        kind="alert",
+                        payload={
+                            "code": FAILED_CODE,
+                            "stage": "score",
+                            "reason": "behaviour_score_failed",
+                            "detail": str(exc)[:200],
+                        },
+                        ts=self._now(),
+                    )
+                except Exception:  # noqa: BLE001 — still fail-open
+                    pass
         elif isinstance(event, CaptureFailure):
             append_mcp(
                 self._store,

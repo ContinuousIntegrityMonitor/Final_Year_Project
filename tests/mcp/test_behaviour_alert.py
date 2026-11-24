@@ -159,3 +159,27 @@ def test_envelope_obs_alone_does_not_alert(tmp_path: Path) -> None:
             store, artefact_id=server_aid, server_id="demo", tool="send_email", ts=TS
         )
     assert reasons == []
+
+
+def test_a1_repeated_attack_alerts_every_time(tmp_path: Path) -> None:
+    """Alerted calls stay out of the window, so the same attack fires again."""
+    db = tmp_path / "store.sqlite"
+    with BaselineStore(db) as store:
+        server_aid = store.append_artefact("mcp_server", "demo", "dashboard")
+        tool_aid = store.append_artefact("mcp_tool", "send_email", "dashboard")
+        _fill(store, server_aid, tool_aid, WARMUP, {"body": "hello"})
+        alerts = 0
+        for i in range(1, 4):
+            _append_behaviour(
+                store,
+                tool_aid=tool_aid,
+                n=WARMUP + i,
+                arguments={"body": "10.1.1.1"},
+            )
+            reasons = score_latest(
+                store, artefact_id=server_aid, server_id="demo", tool="send_email", ts=TS
+            )
+            if reasons:
+                alerts += 1
+        assert store.verify_chain().ok
+    assert alerts == 3
