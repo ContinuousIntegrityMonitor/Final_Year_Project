@@ -11,8 +11,8 @@ than the poll interval can still be missed.
 Known limit: the scope belongs to the same user as the helper, and systemd delegates that
 user's cgroup subtree to them. Sub-cgroups a helper creates *inside* its scope are followed,
 but a helper that writes a PID into a cgroup *outside* its scope moves that process out: it
-is no longer attributed or killed. T-11 needs a boundary a same-user process cannot cross
-(another uid, or audit events) before this holds against a helper that actively evades.
+is no longer attributed or killed. Phase 1 accepts this and says so; Phase 2 creates the scope
+at system level from a root-owned launcher, which a same-user process cannot leave (ADR-007).
 """
 
 from __future__ import annotations

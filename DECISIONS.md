@@ -10,6 +10,7 @@ Single index of architecture and process decisions. Detailed write-ups live unde
 | ADR-004 | MCP proxy fails open in v1 (forward everything; alert on unparseable frames) | Accepted | 2026-11-08 |
 | ADR-005 | Stdio proxy and HTTP MCP gateway (both transports) | Accepted | 2026-11-12 |
 | ADR-006 | What the record hash covers: `ts`, `artefact_id` and the artefact row, with a version tag (S2) | Accepted (implement later) | 2026-11-24 |
+| ADR-007 | Skills helper / monitor boundary (T-11): one user and a precise claim for FYP I; monitor and store as their own user for FYP II | Accepted (skills side; T-13 decision 8 pending) | 2026-11-24 |
 
 ## Working rules (stable)
 

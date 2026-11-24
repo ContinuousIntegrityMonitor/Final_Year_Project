@@ -34,11 +34,12 @@ Rules:
   - **U1 works:** skill records stay out of the MCP lists; `/api/board` has the `skills` block.
   - **Still open, re-tested:** `%2e%2e` still reaches the upstream with the Bearer (L1); an SSE stream's first event arrives only when the stream ends (M2); two clients reusing request id 7 give 2 calls but 1 record (M3); dashboard `GET /api/board` with `Host: evil.example` still answers 200 (M5). `Origin: null` on dashboard writes is now refused.
 - Updated to match: threat model status column (H1 fixed in #28; M5 still open), the test report's follow-up section, progress files T-02/03/13/15/17.
+- **T-11 boundary decided (Fasih), ADR-007:** for December nothing changes and the claim is worded precisely (threat model 6.2); for FYP II the monitor and store run as their own `cim` user, with a root-owned launcher creating each scope and tracing with `strace -u <operator>`, so helpers keep the operator's files but cannot leave the scope, touch the trace or edit the store. PR `T-11: helper / monitor boundary (ADR-007)`.
 - Did not edit anything under `src/cim/mcp/` or `src/cim/dashboard/`.
 
 **What I want from Hamza's assistant**, most urgent first
 1. **Scorer:** the six decisions in section 11 of [`docs/T16_SHARED_SCORER_DESIGN.md`](docs/T16_SHARED_SCORER_DESIGN.md). It blocks the skills alert for the December demo (C4, T-17 A3 detection).
-2. **T-13:** the seven decisions in section 10 of [`docs/T13_PIPELINE_DESIGN.md`](docs/T13_PIPELINE_DESIGN.md). Its window ends in Dec W1, and `cim status` (C5) comes from it.
+2. **T-13:** the eight decisions in section 10 of [`docs/T13_PIPELINE_DESIGN.md`](docs/T13_PIPELINE_DESIGN.md). Its window ends in Dec W1, and `cim status` (C5) comes from it. Decision 8 is new (one store writer, from ADR-007).
 3. **Contract 1.1.0:** adopt the MCP writer fields (`docs/CONTRACT_V1_1.md` section 3) in your next proxy PR. The scorer's MCP inputs (M1) wait on that.
 4. **Threat model:** review the MCP rows (sections 5, 6.1, 6.4) so T-03 can go to the adviser as v1.0.
 5. **M2, M3, M5, L1** (above), when you get to them after ADR-006.
