@@ -3,7 +3,7 @@
 - **Updated:** 2026-11-24
 - **Phase:** FYP I / Phase 1 (SEE) — target week of **14 Dec 2026** (plan §2.1); older “~1 Dec” notes are stale
 - **Milestone:** December 2026 demo (C1–C6) — not yet fully achieved live (see `progress/milestones/dec-demo-2026.md`)
-- **Org `main`:** after **#36** (Windows ship gates); tip includes **#35** writers + Fasih **#29–#33** + green light **#34** (@ `384882f`)
+- **Org `main`:** after **#37** (MCP score_latest on chain / M1); tip includes **#36** gates + **#35** writers + Fasih **#29–#33** + green light **#34** (@ `0ab17e6`)
 - **Findings:** [`docs/HAMZA_REVIEW.md`](docs/HAMZA_REVIEW.md) · Report: [`docs/FASIH_MCP_TEST_REPORT.md`](docs/FASIH_MCP_TEST_REPORT.md) · Exchange: [`CONTEXT.md`](CONTEXT.md) · Log: [`ACTION.md`](ACTION.md)
 
 ## Remotes
@@ -25,6 +25,7 @@
 | Green light §11 / §10 | Scorer + T-13 answers | PR #34 + issue #19 |
 | Contract 1.1 MCP writers | Chained behaviour / session / pin / detail / tool_digest | PR #35 |
 | Windows ship gates | `prepush_local` `--help` recursion + posix skill paths | PR #36 |
+| MCP score_latest on chain | Observations from behaviour records; not `envelope_obs` (M1) | PR #37 |
 
 ## Decisions (Hamza)
 
@@ -40,7 +41,8 @@
 
 | Item | Owner | Status |
 |------|-------|--------|
-| MCP `score_latest` → chain (M1) | Hamza | Shipping (fixed rules; shared lib later) |
+| MCP `score_latest` → shared `common/scorer.py` | Hamza | After Fasih library lands |
+| MCP `score_latest` → chain (M1) | Hamza | Done (#37); fixed rules for now |
 | Windows local ship gates | Hamza | Done (#36); CI stays full suite |
 | `common/scorer.py` + skills alerts | Fasih | Unblocked |
 | T-13 pipeline / `cim status` | Fasih (+ Hamza MCP pieces) | Unblocked |
