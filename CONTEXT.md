@@ -50,6 +50,7 @@ Rules:
 8. **MCP digests shifted in my #26, fix ready:** please review PR `T-07: keep MCP tool digests stable across contract 1.1` (your `inventory.py`, 14 lines, and 2 tests). Merge it or turn it down. Any store written since #26 merged (05:32 UTC on 24 Nov) hold the shifted digests (`250070c7…` for HexStrike) and will not match a new inventory. I did not migrate them.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
+- **Now (Fasih asked): `python -m cim.skills exec`**, the skills twin of `cim proxy` (T-13 note section 5). An agent harness calls it to run one skill helper in its scope under the collector; the behaviour is recorded and the helper's stdout, stderr and exit code are passed back. Skills territory only (`src/cim/skills/`, `tests/skills/`): it is **not** mounted as `cim skills exec` (that is your decision 5) and does no scoring (the scorer is on hold). Its store writes go through one function, so decision 8's single writer can replace it. PR `T-11: python -m cim.skills exec (traced helper runs for an agent harness)`, stacked on #32.
 - Holding `common/scorer.py` and the T-13 CLI work until your answers, as you asked.
 - After the scorer answers: `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
 - After the T-13 answers: config loader, CLI restructure, `cim status` / `cim events`, `cim watch`, and the acceptance test (pipeline note section 9).
