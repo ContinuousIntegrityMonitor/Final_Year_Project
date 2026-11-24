@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-19):** Org `main` includes **PR #16** (T-16 / T-16b + G1–G3 / X1–X2) and status docs through PR #17. Local `main` / `fresh/main` match. **Hamza is waiting on Fasih** for the skills-side items and an MCP pull-and-test report — see [`docs/FASIH_ASK_2026-11-19.md`](docs/FASIH_ASK_2026-11-19.md) and Hamza’s assistant section below. Still not on `main`: `t03-threat-model`, Fasih’s local `t02-contract-fixes`, S2. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md). Findings: [`docs/HAMZA_REVIEW.md`](docs/HAMZA_REVIEW.md).
+3. **Active now (2026-11-24):** Org `main` @ `fa869ce` includes Fasih PRs **#20–#26** (MCP test report, U1 skills board, scorer design note, T-17 skills attacks, threat model v0.10 + ADR-006 *Proposed*, T-13 design note, contract **1.1.0**). Local `main` matches. **Ball is with Hamza:** fix report **H1** (gateway Bearer without token), wire U1 into the dashboard, answer Fasih’s open decisions (scorer / S2 / T-13), then adopt 1.1 MCP writer fields. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md). Findings: [`docs/HAMZA_REVIEW.md`](docs/HAMZA_REVIEW.md) + [`docs/FASIH_MCP_TEST_REPORT.md`](docs/FASIH_MCP_TEST_REPORT.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
@@ -62,34 +62,21 @@ Rules:
 
 ### Hamza's assistant (MCP side)
 
-**Last updated:** 2026-11-19  
+**Last updated:** 2026-11-24  
 **Sign as:** Hamza Cursor (Hamza’s Cursor agent). Does not claim authorship of Fasih’s commits.
 
 **What I did**
-- Merged Fasih’s PRs #10–#13 (maintainer only). Merged **PR #16** (T-16/T-16b + G1–G3 / X1–X2) and status **PR #17**. Local `main` / `fresh/main` = org `main`.
-- Your earlier High asks are answered on `main`: X2 = real scorer; G1–G3 / X1 done; P1 / D1–D3 already from your Stages 2–3.
+- Reviewed and **merged your PRs #20–#26** into org `main` (merge commits as `HamzaFarooq3333`; no AI/Cursor co-author). Tip `fa869ce`.
+- That lands: MCP test report + live stand-ins; U1 skills board; scorer design note; T-17 A3/A4; threat model v0.10 + ADR-006 *Proposed*; T-13 design note; contract **1.1.0** (additions only).
+- Approved each PR with a short review comment before merge. Design notes (#22, #25) and ADR-006 stay **docs / Proposed** until Hamza answers the decision lists — merging them does not start coding.
 
-**What I want from Fasih (only this)**  
-Full checklist: [`docs/FASIH_ASK_2026-11-19.md`](docs/FASIH_ASK_2026-11-19.md).
+**What I want from Fasih**
+1. Hold coding on `common/scorer.py` and T-13 CLI reshape until Hamza posts decisions in this section (or on the design docs).
+2. Optional: you may prepare an H1 fix PR **only after** Hamza says which option (refuse to start vs never attach Bearer without token). Prefer Hamza owns H1–M5 in `src/cim/mcp/` / `dashboard/`.
+3. Keep announcing stages here before new PRs.
 
-Implement when ready (announce the stage in this file first; Hamza merges):
-1. **U1** — skills JSON shape for the board, then Stage 4.
-2. **T-16 skills half / A2** — shared scorer so skills can raise the same kind of alert.
-3. **S2** — hash decision package (formula + migration note).
-4. **Contract** — PR from `t02-contract-fixes` with B1–B3 and the four v1.1 answers in the body.
-
-Test on current org **`main`** (required):
-1. Pull the repo; `uv sync --all-extras`.
-2. `uv run pytest -m "not sys and not lab" -q` and `uv run pytest tests/mcp -q`.
-3. Live: `scripts/_live_t16_warmup.py` and `scripts/_live_t16b_http_warmup.py`.
-4. Extra angles: `verify-chain` on those DBs; `cim dashboard --once` and `--demo` (token gate); one gateway 401 (bad Origin or missing token).
-
-Report to Hamza:
-- Add **`docs/FASIH_MCP_TEST_REPORT.md`** (date, OS, commit SHA, pass/fail table, failures, **improvement suggestions** ranked High/Medium/Low).
-- Update **your** section here + one `ACTION.md` line when done.
-- Do **not** edit `src/cim/mcp/` or `src/cim/dashboard/` unless we pre-agree.
-
-**What I am about to do**
-1. Wait on your test report and the implement items above.
-2. Wire U1 once you give the skills shape.
-3. Agree or reject S2 / contract when you post them.
+**What I am about to do** (Hamza / this side)
+1. **H1 first** — fix gateway so stored Bearer is never attached without `CIM_HTTP_GATEWAY_TOKEN` (lean refuse-to-start when any route has `authorization_env`).
+2. Wire **U1** into `cim.dashboard.board` / page using [`docs/U1_SKILLS_BOARD_SHAPE.md`](docs/U1_SKILLS_BOARD_SHAPE.md).
+3. Answer scorer section 11, ADR-006 S2, and T-13 section 10; then adopt contract 1.1 MCP writer fields in a proxy PR.
+4. Keep / replace your live stand-in scripts (H2): **keep** them on `main`.
