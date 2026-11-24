@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from cim.common.chain import compute_record_hash
+from cim.common.chain import HASH_V2, compute_record_hash, compute_record_hash_v1
 from cim.common.store import BaselineStore
 from cim.mcp.drift import pinned_tools
 from cim.mcp.envelope import WARMUP
@@ -253,7 +253,10 @@ def tamper_log(db: Path) -> dict[str, Any]:
     con.row_factory = sqlite3.Row
     try:
         rows = con.execute(
-            "SELECT id, kind, payload, prev_hash, record_hash FROM record ORDER BY id"
+            """
+            SELECT id, artefact_id, kind, payload, prev_hash, record_hash, ts
+            FROM record ORDER BY id
+            """
         ).fetchall()
         if len(rows) < 2:
             return {
@@ -265,7 +268,35 @@ def tamper_log(db: Path) -> dict[str, Any]:
             }
         first = rows[0]
         new_payload = '{"tampered":true,"note":"demo rewrite of a past log entry"}'
-        new_hash = compute_record_hash(str(first["prev_hash"]), str(first["kind"]), new_payload)
+        meta = con.execute("SELECT value FROM store_meta WHERE key = 'hash_version'").fetchone()
+        version = int(meta["value"]) if meta is not None else 1
+        if version == HASH_V2:
+            artefact = con.execute(
+                "SELECT type, name, origin FROM artefact WHERE id = ?",
+                (int(first["artefact_id"]),),
+            ).fetchone()
+            if artefact is None:
+                return {
+                    "tampered": False,
+                    "detail": "Artefact row missing; cannot rebuild a v2 hash.",
+                    "broken_at": None,
+                    "chain_ok": True,
+                    "connected": read_connected(db),
+                }
+            new_hash = compute_record_hash(
+                str(first["prev_hash"]),
+                str(first["kind"]),
+                new_payload,
+                artefact_id=int(first["artefact_id"]),
+                artefact_type=str(artefact["type"]),
+                artefact_name=str(artefact["name"]),
+                artefact_origin=str(artefact["origin"]),
+                ts=str(first["ts"]),
+            )
+        else:
+            new_hash = compute_record_hash_v1(
+                str(first["prev_hash"]), str(first["kind"]), new_payload
+            )
         con.execute(
             "UPDATE record SET payload = ?, record_hash = ? WHERE id = ?",
             (new_payload, new_hash, int(first["id"])),

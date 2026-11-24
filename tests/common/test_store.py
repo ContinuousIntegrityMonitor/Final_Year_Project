@@ -12,7 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from cim.cli import app
-from cim.common.chain import GENESIS_HASH
+from cim.common.chain import GENESIS_HASH, HASH_V1, HASH_V2, compute_record_hash_v1
 from cim.common.store import BaselineStore
 from cim.common.store.baseline import _DDL
 
@@ -255,6 +255,122 @@ def test_chain_status_carries_the_tip(tmp_path: Path) -> None:
         broken = store.verify_chain()
     assert not broken.ok
     assert broken.tip == hashes[1]  # the last record that still verified
+
+
+def test_new_store_is_hash_v2(tmp_path: Path) -> None:
+    with _store(tmp_path) as store:
+        assert store.hash_version == HASH_V2
+        artefact_id = store.append_artefact("skill", "pdf-tools", "lab")
+        store.append_record(artefact_id, "behaviour", {"n": 1}, TS)
+        status = store.verify_chain()
+    assert status.ok
+    assert status.hash_version == HASH_V2
+    assert status.reason == "ok"
+
+
+def _two_behaviour_records(path: Path) -> tuple[int, int]:
+    with BaselineStore(path) as store:
+        tool_a = store.append_artefact("mcp_tool", "shout", "lab")
+        tool_b = store.append_artefact("mcp_tool", "add", "lab")
+        store.append_record(tool_a, "behaviour", {"n": 1}, TS)
+        store.append_record(tool_a, "behaviour", {"n": 2}, TS)
+        assert store.verify_chain().ok
+    return tool_a, tool_b
+
+
+def test_redate_breaks_v2_chain(tmp_path: Path) -> None:
+    path = tmp_path / "redate.db"
+    _two_behaviour_records(path)
+    raw = sqlite3.connect(path)
+    raw.execute("UPDATE record SET ts = '1999-01-01T00:00:00Z' WHERE id = 1")
+    raw.commit()
+    raw.close()
+    with BaselineStore(path) as store:
+        status = store.verify_chain()
+    assert not status.ok
+    assert status.broken_at == 1
+
+
+def test_move_breaks_v2_chain(tmp_path: Path) -> None:
+    path = tmp_path / "move.db"
+    _tool_a, tool_b = _two_behaviour_records(path)
+    raw = sqlite3.connect(path)
+    raw.execute("UPDATE record SET artefact_id = ? WHERE id = 1", (tool_b,))
+    raw.commit()
+    raw.close()
+    with BaselineStore(path) as store:
+        status = store.verify_chain()
+    assert not status.ok
+    assert status.broken_at == 1
+
+
+def test_rename_artefact_breaks_v2_chain(tmp_path: Path) -> None:
+    path = tmp_path / "rename.db"
+    tool_a, _tool_b = _two_behaviour_records(path)
+    with BaselineStore(path) as store:
+        tip_before = store.verify_chain().tip
+    raw = sqlite3.connect(path)
+    raw.execute(
+        "UPDATE artefact SET name = 'not-shout', origin = 'elsewhere' WHERE id = ?",
+        (tool_a,),
+    )
+    raw.commit()
+    raw.close()
+    with BaselineStore(path) as store:
+        status = store.verify_chain()
+    assert not status.ok
+    assert status.broken_at == 1
+    assert status.tip != tip_before
+
+
+def test_v1_store_verifies_but_refuses_append(tmp_path: Path) -> None:
+    path = tmp_path / "legacy.db"
+    # Build a v1 chain with the old formula and no store_meta.hash_version.
+    con = sqlite3.connect(path)
+    con.executescript(
+        """
+        CREATE TABLE artefact (
+            id INTEGER PRIMARY KEY,
+            type TEXT NOT NULL,
+            name TEXT NOT NULL,
+            origin TEXT NOT NULL
+        );
+        CREATE TABLE record (
+            id INTEGER PRIMARY KEY,
+            artefact_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            prev_hash TEXT NOT NULL,
+            record_hash TEXT NOT NULL,
+            ts TEXT NOT NULL
+        );
+        """
+    )
+    con.execute("INSERT INTO artefact (type, name, origin) VALUES ('skill', 'pdf-tools', 'lab')")
+    payload = '{"n":1}'
+    digest = compute_record_hash_v1(GENESIS_HASH, "behaviour", payload)
+    con.execute(
+        """
+        INSERT INTO record (artefact_id, kind, payload, prev_hash, record_hash, ts)
+        VALUES (1, 'behaviour', ?, ?, ?, ?)
+        """,
+        (payload, GENESIS_HASH, digest, TS),
+    )
+    con.commit()
+    con.close()
+
+    with BaselineStore(path) as store:
+        assert store.hash_version == HASH_V1
+        status = store.verify_chain()
+        assert status.ok
+        assert status.hash_version == HASH_V1
+        assert "hash v1" in status.reason
+        with pytest.raises(ValueError, match="hash v1"):
+            store.append_record(1, "behaviour", {"n": 2}, TS)
+
+    cli = runner.invoke(app, ["verify-chain", "--db", str(path)])
+    assert cli.exit_code == 0
+    assert "hash v1: ts and artefacts not covered" in cli.stdout
 
 
 def test_cli_catches_a_chain_that_was_cut_short(tmp_path: Path) -> None:

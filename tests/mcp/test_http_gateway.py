@@ -560,6 +560,8 @@ def test_m3_two_sessions_same_request_id_both_recorded(tmp_path: Path) -> None:
                         timeout=5,
                     ) as resp:
                         assert resp.status == 200
+                        # Drain body so the gateway can finish chunked SSE without BrokenPipe.
+                        assert resp.read()
                 except BaseException as exc:  # noqa: BLE001 — collect for the main thread
                     errors.append(exc)
 

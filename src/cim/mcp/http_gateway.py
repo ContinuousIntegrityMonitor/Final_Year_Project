@@ -572,13 +572,14 @@ def make_handler(
                         return bytes(raw_chunk)
                     return b""
 
+                # Capture completed SSE frames even if the client has gone (BrokenPipe
+                # on write). M3 concurrent clients often close after status 200.
+                client_gone = False
                 try:
                     while True:
                         chunk = _pull()
                         if not chunk:
                             break
-                        self._write_chunk(chunk)
-                        self.wfile.flush()
                         buffer += chunk
                         while b"\n\n" in buffer:
                             block, buffer = buffer.split(b"\n\n", 1)
@@ -587,6 +588,12 @@ def make_handler(
                                 session, bodies, capture_session=capture_session
                             ):
                                 store.put(server_id, event)
+                        if not client_gone:
+                            try:
+                                self._write_chunk(chunk)
+                                self.wfile.flush()
+                            except (BrokenPipeError, ConnectionResetError):
+                                client_gone = True
                     if buffer.strip():
                         bodies = parse_jsonrpc_bodies(buffer, ctype)
                         for event in _capture_server(
@@ -595,7 +602,11 @@ def make_handler(
                             store.put(server_id, event)
                 except TimeoutError as exc:
                     _log(f"upstream SSE timeout {server_id}: {exc}")
-                self._end_chunks()
+                if not client_gone:
+                    try:
+                        self._end_chunks()
+                    except (BrokenPipeError, ConnectionResetError):
+                        pass
                 return
 
             raw = resp.read()

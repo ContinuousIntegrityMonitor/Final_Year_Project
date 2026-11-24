@@ -1,6 +1,6 @@
 """Canonical JSON for hashing (T-02): sorted keys, no whitespace, UTF-8, no floats.
 
-record_hash = SHA256(prev_hash || kind || canonical_json(payload)); see cim.common.chain.
+ADR-006 v2 record hashes pass a JSON array through this helper; see cim.common.chain.
 """
 
 from __future__ import annotations

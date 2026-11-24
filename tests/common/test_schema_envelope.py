@@ -210,6 +210,15 @@ def test_artefact_requires_identifiers() -> None:
 
 def test_hash_independent_of_key_order() -> None:
     reordered = dict(reversed(list(BEHAVIOUR.items())))
-    a = compute_record_hash("0" * 64, "behaviour", canonical_json(BEHAVIOUR))
-    b = compute_record_hash("0" * 64, "behaviour", skill_event(reordered).payload_canonical())
+    kwargs = {
+        "artefact_id": 1,
+        "artefact_type": "skill",
+        "artefact_name": "pdf-tools",
+        "artefact_origin": "lab",
+        "ts": "2026-10-19T12:00:00Z",
+    }
+    a = compute_record_hash("0" * 64, "behaviour", canonical_json(BEHAVIOUR), **kwargs)
+    b = compute_record_hash(
+        "0" * 64, "behaviour", skill_event(reordered).payload_canonical(), **kwargs
+    )
     assert a == b

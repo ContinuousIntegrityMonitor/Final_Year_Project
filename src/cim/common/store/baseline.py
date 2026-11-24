@@ -4,6 +4,10 @@ Several processes may append to one store (the MCP proxy, the skills watcher, a 
 Every append therefore runs inside a write transaction that is opened with BEGIN IMMEDIATE,
 and the chain tip is read inside that transaction. A second writer waits its turn instead of
 chaining from a tip that is no longer the last record.
+
+Hash version (ADR-006): new stores write ``store_meta.hash_version = 2``. Stores without
+that key are version 1 — ``verify_chain`` still works; ``append_record`` refuses so one
+chain never mixes formulas. No migration.
 """
 
 from __future__ import annotations
@@ -17,7 +21,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Self
 
-from cim.common.chain import GENESIS_HASH, compute_record_hash
+from cim.common.chain import (
+    GENESIS_HASH,
+    HASH_V1,
+    HASH_V2,
+    compute_record_hash,
+    compute_record_hash_v1,
+)
 from cim.common.schema.canonical import canonical_json
 
 _TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -45,6 +55,12 @@ _DDL = (
         ts TEXT NOT NULL
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS store_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )
+    """,
 )
 
 
@@ -68,6 +84,7 @@ class ChainStatus:
     broken_at: int | None
     reason: str
     tip: str = GENESIS_HASH  # hash of the last record that verified; genesis if none did
+    hash_version: int = HASH_V2
 
 
 class BaselineStore:
@@ -86,6 +103,12 @@ class BaselineStore:
         for statement in _DDL:
             self._conn.execute(statement)
         self._conn.commit()
+        self._hash_version = self._bootstrap_hash_version()
+
+    @property
+    def hash_version(self) -> int:
+        """1 = legacy formula (verify-only); 2 = ADR-006 (append allowed)."""
+        return self._hash_version
 
     def close(self) -> None:
         self._conn.close()
@@ -162,6 +185,11 @@ class BaselineStore:
         ts: str,
     ) -> int:
         """Append one hash-chained record. Payload is stored as canonical JSON."""
+        if self._hash_version != HASH_V2:
+            raise ValueError(
+                "this store uses hash v1 (ts and artefacts not covered); "
+                "create a new store to append (ADR-006)"
+            )
         if kind not in _KINDS:
             raise ValueError(f"unknown record kind: {kind}")
         if _TS.fullmatch(ts) is None:
@@ -172,13 +200,23 @@ class BaselineStore:
             raise ValueError(f"timestamp is not a real date and time: {ts}") from None
         encoded = canonical_json(payload)
         with self.transaction():
-            known = self._conn.execute(
-                "SELECT 1 FROM artefact WHERE id = ?", (artefact_id,)
+            artefact = self._conn.execute(
+                "SELECT type, name, origin FROM artefact WHERE id = ?",
+                (artefact_id,),
             ).fetchone()
-            if known is None:
+            if artefact is None:
                 raise ValueError(f"unknown artefact id: {artefact_id}")
             prev_hash = self._tip_hash()
-            record_hash = compute_record_hash(prev_hash, kind, encoded)
+            record_hash = compute_record_hash(
+                prev_hash,
+                kind,
+                encoded,
+                artefact_id=artefact_id,
+                artefact_type=str(artefact["type"]),
+                artefact_name=str(artefact["name"]),
+                artefact_origin=str(artefact["origin"]),
+                ts=ts,
+            )
             cursor = self._conn.execute(
                 """
                 INSERT INTO record (artefact_id, kind, payload, prev_hash, record_hash, ts)
@@ -193,45 +231,9 @@ class BaselineStore:
 
     def verify_chain(self) -> ChainStatus:
         """Recompute every record hash. An edited or deleted historical row fails."""
-        rows = self._conn.execute(
-            "SELECT id, kind, payload, prev_hash, record_hash FROM record ORDER BY id"
-        ).fetchall()
-        prev = GENESIS_HASH
-        expected_id = 1
-        for row in rows:
-            record_id = int(row["id"])
-            if record_id != expected_id:
-                return ChainStatus(
-                    ok=False,
-                    count=len(rows),
-                    broken_at=record_id,
-                    reason=f"missing record id {expected_id}",
-                    tip=prev,
-                )
-            kind = str(row["kind"])
-            payload = str(row["payload"])
-            stored_prev = str(row["prev_hash"])
-            stored_hash = str(row["record_hash"])
-            if stored_prev != prev:
-                return ChainStatus(
-                    ok=False,
-                    count=len(rows),
-                    broken_at=record_id,
-                    reason="prev_hash does not match the previous record",
-                    tip=prev,
-                )
-            expected = compute_record_hash(prev, kind, payload)
-            if stored_hash != expected:
-                return ChainStatus(
-                    ok=False,
-                    count=len(rows),
-                    broken_at=record_id,
-                    reason="record_hash does not match the stored payload",
-                    tip=prev,
-                )
-            prev = stored_hash
-            expected_id += 1
-        return ChainStatus(ok=True, count=len(rows), broken_at=None, reason="ok", tip=prev)
+        if self._hash_version == HASH_V1:
+            return self._verify_v1()
+        return self._verify_v2()
 
     def read_records(self) -> list[StoredRecord]:
         """Return every record in chain order. Does not modify the store."""
@@ -249,6 +251,24 @@ class BaselineStore:
             for row in rows
         ]
 
+    def _bootstrap_hash_version(self) -> int:
+        """New empty stores become v2; stores with records and no meta stay v1."""
+        row = self._conn.execute(
+            "SELECT value FROM store_meta WHERE key = 'hash_version'"
+        ).fetchone()
+        if row is not None:
+            return int(row["value"])
+        count_row = self._conn.execute("SELECT COUNT(*) AS n FROM record").fetchone()
+        count = 0 if count_row is None else int(count_row["n"])
+        if count == 0:
+            self._conn.execute(
+                "INSERT INTO store_meta (key, value) VALUES ('hash_version', ?)",
+                (str(HASH_V2),),
+            )
+            self._conn.commit()
+            return HASH_V2
+        return HASH_V1
+
     def _tip_hash(self) -> str:
         """Hash of the last record. Call only while holding the write lock."""
         if self._tip is None:
@@ -257,3 +277,132 @@ class BaselineStore:
             ).fetchone()
             self._tip = GENESIS_HASH if row is None else str(row["record_hash"])
         return self._tip
+
+    def _verify_v1(self) -> ChainStatus:
+        rows = self._conn.execute(
+            "SELECT id, kind, payload, prev_hash, record_hash FROM record ORDER BY id"
+        ).fetchall()
+        prev = GENESIS_HASH
+        expected_id = 1
+        for row in rows:
+            record_id = int(row["id"])
+            if record_id != expected_id:
+                return ChainStatus(
+                    ok=False,
+                    count=len(rows),
+                    broken_at=record_id,
+                    reason=f"missing record id {expected_id}",
+                    tip=prev,
+                    hash_version=HASH_V1,
+                )
+            kind = str(row["kind"])
+            payload = str(row["payload"])
+            stored_prev = str(row["prev_hash"])
+            stored_hash = str(row["record_hash"])
+            if stored_prev != prev:
+                return ChainStatus(
+                    ok=False,
+                    count=len(rows),
+                    broken_at=record_id,
+                    reason="prev_hash does not match the previous record",
+                    tip=prev,
+                    hash_version=HASH_V1,
+                )
+            expected = compute_record_hash_v1(prev, kind, payload)
+            if stored_hash != expected:
+                return ChainStatus(
+                    ok=False,
+                    count=len(rows),
+                    broken_at=record_id,
+                    reason="record_hash does not match the stored payload",
+                    tip=prev,
+                    hash_version=HASH_V1,
+                )
+            prev = stored_hash
+            expected_id += 1
+        return ChainStatus(
+            ok=True,
+            count=len(rows),
+            broken_at=None,
+            reason="ok (hash v1: ts and artefacts not covered)",
+            tip=prev,
+            hash_version=HASH_V1,
+        )
+
+    def _verify_v2(self) -> ChainStatus:
+        rows = self._conn.execute(
+            """
+            SELECT r.id, r.artefact_id, r.kind, r.payload, r.prev_hash, r.record_hash, r.ts,
+                   a.type AS artefact_type, a.name AS artefact_name, a.origin AS artefact_origin
+            FROM record AS r
+            JOIN artefact AS a ON a.id = r.artefact_id
+            ORDER BY r.id
+            """
+        ).fetchall()
+        # Count without join so a missing artefact still surfaces as a break.
+        total = self._conn.execute("SELECT COUNT(*) AS n FROM record").fetchone()
+        total_n = 0 if total is None else int(total["n"])
+        if total_n != len(rows):
+            return ChainStatus(
+                ok=False,
+                count=total_n,
+                broken_at=None,
+                reason="record references a missing artefact row",
+                tip=GENESIS_HASH,
+                hash_version=HASH_V2,
+            )
+        prev = GENESIS_HASH
+        expected_id = 1
+        for row in rows:
+            record_id = int(row["id"])
+            if record_id != expected_id:
+                return ChainStatus(
+                    ok=False,
+                    count=len(rows),
+                    broken_at=record_id,
+                    reason=f"missing record id {expected_id}",
+                    tip=prev,
+                    hash_version=HASH_V2,
+                )
+            kind = str(row["kind"])
+            payload = str(row["payload"])
+            stored_prev = str(row["prev_hash"])
+            stored_hash = str(row["record_hash"])
+            if stored_prev != prev:
+                return ChainStatus(
+                    ok=False,
+                    count=len(rows),
+                    broken_at=record_id,
+                    reason="prev_hash does not match the previous record",
+                    tip=prev,
+                    hash_version=HASH_V2,
+                )
+            expected = compute_record_hash(
+                prev,
+                kind,
+                payload,
+                artefact_id=int(row["artefact_id"]),
+                artefact_type=str(row["artefact_type"]),
+                artefact_name=str(row["artefact_name"]),
+                artefact_origin=str(row["artefact_origin"]),
+                ts=str(row["ts"]),
+            )
+            if stored_hash != expected:
+                return ChainStatus(
+                    ok=False,
+                    count=len(rows),
+                    broken_at=record_id,
+                    reason="record_hash does not match the stored payload",
+                    tip=prev,
+                    hash_version=HASH_V2,
+                )
+            prev = stored_hash
+            expected_id += 1
+        return ChainStatus(
+            ok=True,
+            count=len(rows),
+            broken_at=None,
+            reason="ok",
+            tip=prev,
+            hash_version=HASH_V2,
+        )
