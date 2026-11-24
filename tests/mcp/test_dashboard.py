@@ -210,6 +210,36 @@ def test_http_serves_readonly_by_default(tmp_path: Path) -> None:
     assert any("bcc" in change["detail"] for change in feed["changes"])
 
 
+def test_m5_get_rejects_evil_host(tmp_path: Path) -> None:
+    """M5: DNS-rebinding Host must not read / or /api/board."""
+    import http.client
+
+    db = tmp_path / "store.sqlite"
+    _session(db)
+    server = make_server(db, "127.0.0.1", 0, demo=False)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = server.server_address
+    try:
+        for path in ("/", "/api/board"):
+            conn = http.client.HTTPConnection(host, port, timeout=5)
+            # skip_host so our evil Host is the only one (http.client would add 127.0.0.1 first).
+            conn.putrequest("GET", path, skip_host=True)
+            conn.putheader("Host", "evil.example")
+            conn.endheaders()
+            resp = conn.getresponse()
+            body = resp.read()
+            conn.close()
+            assert resp.status == 401, (path, resp.status, body)
+        with urlopen(f"http://{host}:{port}/api/board", timeout=5) as response:
+            assert response.status == 200
+            feed = json.loads(response.read().decode("utf-8"))
+        assert feed["demo"] is False
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+
 def test_demo_write_requires_token(tmp_path: Path) -> None:
     db = tmp_path / "store.sqlite"
     _session(db)

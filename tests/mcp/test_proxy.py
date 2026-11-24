@@ -133,6 +133,20 @@ def test_unanswered_call_is_recorded_as_timeout() -> None:
     assert event.duration_us == 7_000  # type: ignore[union-attr]
 
 
+def test_m3_pending_keyed_by_session_keeps_both_calls() -> None:
+    """Two sessions reusing JSON-RPC id 7 must both match their own reply (M3)."""
+    capture = Capture()
+    reply = _line({"jsonrpc": "2.0", "id": 7, "result": {"content": []}})
+    assert capture.client_line(_call(7, "echo", {"text": "a"}), session="sess-a") == []
+    assert capture.client_line(_call(7, "echo", {"text": "b"}), session="sess-b") == []
+    events_a = capture.server_line(reply, session="sess-a")
+    events_b = capture.server_line(reply, session="sess-b")
+    assert len(events_a) == 1
+    assert len(events_b) == 1
+    assert events_a[0].arguments == {"text": "a"}  # type: ignore[union-attr]
+    assert events_b[0].arguments == {"text": "b"}  # type: ignore[union-attr]
+
+
 def test_capture_overhead_p95_under_50ms() -> None:
     capture = Capture()
     reply = _line({"jsonrpc": "2.0", "id": 0, "result": {"content": []}})

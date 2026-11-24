@@ -155,17 +155,28 @@ def _safe_text(value: object, limit: int = 300) -> str:
 
 
 class Capture:
-    """Turns forwarded stdio lines into capture events. Pure: no I/O, no threads."""
+    """Turns forwarded stdio lines into capture events. Pure: no I/O, no threads.
+
+    Pending calls are keyed by ``(session, message_id)`` so two HTTP clients that
+    reuse JSON-RPC ids do not overwrite each other (test report M3). Stdio keeps
+    the default session ``""`` (one process, one Capture).
+    """
 
     _TRACKED = frozenset({"tools/list", "tools/call", "initialize"})
 
     def __init__(self, clock: Clock = time.monotonic_ns) -> None:
         self._clock = clock
-        self._pending: dict[int | str, _Pending] = {}
+        self._pending: dict[tuple[str, int | str], _Pending] = {}
         self._calls = 0
-        self._pages: list[dict[str, Any]] = []  # earlier pages of a list still being read
+        self._pages: dict[str, list[dict[str, Any]]] = {}
 
-    def client_line(self, raw: bytes, started_ns: int | None = None) -> list[CaptureEvent]:
+    def client_line(
+        self,
+        raw: bytes,
+        started_ns: int | None = None,
+        *,
+        session: str = "",
+    ) -> list[CaptureEvent]:
         started = self._clock() if started_ns is None else started_ns
         body = self._parse("client_to_server", raw)
         if isinstance(body, MalformedFrame):
@@ -178,10 +189,11 @@ class Capture:
         if method == "tools/call":
             self._calls += 1
             order = self._calls
-        self._pending[message_id] = _Pending(str(method), body.get("params"), started, order)
+        key = (session, message_id)
+        self._pending[key] = _Pending(str(method), body.get("params"), started, order)
         return []
 
-    def server_line(self, raw: bytes) -> list[CaptureEvent]:
+    def server_line(self, raw: bytes, *, session: str = "") -> list[CaptureEvent]:
         finished = self._clock()
         body = self._parse("server_to_client", raw)
         if isinstance(body, MalformedFrame):
@@ -189,7 +201,7 @@ class Capture:
         message_id = body.get("id")
         if not isinstance(message_id, int | str) or "method" in body:
             return []
-        pending = self._pending.pop(message_id, None)
+        pending = self._pending.pop((session, message_id), None)
         if pending is None:
             return []
         if pending.method == "initialize":
@@ -202,13 +214,15 @@ class Capture:
             # A long list arrives in pages. One page is not the list: comparing it with the
             # pin would report every tool on the other pages as removed.
             asked = pending.params if isinstance(pending.params, dict) else {}
+            pages = self._pages.setdefault(session, [])
             if not asked.get("cursor"):
-                self._pages = []  # this request starts the list from the beginning
-            self._pages.extend(tools)
+                pages.clear()  # this request starts the list from the beginning
+            pages.extend(tools)
             more = result.get("nextCursor") if isinstance(result, dict) else None
             if isinstance(more, str) and more:
                 return []
-            whole, self._pages = self._pages, []
+            whole = list(pages)
+            pages.clear()
             return [ToolsSnapshot(tools=whole)]
         return [self._call(pending, message_id, body, len(raw), finished)]
 
@@ -239,7 +253,7 @@ class Capture:
         """Calls still waiting for a response when the session ends become timeouts."""
         events: list[CaptureEvent] = []
         now = self._clock()
-        for message_id, pending in self._pending.items():
+        for (_session, message_id), pending in self._pending.items():
             if pending.method == "tools/call":
                 events.append(self._call(pending, message_id, None, 0, now))
         self._pending.clear()

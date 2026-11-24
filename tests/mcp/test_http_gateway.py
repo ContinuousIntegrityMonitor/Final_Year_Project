@@ -119,6 +119,19 @@ def test_join_and_parse_helpers() -> None:
         assert "refusing" in str(exc)
     else:
         raise AssertionError("expected scheme escape to fail")
+    # L1: percent-encoded dots must not bypass the escape check.
+    try:
+        join_upstream("http://x/mcp", "%2e%2e/admin")
+    except ValueError as exc:
+        assert "refusing" in str(exc)
+    else:
+        raise AssertionError("expected encoded path escape to fail")
+    try:
+        join_upstream("http://x/mcp", "%2E%2E/%2e%2e/keys")
+    except ValueError as exc:
+        assert "refusing" in str(exc)
+    else:
+        raise AssertionError("expected nested encoded escape to fail")
     assert parse_jsonrpc_bodies(b'{"jsonrpc":"2.0","id":1}', "application/json")[0]["id"] == 1
     sse = b'event: message\ndata: {"jsonrpc":"2.0","id":2,"result":{}}\n\n'
     assert parse_jsonrpc_bodies(sse, "text/event-stream")[0]["id"] == 2
@@ -355,6 +368,224 @@ def test_h1_serve_refuses_without_token_when_bearer_route(tmp_path: Path) -> Non
         require_gateway_token(config)
     with pytest.raises(ValueError, match="CIM_HTTP_GATEWAY_TOKEN"):
         serve_gateway(config)
+
+
+def test_l1_encoded_path_escape_never_reaches_upstream(tmp_path: Path) -> None:
+    upstream, upstream_url = _start_fake()
+    db = tmp_path / "store.sqlite"
+    try:
+        config = GatewayConfig(
+            db=db,
+            host="127.0.0.1",
+            port=0,
+            routes=(
+                GatewayRoute(
+                    id="demo",
+                    upstream=upstream_url,
+                    authorization_env="CIM_TEST_TOKEN",
+                ),
+            ),
+            access_token="gw-secret",
+        )
+        gateway = serve_gateway(config, env={"CIM_TEST_TOKEN": "secret-token"})
+        threading.Thread(target=gateway.serve_forever, daemon=True).start()
+        try:
+            before = len(_FakeMcp.seen_auth)
+            try:
+                urlopen(
+                    Request(
+                        f"http://127.0.0.1:{gateway.server_address[1]}/s/demo/%2e%2e/admin",
+                        data=b'{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}',
+                        method="POST",
+                        headers={
+                            "Content-Type": "application/json",
+                            "X-CIM-Gateway-Token": "gw-secret",
+                        },
+                    ),
+                    timeout=5,
+                )
+            except HTTPError as exc:
+                assert exc.code == 400
+            else:
+                raise AssertionError("expected encoded path refusal")
+            assert len(_FakeMcp.seen_auth) == before
+        finally:
+            gateway.shutdown()
+            writer = getattr(gateway, "cim_writer", None)
+            if writer is not None:
+                writer.stop()
+            gateway.server_close()
+    finally:
+        upstream.shutdown()
+        upstream.server_close()
+
+
+def test_m2_sse_first_event_arrives_before_stream_ends(tmp_path: Path) -> None:
+    """M2: gateway must not buffer the whole SSE body before the first byte."""
+    import http.client
+    import time
+
+    class _SlowSse(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, fmt: str, *args: object) -> None:
+            return
+
+        def do_POST(self) -> None:  # noqa: N802
+            length = int(self.headers.get("Content-Length") or 0)
+            self.rfile.read(length) if length else b""
+            first = (
+                b"event: message\ndata: "
+                + json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "result": {"content": [{"type": "text", "text": "early"}]},
+                    }
+                ).encode()
+                + b"\n\n"
+            )
+            second = (
+                b"event: message\ndata: "
+                + json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "result": {"content": [{"type": "text", "text": "late"}]},
+                    }
+                ).encode()
+                + b"\n\n"
+            )
+            # Content-Length lets the gateway read1 the first event before sleep ends.
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Content-Length", str(len(first) + len(second)))
+            self.end_headers()
+            self.wfile.write(first)
+            self.wfile.flush()
+            time.sleep(1.5)
+            self.wfile.write(second)
+            self.wfile.flush()
+
+    upstream = ThreadingHTTPServer(("127.0.0.1", 0), _SlowSse)
+    threading.Thread(target=upstream.serve_forever, daemon=True).start()
+    up_url = f"http://127.0.0.1:{upstream.server_address[1]}/mcp"
+    db = tmp_path / "store.sqlite"
+    try:
+        config = GatewayConfig(
+            db=db,
+            host="127.0.0.1",
+            port=0,
+            routes=(GatewayRoute(id="demo", upstream=up_url),),
+            access_token="",
+        )
+        gateway = serve_gateway(config)
+        threading.Thread(target=gateway.serve_forever, daemon=True).start()
+        try:
+            port = gateway.server_address[1]
+            body = json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {"name": "echo", "arguments": {"text": "x"}},
+                }
+            ).encode()
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            started = time.monotonic()
+            conn.request(
+                "POST",
+                "/s/demo",
+                body=body,
+                headers={"Content-Type": "application/json"},
+            )
+            resp = conn.getresponse()
+            # First SSE chunk should arrive well before the upstream's 1.5s pause ends.
+            first = resp.read(40)
+            elapsed = time.monotonic() - started
+            assert first, "expected early SSE bytes"
+            assert elapsed < 1.0, f"SSE buffered too long: {elapsed:.2f}s"
+            rest = resp.read()
+            conn.close()
+            assert b"early" in first + rest
+        finally:
+            gateway.shutdown()
+            writer = getattr(gateway, "cim_writer", None)
+            if writer is not None:
+                writer.stop()
+            gateway.server_close()
+    finally:
+        upstream.shutdown()
+        upstream.server_close()
+
+
+def test_m3_two_sessions_same_request_id_both_recorded(tmp_path: Path) -> None:
+    """M3: two clients reusing JSON-RPC id 7 must both leave a behaviour record."""
+    upstream, upstream_url = _start_fake()
+    db = tmp_path / "store.sqlite"
+    try:
+        config = GatewayConfig(
+            db=db,
+            host="127.0.0.1",
+            port=0,
+            routes=(GatewayRoute(id="demo", upstream=upstream_url),),
+            access_token="",
+        )
+        gateway = serve_gateway(config)
+        threading.Thread(target=gateway.serve_forever, daemon=True).start()
+        try:
+            base = f"http://127.0.0.1:{gateway.server_address[1]}/s/demo"
+            errors: list[BaseException] = []
+
+            def _one(session_name: str, text: str) -> None:
+                try:
+                    call_body = json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 7,
+                            "method": "tools/call",
+                            "params": {"name": "echo", "arguments": {"text": text}},
+                        }
+                    ).encode()
+                    with urlopen(
+                        Request(
+                            base,
+                            data=call_body,
+                            method="POST",
+                            headers={
+                                "Content-Type": "application/json",
+                                "Mcp-Session-Id": session_name,
+                            },
+                        ),
+                        timeout=5,
+                    ) as resp:
+                        assert resp.status == 200
+                except BaseException as exc:  # noqa: BLE001 — collect for the main thread
+                    errors.append(exc)
+
+            t1 = threading.Thread(target=_one, args=("sess-a", "alpha"))
+            t2 = threading.Thread(target=_one, args=("sess-b", "beta"))
+            t1.start()
+            t2.start()
+            t1.join(timeout=10)
+            t2.join(timeout=10)
+            assert errors == []
+            writer = getattr(gateway, "cim_writer", None)
+            if writer is not None:
+                writer.drain()
+            behaviour = [p for k, p in _records(db) if k == "behaviour"]
+            assert len(behaviour) == 2
+            tools = {row["tool_id"] for row in behaviour}
+            assert tools == {"echo"}
+        finally:
+            gateway.shutdown()
+            writer = getattr(gateway, "cim_writer", None)
+            if writer is not None:
+                writer.stop()
+            gateway.server_close()
+    finally:
+        upstream.shutdown()
+        upstream.server_close()
 
 
 def test_h1_origin_null_and_non_json_post_are_refused(tmp_path: Path) -> None:

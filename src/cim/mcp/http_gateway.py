@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import queue
+import secrets
 import sys
 import threading
 import time
@@ -31,7 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import unquote, urljoin, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 from cim.mcp.proxy import Capture, CaptureEvent, ProxyConfig, StoreSink, _utc_now
@@ -202,8 +203,9 @@ def parse_jsonrpc_bodies(raw: bytes, content_type: str) -> list[dict[str, Any]]:
 def join_upstream(upstream: str, remainder: str) -> str:
     """Map ``/s/<id>/<remainder>`` onto the upstream MCP URL.
 
-    Refuses path escape (``..``), scheme changes, and hosts other than the
-    configured upstream (G2).
+    Refuses path escape (``..``), including percent-encoded forms such as
+    ``%2e%2e`` (L1 / G2), scheme changes, and hosts other than the configured
+    upstream.
     """
     rem = remainder.lstrip("/")
     if not rem:
@@ -211,10 +213,14 @@ def join_upstream(upstream: str, remainder: str) -> str:
     if rem.startswith("?"):
         sep = "&" if "?" in upstream else "?"
         return f"{upstream}{sep}{rem[1:]}"
-    if ".." in rem.split("/") or rem.lower().startswith(("file:", "http:", "https:")):
+    # Decode before the escape check so %2e%2e cannot bypass ``..`` detection.
+    decoded = unquote(rem)
+    path_only = decoded.split("?", 1)[0]
+    if ".." in path_only.split("/") or path_only.lower().startswith(("file:", "http:", "https:")):
         raise ValueError("refusing path that leaves the configured upstream")
+    # Join the decoded path so urljoin never resolves encoded dots as escape.
     base = upstream if upstream.endswith("/") else f"{upstream}/"
-    joined = urljoin(base, rem)
+    joined = urljoin(base, path_only)
     left = urlsplit(upstream)
     right = urlsplit(joined)
     if right.scheme != left.scheme or right.netloc != left.netloc:
@@ -222,6 +228,8 @@ def join_upstream(upstream: str, remainder: str) -> str:
     left_path = left.path if left.path.endswith("/") else f"{left.path}/"
     if not (right.path == left.path.rstrip("/") or right.path.startswith(left_path)):
         raise ValueError("refusing upstream URL outside the configured path")
+    if "?" in decoded:
+        return f"{joined}?{decoded.split('?', 1)[1]}"
     return joined
 
 
@@ -390,19 +398,37 @@ def _authorization_for(
     return f"Bearer {token}"
 
 
-def _capture_client(session: _RouteSession, bodies: list[dict[str, Any]]) -> list[CaptureEvent]:
+def _capture_session_key(headers: Mapping[str, str]) -> str:
+    """Mcp-Session-Id when set; else a per-request key (M3 concurrent POSTs)."""
+    named = _header(headers, "Mcp-Session-Id").strip()
+    if named:
+        return named
+    return f"req-{secrets.token_hex(8)}"
+
+
+def _capture_client(
+    session: _RouteSession,
+    bodies: list[dict[str, Any]],
+    *,
+    capture_session: str,
+) -> list[CaptureEvent]:
     events: list[CaptureEvent] = []
     with session.lock:
         for body in bodies:
-            events.extend(session.capture.client_line(_json_line(body)))
+            events.extend(session.capture.client_line(_json_line(body), session=capture_session))
     return events
 
 
-def _capture_server(session: _RouteSession, bodies: list[dict[str, Any]]) -> list[CaptureEvent]:
+def _capture_server(
+    session: _RouteSession,
+    bodies: list[dict[str, Any]],
+    *,
+    capture_session: str,
+) -> list[CaptureEvent]:
     events: list[CaptureEvent] = []
     with session.lock:
         for body in bodies:
-            events.extend(session.capture.server_line(_json_line(body)))
+            events.extend(session.capture.server_line(_json_line(body), session=capture_session))
     return events
 
 
@@ -467,13 +493,15 @@ def make_handler(
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(length) if length > 0 else b""
             session = sessions.setdefault(server_id, _RouteSession(route, config.db))
+            header_map = {k: v for k, v in self.headers.items()}
+            capture_session = _capture_session_key(header_map)
             req_bodies = parse_jsonrpc_bodies(body, self.headers.get("Content-Type", ""))
-            for event in _capture_client(session, req_bodies):
+            for event in _capture_client(session, req_bodies, capture_session=capture_session):
                 writer.put(server_id, event)
 
             # Attach stored Bearer only after the client passed access checks (G1/H1).
             headers = filter_request_headers(
-                {k: v for k, v in self.headers.items()},
+                header_map,
                 authorization=_authorization_for(route, source, access_token=config.access_token),
             )
             request = Request(upstream_url, data=body if method != "GET" else None, method=method)
@@ -482,11 +510,15 @@ def make_handler(
 
             try:
                 with opener(request, timeout=120) as resp:
-                    self._write_upstream(resp, session, writer, server_id)
+                    self._write_upstream(
+                        resp, session, writer, server_id, capture_session=capture_session
+                    )
             except HTTPError as exc:
                 # 3xx with no redirect handler lands here — pass status through, no auth hop.
-                self._write_upstream(exc, session, writer, server_id)
-            except URLError as exc:
+                self._write_upstream(
+                    exc, session, writer, server_id, capture_session=capture_session
+                )
+            except (URLError, TimeoutError) as exc:
                 _log(f"upstream error {server_id}: {exc}")
                 payload = json.dumps(
                     {
@@ -501,19 +533,78 @@ def make_handler(
                 self.end_headers()
                 self.wfile.write(payload)
 
+        def _write_chunk(self, data: bytes) -> None:
+            self.wfile.write(f"{len(data):x}\r\n".encode("ascii") + data + b"\r\n")
+
+        def _end_chunks(self) -> None:
+            self.wfile.write(b"0\r\n\r\n")
+
         def _write_upstream(
             self,
             resp: HTTPResponse | HTTPError,
             session: _RouteSession,
             store: _StoreWriter,
             server_id: str,
+            *,
+            capture_session: str,
         ) -> None:
-            raw = resp.read()
             ctype = resp.headers.get("Content-Type", "")
-            for event in _capture_server(session, parse_jsonrpc_bodies(raw, ctype)):
+            status = getattr(resp, "status", getattr(resp, "code", 502))
+            out_headers = filter_response_headers(dict(resp.headers.items()))
+            if "text/event-stream" in ctype.lower():
+                # M2: pass SSE through as chunks arrive; capture each event as it completes.
+                self.send_response(status)
+                for key, value in out_headers.items():
+                    if key.lower() in SECRET_REQUEST_HEADERS:
+                        continue
+                    self.send_header(key, value)
+                self.send_header("Transfer-Encoding", "chunked")
+                self.end_headers()
+                buffer = b""
+
+                # Prefer read1 so we forward bytes as soon as the socket has them (M2).
+                def _pull() -> bytes:
+                    read1 = getattr(resp, "read1", None)
+                    raw_chunk = read1(4096) if read1 is not None else resp.read(4096)
+                    if isinstance(raw_chunk, bytes):
+                        return raw_chunk
+                    if isinstance(raw_chunk, bytearray):
+                        return bytes(raw_chunk)
+                    return b""
+
+                try:
+                    while True:
+                        chunk = _pull()
+                        if not chunk:
+                            break
+                        self._write_chunk(chunk)
+                        self.wfile.flush()
+                        buffer += chunk
+                        while b"\n\n" in buffer:
+                            block, buffer = buffer.split(b"\n\n", 1)
+                            bodies = parse_jsonrpc_bodies(block + b"\n\n", ctype)
+                            for event in _capture_server(
+                                session, bodies, capture_session=capture_session
+                            ):
+                                store.put(server_id, event)
+                    if buffer.strip():
+                        bodies = parse_jsonrpc_bodies(buffer, ctype)
+                        for event in _capture_server(
+                            session, bodies, capture_session=capture_session
+                        ):
+                            store.put(server_id, event)
+                except TimeoutError as exc:
+                    _log(f"upstream SSE timeout {server_id}: {exc}")
+                self._end_chunks()
+                return
+
+            raw = resp.read()
+            for event in _capture_server(
+                session, parse_jsonrpc_bodies(raw, ctype), capture_session=capture_session
+            ):
                 store.put(server_id, event)
-            self.send_response(getattr(resp, "status", getattr(resp, "code", 502)))
-            for key, value in filter_response_headers(dict(resp.headers.items())).items():
+            self.send_response(status)
+            for key, value in out_headers.items():
                 if key.lower() in SECRET_REQUEST_HEADERS:
                     continue
                 self.send_header(key, value)
