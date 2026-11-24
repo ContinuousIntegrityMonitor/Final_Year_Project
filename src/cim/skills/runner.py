@@ -30,14 +30,38 @@ class Skill:
 
 
 @dataclass(frozen=True)
+class Captured:
+    """One output stream of a helper, as it wrote it, up to MAX_OUTPUT_BYTES."""
+
+    data: bytes = b""  # the first MAX_OUTPUT_BYTES, byte for byte
+    size: int = 0  # bytes written in all; more than len(data) when the cap dropped some
+
+    @property
+    def dropped(self) -> int:
+        """Bytes past the cap that were not kept."""
+        return max(0, self.size - len(self.data))
+
+    def text(self) -> str:
+        """The kept bytes as text. Helper output is untrusted: bytes that are not UTF-8
+        become U+FFFD instead of raising."""
+        return self.data.decode("utf-8", errors="replace")
+
+
+@dataclass(frozen=True)
 class RunResult:
-    """Outcome of one helper-script invocation."""
+    """Outcome of one helper-script invocation.
+
+    `stdout` and `stderr` are the decoded text; `raw_stdout` and `raw_stderr` hold the same
+    streams as bytes, for a caller that must pass them on unchanged (`cim.skills.exec`).
+    """
 
     skill_id: str
     script: Path
     returncode: int
     stdout: str
     stderr: str
+    raw_stdout: Captured = Captured()
+    raw_stderr: Captured = Captured()
 
 
 def _unquote(value: str) -> str:
@@ -133,16 +157,23 @@ def clean_env(home: str) -> dict[str, str]:
     }
 
 
-def read_output(stream: IO[bytes]) -> str:
-    """First MAX_OUTPUT_BYTES of captured output. Helper output is untrusted: bytes that are
-    not UTF-8 become U+FFFD instead of raising."""
+def capture(stream: IO[bytes]) -> Captured:
+    """The first MAX_OUTPUT_BYTES of a captured stream, and how much was written in all."""
+    size = stream.seek(0, os.SEEK_END)
     stream.seek(0)
-    return stream.read(MAX_OUTPUT_BYTES).decode("utf-8", errors="replace")
+    return Captured(stream.read(MAX_OUTPUT_BYTES), size)
 
 
-def with_timeout_note(stderr: str, timeout: float) -> str:
-    separator = "" if not stderr or stderr.endswith("\n") else "\n"
-    return f"{stderr}{separator}timeout after {timeout}s"
+def read_output(stream: IO[bytes]) -> str:
+    """First MAX_OUTPUT_BYTES of captured output, as text (see Captured.text)."""
+    return capture(stream).text()
+
+
+def with_timeout_note(stderr: Captured, timeout: float) -> Captured:
+    """The helper's stderr with a line saying it was killed, after the kept bytes."""
+    separator = b"" if not stderr.data or stderr.data.endswith(b"\n") else b"\n"
+    note = separator + f"timeout after {timeout}s".encode()
+    return Captured(stderr.data + note, stderr.size + len(note))
 
 
 def _kill_group(pgid: int) -> None:
@@ -193,10 +224,9 @@ def run_script(
         finally:
             _kill_group(proc.pid)
             proc.wait()
-        stdout = read_output(out_f)
-        stderr = read_output(err_f)
+        out = capture(out_f)
+        err = capture(err_f)
+    returncode = proc.returncode
     if timed_out:
-        return RunResult(
-            skill.skill_id, script, TIMEOUT_RETURNCODE, stdout, with_timeout_note(stderr, timeout)
-        )
-    return RunResult(skill.skill_id, script, proc.returncode, stdout, stderr)
+        returncode, err = TIMEOUT_RETURNCODE, with_timeout_note(err, timeout)
+    return RunResult(skill.skill_id, script, returncode, out.text(), err.text(), out, err)

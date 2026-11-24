@@ -1,6 +1,7 @@
 """Skills-side commands: python -m cim.skills <command>.
 
-These stay here, not in the shared `cim` CLI, until pipeline integration (T-13).
+These stay here, not in the shared `cim` CLI, until pipeline integration (T-13), which
+mounts them as `cim skills ...`.
 """
 
 from __future__ import annotations
@@ -23,6 +24,8 @@ from cim.skills.corpus import (
     verify_manifest,
 )
 from cim.skills.envelope import profiles
+from cim.skills.execute import DEFAULT_TIMEOUT_S, HELP, Request
+from cim.skills.execute import run as run_exec
 from cim.skills.inventory import (
     DEFAULT_ORIGIN,
     SweepResult,
@@ -149,6 +152,20 @@ def _observe(args: argparse.Namespace) -> int:
     return 0
 
 
+def _exec(args: argparse.Namespace) -> int:
+    request = Request(
+        db=args.db,
+        roots=tuple(args.root or skill_roots()),
+        skill_id=args.skill_id,
+        script=args.script,
+        args=tuple(args.args),
+        timeout=args.timeout,
+        origin=args.origin,
+        verbose=args.verbose,
+    )
+    return run_exec(request, sys.stdout.buffer, sys.stderr.buffer)
+
+
 def _envelope(args: argparse.Namespace) -> int:
     with BaselineStore(args.db) as store:
         found = profiles(store, args.skill)
@@ -243,6 +260,27 @@ def main(argv: list[str] | None = None) -> int:
     observer.add_argument("--skill", action="append", help="skill id (repeatable; default: all)")
     observer.add_argument("--origin", default=DEFAULT_ORIGIN, help="host the skills run on")
     observer.set_defaults(handler=_observe)
+    runner = commands.add_parser(
+        "exec",
+        help="run one skill helper for an agent harness, traced and recorded",
+        description=HELP,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        usage="%(prog)s --db S [--root R ...] skill_id -- script [args ...]",
+    )
+    _store_options(runner)
+    runner.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_TIMEOUT_S,
+        help="seconds before the helper is killed (default: %(default)g)",
+    )
+    runner.add_argument(
+        "-v", "--verbose", action="store_true", help="say on stderr what was recorded"
+    )
+    runner.add_argument("skill_id", help="installed skill, as the inventory names it")
+    runner.add_argument("script", help="helper path relative to the skill directory")
+    runner.add_argument("args", nargs="*", help="arguments for the helper")
+    runner.set_defaults(handler=_exec)
     envelope = commands.add_parser(
         "envelope", help="show each skill's behavioural profile and whether warm-up is done"
     )

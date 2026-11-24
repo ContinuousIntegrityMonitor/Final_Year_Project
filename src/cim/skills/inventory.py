@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -66,14 +66,14 @@ def describe_skill(skill: Skill, skill_id: str | None = None) -> SkillArtefactPa
     )
 
 
-def take_inventory(roots: Iterable[Path]) -> dict[str, SkillArtefactPayload]:
-    """One payload per installed skill, keyed by skill id.
+def installed_skills(roots: Iterable[Path]) -> dict[str, Skill]:
+    """Every installed skill under the roots, keyed by the skill id the store uses.
 
     A root that does not exist has no skills. If the same directory name appears under more
-    than one root, the later ones are recorded as `name#2`, `name#3` in root order, so a
-    second copy can neither hide behind the first nor stop the inventory.
+    than one root, the later ones are `name#2`, `name#3` in root order (and carry that id),
+    so a second copy can neither hide behind the first nor stop the inventory.
     """
-    inventory: dict[str, SkillArtefactPayload] = {}
+    found: dict[str, Skill] = {}
     copies: dict[str, int] = {}
     for root in roots:
         if not root.is_dir():
@@ -82,8 +82,13 @@ def take_inventory(roots: Iterable[Path]) -> dict[str, SkillArtefactPayload]:
             copies[skill.skill_id] = copies.get(skill.skill_id, 0) + 1
             count = copies[skill.skill_id]
             skill_id = skill.skill_id if count == 1 else f"{skill.skill_id}#{count}"
-            inventory[skill_id] = describe_skill(skill, skill_id)
-    return inventory
+            found[skill_id] = replace(skill, skill_id=skill_id)
+    return found
+
+
+def take_inventory(roots: Iterable[Path]) -> dict[str, SkillArtefactPayload]:
+    """One payload per installed skill, keyed by skill id (see installed_skills)."""
+    return {skill_id: describe_skill(skill) for skill_id, skill in installed_skills(roots).items()}
 
 
 def known_skills(store: BaselineStore) -> dict[str, KnownSkill]:

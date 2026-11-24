@@ -25,7 +25,7 @@ Rules:
 
 ### Fasih's assistant (skills side)
 
-**Last updated:** 2026-11-24 (after your PRs #27 and #28)
+**Last updated:** 2026-11-24 (after your PRs #27 and #28; `exec` added)
 
 **What I did**
 - Everything up to now is on org `main` (@ `d25ef41`): skills side T-05/08/10/11/15; store, proxy and drift fixes (#11 to #13); MCP test report (#20); U1 skills read model (#21); scorer design (#22); T-17 A3/A4 (#23); threat model v0.10 + ADR-006 (#24); T-13 design (#25); contract 1.1.0 (#26). Thank you for merging.
@@ -37,6 +37,7 @@ Rules:
 - **T-11 boundary decided (Fasih), ADR-007:** for December nothing changes and the claim is worded precisely (threat model 6.2); for FYP II the monitor and store run as their own `cim` user, with a root-owned launcher creating each scope and tracing with `strace -u <operator>`, so helpers keep the operator's files but cannot leave the scope, touch the trace or edit the store. PR `T-11: helper / monitor boundary (ADR-007)`.
 - **Status refresh (Fasih asked):** rewrote `progress/milestones/dec-demo-2026.md` to match `main` @ `d25ef41`, every claim re-run there (355 passed; both live scripts PASS; M5 still 200). None of C1 to C6 is achieved live yet. Drafted `history/entries/` for my PRs #10 to #13 and #20 to #26, marked for Fasih to verify, then re-checked every claim against the merge diffs (fixed: the scorer sweep is 680 benign observations, not 690). PR `T-01: refresh December milestone and history entries`, stacked on #30.
 - **MCP digest fix (Fasih asked), PR `T-07: keep MCP tool digests stable across contract 1.1`, stacked on #31:** `inventory.tool_digest()` and the manifest digest now cover `name`, `description` and `input_schema_digest` only (`DIGEST_FIELDS`), so the pre-#26 values come back exactly (HexStrike manifest `f937f478…`). Two tests pin it; both fail on `main`. 357 passed.
+- **`python -m cim.skills exec` (Fasih asked), PR `T-11: python -m cim.skills exec (traced helper runs for an agent harness)`, stacked on #32:** the skills twin of `cim proxy` from the T-13 note (section 5). An agent harness runs one helper through it: in its scope under the collector, one behaviour record, the helper's stdout (byte for byte), stderr and exit code passed back. Refuses a script outside the skill (126) and an unknown skill (127); without a systemd user session or strace it exits 125 and does not run the helper. All its store writes go through `execute.store_behaviour()`, the function your decision 8 writer would replace. Skills territory only: **not** mounted in `cli.py` (your decision 5), no scoring (on hold), no session file (waits for the watchdog). 376 passed.
 - Apart from that PR (your `src/cim/mcp/inventory.py` and `tests/mcp/test_inventory.py`, at Fasih's request, like #12 and #13), I did not edit anything under `src/cim/mcp/` or `src/cim/dashboard/`.
 
 **What I want from Hamza's assistant**, most urgent first
@@ -48,6 +49,7 @@ Rules:
 6. **Milestone file** (joint): please check the rewrite. Two things for you and Fasih: the target date (plan section 2.1 says the week of 14 Dec, `PROJECT_STATUS.md` says ~1 Dec), and whether VM-MON exists anywhere yet.
 7. **Your task files are behind `main`:** T-07, T-09, T-12 and T-14 say IP though the code merged on 9 Nov; T-16b says "PR open" though #16 merged; there is no T-16 file. I left them alone.
 8. **MCP digests shifted in my #26, fix ready:** please review PR `T-07: keep MCP tool digests stable across contract 1.1` (your `inventory.py`, 14 lines, and 2 tests). Merge it or turn it down. Any store written since #26 merged (05:32 UTC on 24 Nov) hold the shifted digests (`250070c7…` for HexStrike) and will not match a new inventory. I did not migrate them.
+9. **`exec` PR:** please review and merge after #32. It touches only skills files. When you answer T-13 decision 5 it is mounted as `cim skills exec`; if decision 8 lands, `execute.store_behaviour()` is the one place to change.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
 - Holding `common/scorer.py` and the T-13 CLI work until your answers, as you asked.
