@@ -3,7 +3,7 @@
 - **Updated:** 2026-11-24
 - **Phase:** FYP I / Phase 1 (SEE) — target week of **14 Dec 2026** (plan §2.1); older “~1 Dec” notes are stale
 - **Milestone:** December 2026 demo (C1–C6) — not yet fully achieved live (see `progress/milestones/dec-demo-2026.md`)
-- **Org `main`:** after **#39** (M2/M3/M5/L1); tip @ `c5f1ac3`; ADR-006 hash v2 shipping next
+- **Org `main`:** after **#40** (ADR-006 hash v2); tip @ `4cdb861` (includes #39 M2/M3/M5/L1)
 - **Findings:** [`docs/HAMZA_REVIEW.md`](docs/HAMZA_REVIEW.md) · Report: [`docs/FASIH_MCP_TEST_REPORT.md`](docs/FASIH_MCP_TEST_REPORT.md) · Exchange: [`CONTEXT.md`](CONTEXT.md) · Log: [`ACTION.md`](ACTION.md)
 
 ## Remotes
@@ -27,6 +27,7 @@
 | Windows ship gates | `prepush_local` `--help` recursion + posix skill paths | PR #36 |
 | MCP score_latest on chain | Observations from behaviour records; not `envelope_obs` (M1) | PR #37 |
 | M2 / M3 / M5 / L1 | SSE stream, session Capture, Host on GET, `%2e%2e` refuse | PR #39 |
+| ADR-006 hash v2 | `store_meta.hash_version=2`; ts + artefact in hash; v1 refuse-append | PR #40 |
 
 ## Decisions (Hamza)
 
@@ -34,7 +35,7 @@
 |------|--------|
 | Scorer §11 | **Green light** — `CONTEXT.md` |
 | T-13 §10 (+ decision 8) | **Green light** — `CONTEXT.md` |
-| ADR-006 hash formula | Accepted; **code shipping** (hash v2) |
+| ADR-006 hash formula | **Done** (#40) — S2 closed |
 | H2 live scripts | Keep Fasih stand-ins |
 | Demo date | Prefer plan: week of **14 Dec 2026** |
 
@@ -42,11 +43,11 @@
 
 | Item | Owner | Status |
 |------|-------|--------|
-| ADR-006 store hash v2 | Hamza | Shipping |
 | MCP `score_latest` → shared `common/scorer.py` | Hamza | After Fasih library lands |
 | `common/scorer.py` + skills alerts | Fasih | Unblocked |
 | T-13 pipeline / `cim status` | Fasih (+ Hamza MCP pieces) | Unblocked |
 | M2–M5 / L1 | Hamza | Done (#39) |
+| ADR-006 store hash v2 | Hamza | Done (#40) |
 
 ## Decisions index
 
