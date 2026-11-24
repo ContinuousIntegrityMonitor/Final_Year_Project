@@ -44,6 +44,11 @@ def make_server(
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
+            # M5: Host check on reads too (DNS rebinding must not see /api/board).
+            refused = _host_allowed(self.headers, listen_host=host)
+            if refused is not None:
+                self.send_error(401, refused)
+                return
             path = urlparse(self.path).path
             connected = read_connected(store)
             if path in {"/", "/index.html"}:
@@ -132,13 +137,21 @@ def _header(headers: object, name: str) -> str:
     return ""
 
 
-def _client_allowed(headers: object, *, listen_host: str, token: str) -> str | None:
-    """Return a refusal reason, or None when the write is allowed."""
+def _host_allowed(headers: object, *, listen_host: str) -> str | None:
+    """Return a refusal reason when Host is not a local listen name (M5)."""
     host = _header(headers, "Host")
     host_only = host.split(":", 1)[0].strip().lower()
     expected = {listen_host.lower(), "127.0.0.1", "localhost", "::1"}
     if host_only and host_only not in expected:
         return "invalid Host"
+    return None
+
+
+def _client_allowed(headers: object, *, listen_host: str, token: str) -> str | None:
+    """Return a refusal reason, or None when the write is allowed."""
+    refused = _host_allowed(headers, listen_host=listen_host)
+    if refused is not None:
+        return refused
     origin = _header(headers, "Origin").strip()
     if origin:
         origin_host = urlsplit(origin).hostname or ""

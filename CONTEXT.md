@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-24):** Org `main` includes **#29–#37** (@ `0ab17e6`). MCP `score_latest` on chain (#37, M1 closed). Next: wait/wire Fasih `common/scorer.py`; ADR-006 store code; M2–M5. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
+3. **Active now (2026-11-24):** Org `main` @ `bcc6bae` (#38 status). Shipping M2/M3/M5/L1 then ADR-006 hash v2. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).

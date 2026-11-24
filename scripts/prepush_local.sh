@@ -41,12 +41,14 @@ if [[ "$_windows" -eq 1 ]]; then
   # Skills host suite needs Linux (strace, cgroup, non-UTF8 names, .sh helpers).
   # Cover only packages exercised here so --cov-fail-under stays meaningful.
   # HTTP dashboard tests: flaky WinError 10053 on this host; Ubuntu CI covers them.
+  # 10k-append timing is host-noisy on Windows; Ubuntu CI still enforces it.
   uv run pytest tests/common tests/mcp -m "not sys and not lab" \
     --deselect tests/mcp/test_dashboard.py::test_http_serves_readonly_by_default \
     --deselect tests/mcp/test_dashboard.py::test_demo_write_requires_token \
     --deselect tests/mcp/test_dashboard.py::test_button_calls_the_artificial_mcp \
     --deselect tests/mcp/test_dashboard.py::test_tamper_breaks_the_next_fingerprint \
     --deselect tests/mcp/test_dashboard.py::test_clear_wipes_the_demo \
+    --deselect tests/common/test_store.py::test_ten_thousand_appends_under_five_seconds \
     --cov=cim.common --cov=cim.mcp --cov=cim.dashboard \
     --cov-report=term-missing --cov-fail-under=60 -q
 else

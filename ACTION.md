@@ -68,3 +68,4 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-24 | Hamza | Merged PR #36 (Windows ship gates / prepush_local --help recursion) to org `main` | PR #36 → `main` @ `384882f` |
 | 2026-11-24 | H-assistant | MCP `score_latest` reads chained behaviour (1.1 fields); no longer scores from `envelope_obs` (M1) | `src/cim/mcp/alert.py`, `tests/mcp/test_behaviour_alert.py` |
 | 2026-11-24 | Hamza | Merged PR #37 (MCP score_latest chain switch / M1) to org `main` | PR #37 → `main` @ `0ab17e6` |
+| 2026-11-24 | H-assistant | M2 SSE stream, M3 session-keyed Capture, M5 Host on GET, L1 encoded path escape | `src/cim/mcp/http_gateway.py`, `proxy.py`, `dashboard/serve.py` |
