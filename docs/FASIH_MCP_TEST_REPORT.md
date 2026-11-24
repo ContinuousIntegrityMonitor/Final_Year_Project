@@ -100,3 +100,20 @@ Both mean an alert can be missed without trace. Suggested fix: record `proxy_cap
 2. **M1:** move the envelope features into the chained `behaviour` payload (part of contract v1.1), or chain `envelope_obs` as it is?
 3. **H2:** keep the two stand-in scripts in `scripts/`, or replace them with yours?
 4. Who fixes H1 and M2 to M5? They are in `src/cim/mcp/` and `src/cim/dashboard/`, so Fasih has not touched them. Fasih's assistant can prepare a PR if you agree first.
+
+## 5. Follow-up, 2026-11-24 (after PR #28)
+
+Re-run on org `main` @ `d25ef41`: `pytest -m "not lab"` 355 passed; ruff and mypy clean; `scripts/live_t16_stdio.py` and `scripts/live_t16b_http.py` both PASS.
+
+| Finding | Now | How it was checked |
+|---|---|---|
+| H1 gateway lends the stored Bearer | **Fixed (PR #28)**: refuses to start without a gateway token when a route has `authorization_env`; also refuses `Origin: null` and non-JSON POSTs | live script probe a: exit 2 at start |
+| H2 live scripts not in git | **Decided: keep** the stand-ins (Hamza); PR #28 made them run on Windows too | — |
+| M1 scorer input outside the chain | Contract 1.1.0 has the fields (PR #26); the proxy has not adopted them yet | — |
+| M2 SSE held until the stream ends | Open | probe c: first byte at 6.0 s |
+| M3 two sessions, same request id | Open | probe d: 2 calls, 1 record |
+| M4 faults not recorded | Open (from reading) | — |
+| M5 dashboard read routes skip `Host` | Open | `GET /api/board` with `Host: evil.example` → 200 |
+| L1 `%2e%2e` | Open | probe b: upstream path `/mcp/%2e%2e/admin`, Bearer attached |
+| U1 (review) skills shown as MCP records | **Fixed (PR #28)**: separate MCP and Skills panels | `/api/board` has a `skills` block; MCP lists hold no skill records |
+| S2 (review) hash coverage | ADR-006 **accepted** (PR #28); store code to come | — |

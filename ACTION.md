@@ -50,3 +50,4 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-24 | Hamza | Reviewed and merged Fasih PRs #20–#26 (merge commits; author HamzaFarooq3333; no AI/Cursor co-author) | org `main` @ `fa869ce` |
 | 2026-11-24 | H-assistant | Synced local `main` to `org/main`; refreshed status after #20–#26 | `CONTEXT.md`, `ACTION.md`, `PROJECT_STATUS.md` |
 | 2026-11-24 | H-assistant | H1: gateway requires token before Bearer; refuse Origin null / non-JSON POST; U1 wired into dashboard MCP+Skills panels; ADR-006 accepted (code later) | `http_gateway.py`, `board.py`, `page.py`, `docs/setup/cursor-http-mcp-gateway.md` |
+| 2026-11-24 | F-assistant | Checked org `main` @ `d25ef41` after #27/#28: 355 tests, both live scripts PASS, H1 closed (gateway exits 2 without token), U1 wired; M2, M3, M5, L1 re-tested open. Refreshed CONTEXT, threat model v0.11, test report follow-up, progress T-02/03/13/15/17 | branch `t01-status-after-28` |
