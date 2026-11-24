@@ -18,12 +18,14 @@ _CHUNK = 1 << 20
 
 
 def record_path(relative: str) -> str:
-    """A relative path as it is written into records: always valid UTF-8.
+    """A relative path as it is written into records: always valid UTF-8, always ``/``.
 
     File names are bytes on Linux. Bytes that are not UTF-8 are written as \\xNN, so an
-    oddly named file cannot make a record unhashable.
+    oddly named file cannot make a record unhashable. Separators are normalised to ``/``
+    so the same skill tree hashes the same on Windows and Linux (manifest verify).
     """
-    return os.fsencode(relative).decode("utf-8", errors="backslashreplace")
+    normalised = relative.replace("\\", "/")
+    return os.fsencode(normalised).decode("utf-8", errors="backslashreplace")
 
 
 def _file_sha256(path: str) -> str:

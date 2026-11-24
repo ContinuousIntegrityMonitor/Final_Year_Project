@@ -60,3 +60,8 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-24 | Hamza | Reviewed and merged Fasih PRs #29–#33 (merge commits; author HamzaFarooq3333; no AI/Cursor co-author) | org `main` after #33 |
 | 2026-11-24 | H-assistant | Green light: scorer §11 (1–5 agree; Hamza owns MCP switch) and T-13 §10 (1–6+8 agree; Hamza takes MCP pieces in 7); H2 keep stand-ins; next = contract 1.1 writers (M1) | `CONTEXT.md` |
 | 2026-11-24 | H-assistant | Contract 1.1 MCP writers: chained behaviour + session + pin under mcp_server + integrity detail + tool_digest + Event validation | `src/cim/mcp/proxy.py`, `events.py`, `drift.py`, `inventory.py` |
+| 2026-11-24 | Hamza | Merged PR #35 (contract 1.1 MCP writers) to org `main` | PR #35 → `main` @ `4d0c8ac` |
+| 2026-11-24 | H-assistant | Status refresh: CONTEXT / PROJECT_STATUS / Hamza task files T-07/09/12/14/16b Done | `CONTEXT.md`, `PROJECT_STATUS.md`, `progress/tasks/` |
+| 2026-11-24 | H-assistant | Windows ship gates: posix skill paths in `digest.record_path`; `_prepush_ci.sh` runs common+MCP only on Windows (full suite stays on Ubuntu CI) | `src/cim/skills/digest.py`, `scripts/_prepush_ci.sh`, `scripts/_ship.sh` |
+| 2026-11-24 | H-assistant | Fixed ship hang: `prepush_local.sh` had no `--help`, so the scripts-help loop re-entered the full gates; add `--help`, skip self, skip check-env on Windows; refresh status MDs | `scripts/prepush_local.sh`, `CONTEXT.md`, `PROJECT_STATUS.md`, `progress/tasks/` |
+| 2026-11-24 | H-assistant | Status refresh after #35: CONTEXT Active-now + Hamza exchange; PROJECT_STATUS; T-07/09/12/14/16b → Done | `CONTEXT.md`, `PROJECT_STATUS.md`, `progress/tasks/` |

@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-24):** Contract **1.1 MCP writers** shipping (M1: behaviour carries `response_bytes` / shape digest / `value_classes` / session). Next: MCP scorer switch off `envelope_obs`; Fasih `common/scorer.py` + T-13. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
+3. **Active now (2026-11-24):** Org `main` includes **#29–#35**. Contract **1.1 MCP writers** on main (#35). Shipping Windows ship-gate fix (`prepush_local.sh` `--help` recursion hang + posix skill paths). Next after merge: MCP scorer switch off `envelope_obs`; Fasih implements scorer + T-13 (green-lit). Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
@@ -62,34 +62,25 @@ Rules:
 **Sign as:** Hamza Cursor (Hamza’s Cursor agent). Does not claim authorship of Fasih’s commits.
 
 **What I did**
-- Merged your stack **#29 → #33**; green light §11 / §10 posted (#34).
-- **Contract 1.1 MCP writers:** proxy/gateway fill `response_bytes`, `argument_shape_digest`, `value_classes`, `session_id`+`seq` on chained behaviour; `initialize` → session record; pin under `mcp_server` (`record: pin`); integrity words in `detail`; inventory fills `tool_digest`; writes go through `Event` (`cim.mcp.events.append_mcp`). Dashboard prefers integrity `detail`. `envelope_obs` still fed for today's scorer (switch is next).
+- Merged your stack **#29 → #33**; green light §11 / §10 posted (#34). Digest fix #32 and skills exec #33 included.
+- **Contract 1.1 MCP writers (#35):** behaviour on the chain carries `response_bytes`, `argument_shape_digest`, `value_classes`, `session_id`+`seq`; session from `initialize`; pin under `mcp_server`; integrity `detail`; inventory `tool_digest`; `append_mcp` / `Event` validation. Scorer still reads `envelope_obs` until the switch PR.
+- **Stale task files:** marking T-07 / T-09 / T-12 / T-14 / T-16b Done on `main` (code was already there).
+- **Ship gates:** Windows local `_ship.sh` no longer needs docs-only bypass. Root hang was `prepush_local.sh` lacking `--help` (help loop re-ran full gates forever); fixed with `--help`, skip-self, Windows skip of `check-env --ci`. `digest.record_path` uses `/`; Windows gates = common+MCP(+dashboard), full suite on Ubuntu CI.
 
-**GREEN LIGHT — scorer §11** ([`docs/T16_SHARED_SCORER_DESIGN.md`](docs/T16_SHARED_SCORER_DESIGN.md))
-1. Agree: `common/scorer.py`, integer milli-z, floor `max(1, mean/10)`, upward-only.
-2. Agree: alerted runs stay **out** of the window (A1).
-3. Agree: **one alert record per alerting run**; board may group repeats.
-4. Agree: MCP features on chained behaviour + `BehaviourAlertPayload` (M1).
-5. Agree: default numeric **z ≥ 4** for December.
-6. **Hamza** owns the MCP `score_latest` switch; Fasih owns library + skills call site + sweep.
+**GREEN LIGHT — scorer §11** (already posted; Fasih unblocked)
+1–5 agree as proposed; **6 Hamza** owns MCP `score_latest` switch.
 
-**GREEN LIGHT — T-13 §10** ([`docs/T13_PIPELINE_DESIGN.md`](docs/T13_PIPELINE_DESIGN.md))
-1. Agree: one `cim.toml`, precedence, no secrets in file.
-2. Agree: watchdog supervises daemons, tracks wrappers.
-3. Agree: own `cim watch` supervisor (not systemd-alone).
-4. Agree: restarts as `alert` under artefact type `monitor`.
-5. Agree: thin border `cli.py`; side modules register commands; old commands keep working.
-6. Agree: `cim status` findings + exit 0/1/2.
-7. **Hamza** takes: `--config` on proxy/gateway, MCP status/event text, gateway heartbeat, proxy session file.
-8. Agree: Dec direct store writes via one function per side; Phase 2 single writer under `cim watch`.
+**GREEN LIGHT — T-13 §10** (already posted; Fasih unblocked)
+1–6 and 8 agree; **7 Hamza** takes MCP config / status text / gateway heartbeat / proxy session file.
 
-**Also:** H2 — keep your `scripts/live_t16_stdio.py` and `live_t16b_http.py`. M2–M5 / L1 — Hamza owns after writers. Milestone date — align later (plan week of 14 Dec vs ~1 Dec).
+**Also:** H2 keep stand-ins. M2–M5 / L1 Hamza after scorer switch. Demo date: plan week of 14 Dec vs status ~1 Dec — align with Fasih.
 
 **What I want from Fasih**
-1. **Implement** `common/scorer.py` + tests, then skills call site (`skill_behaviour_drift`), then sweep script. Announce each stage here first.
-2. **Implement** T-13 shared parts (config loader, CLI mount, `cim status` / `events` / `watch`) after announcing; leave the four MCP pieces in (7) for Hamza or small agreed patches.
-3. Keep announcing stages before new PRs.
+1. **Implement** `common/scorer.py` + tests, then skills call site, then sweep. Announce stages here first.
+2. **Implement** T-13 shared parts; leave MCP pieces in (7) for Hamza.
+3. Please note: small `digest.record_path` posix fix is for Windows ship gates (skills territory, one line); review if you want a follow-up.
 
 **What I am about to do**
-1. MCP switch: `score_latest` → shared library; stop scoring from `envelope_obs`.
-2. ADR-006 store formula code; then M2–M5.
+1. Ship Windows ship-gate fix to org `main`.
+2. MCP switch: `score_latest` from chained fields / shared library; stop scoring from `envelope_obs`.
+3. ADR-006 store formula code; then M2–M5.
