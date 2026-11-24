@@ -32,6 +32,7 @@ from cim.skills.runner import (
     TIMEOUT_RETURNCODE,
     RunResult,
     Skill,
+    capture,
     clean_env,
     helper_command,
     read_output,
@@ -317,14 +318,12 @@ def run_script_scoped(
                 proc.kill()
                 proc.wait()
 
-        stdout = read_output(out_f)
-        stderr = read_output(err_f)
+        out = capture(out_f)
+        err = capture(err_f)
 
     returncode = proc.returncode if helper_status is None else helper_status
     if timed_out:
-        returncode = TIMEOUT_RETURNCODE
-    if timed_out:
-        stderr = with_timeout_note(stderr, timeout)
-    result = RunResult(skill.skill_id, script, returncode, stdout, stderr)
+        returncode, err = TIMEOUT_RETURNCODE, with_timeout_note(err, timeout)
+    result = RunResult(skill.skill_id, script, returncode, out.text(), err.text(), out, err)
     members = tuple(sorted(seen.values(), key=lambda m: m.pid))
     return ScopedRunResult(result, invocation, unit, cgroup, Path(home), members, leaked)
