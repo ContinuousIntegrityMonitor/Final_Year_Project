@@ -137,7 +137,14 @@ def inventory(
         )
         pinned_now = pinned_tools(store, server_id) is None
         if pinned_now:  # the first inventory of a server is its reference for `cim sweep`
-            write_pin(store, server_id=server_id, origin=origin, tools=hashable(tools), ts=ts)
+            write_pin(
+                store,
+                server_id=server_id,
+                origin=origin,
+                tools=hashable(tools),
+                ts=ts,
+                server_artefact_id=result.server_artefact_id,
+            )
         status = store.verify_chain()
     typer.echo(
         f"inventory: server={server_id} tools={len(result.tool_digests)} "

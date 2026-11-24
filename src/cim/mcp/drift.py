@@ -20,8 +20,9 @@ import json
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from cim.common.schema.mcp import McpIntegrityPayload
+from cim.common.schema.mcp import McpIntegrityPayload, McpPinPayload
 from cim.common.store import BaselineStore
+from cim.mcp.events import append_mcp
 from cim.mcp.inventory import hashable
 
 Change = Literal["create", "modify", "delete"]
@@ -191,15 +192,38 @@ def pinned_tools(store: BaselineStore, server_id: str) -> list[dict[str, Any]] |
 
 
 def write_pin(
-    store: BaselineStore, *, server_id: str, origin: str, tools: list[dict[str, Any]], ts: str
+    store: BaselineStore,
+    *,
+    server_id: str,
+    origin: str,
+    tools: list[dict[str, Any]],
+    ts: str,
+    server_artefact_id: int | None = None,
 ) -> None:
-    """Pin a tools/list as the reference for this server. Call once, the first time."""
-    pin_id = store.get_or_create_artefact("mcp_pin", server_id, origin)
-    store.append_record(
-        pin_id,
-        "artefact",
-        {"code": PIN_CODE, "server_id": server_id, "name": server_id, "tools": hashable(tools)},
-        ts,
+    """Pin a tools/list under the server's ``mcp_server`` artefact (contract 1.1).
+
+    Older stores may still have a separate ``mcp_pin`` artefact row; ``pinned_tools``
+    reads either shape by ``code``.
+    """
+    aid = server_artefact_id
+    if aid is None:
+        aid = server_artefact(store, server_id)
+    if aid is None:
+        aid = store.get_or_create_artefact("mcp_server", server_id, origin)
+    payload = McpPinPayload(
+        record="pin",
+        server_id=server_id,
+        name=server_id,
+        tools=hashable(tools),
+    )
+    append_mcp(
+        store,
+        aid,
+        artefact_type="mcp_server",
+        server_id=server_id,
+        kind="artefact",
+        payload=payload,
+        ts=ts,
     )
 
 
@@ -247,19 +271,25 @@ def record_drift(
     """
     with store.transaction():
         for drift in drifts:
+            # Contract 1.1: `path` holds a path-like id; words go in `detail`.
+            path = drift.tool if drift.tool else "tools/list"
             payload = McpIntegrityPayload(
                 server_id=server_id,
                 tool_id=drift.tool,
                 change=drift.change,
-                path=drift.detail,
+                path=path,
+                detail=drift.detail,
                 old_sha256=old_sha256,
                 new_sha256=new_sha256,
             )
-            store.append_record(
+            append_mcp(
+                store,
                 server_artefact_id,
-                "integrity",
-                payload.model_dump(mode="json"),
-                ts,
+                artefact_type="mcp_server",
+                server_id=server_id,
+                kind="integrity",
+                payload=payload,
+                ts=ts,
             )
     return len(drifts)
 

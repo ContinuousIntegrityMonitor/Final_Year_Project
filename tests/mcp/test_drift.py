@@ -73,7 +73,8 @@ def test_proxy_pins_first_list_and_records_later_drift(tmp_path: Path) -> None:
     rows = con.execute("SELECT kind, payload FROM record ORDER BY id").fetchall()
     con.close()
     integrity = [json.loads(payload) for kind, payload in rows if kind == "integrity"]
-    assert [item["path"] for item in integrity] == [
+    assert [item["path"] for item in integrity] == ["send_email", "send_email"]
+    assert [item["detail"] for item in integrity] == [
         "send_email: description changed",
         "send_email: added parameter bcc (string)",
     ]
@@ -198,7 +199,8 @@ def test_same_drift_is_recorded_once_and_a_return_to_the_pin_is_recorded(tmp_pat
         assert len(integrity(db)) == 2  # not six
         sink.apply(ToolsSnapshot(tools=CLEAN))
         sink.apply(ToolsSnapshot(tools=CLEAN))
-        assert [item["path"] for item in integrity(db)][2:] == [MATCHES_AGAIN]
+        assert [item["detail"] for item in integrity(db)][2:] == [MATCHES_AGAIN]
+        assert [item["path"] for item in integrity(db)][2:] == ["tools/list"]
         sink.apply(ToolsSnapshot(tools=BACKDOOR))  # the same change again is new again
         assert len(integrity(db)) == 5
     # A later session picks up where the store left off.
@@ -220,7 +222,8 @@ def test_first_list_with_a_repeated_name_is_flagged_when_it_is_pinned(tmp_path: 
         sink = StoreSink(store, ProxyConfig(db=db, server_id="srv"), now=lambda: TS)
         sink.apply(ToolsSnapshot(tools=doubled))  # type: ignore[arg-type]
         sink.apply(ToolsSnapshot(tools=doubled))  # type: ignore[arg-type]
-    assert [item["path"] for item in integrity(db)] == ["scan: advertised 2 times"]
+    assert [item["detail"] for item in integrity(db)] == ["scan: advertised 2 times"]
+    assert [item["path"] for item in integrity(db)] == ["scan"]
 
 
 # ---- pages
@@ -296,7 +299,12 @@ def test_inventory_pins_so_that_sweep_works_after_it(tmp_path: Path) -> None:
         servers = con.execute("SELECT COUNT(*) FROM artefact WHERE type = 'mcp_server'").fetchone()[
             0
         ]
-        pins = con.execute("SELECT COUNT(*) FROM artefact WHERE type = 'mcp_pin'").fetchone()[0]
+        pins = con.execute(
+            "SELECT COUNT(*) FROM record WHERE kind = 'artefact' "
+            'AND payload LIKE \'%"code":"mcp_pin"%\''
+        ).fetchone()[0]
+        pin_rows = con.execute("SELECT COUNT(*) FROM artefact WHERE type = 'mcp_pin'").fetchone()[0]
     finally:
         con.close()
-    assert (servers, pins) == (1, 1)  # sweeps and repeat inventories add no rows
+    # Contract 1.1: pin lives under mcp_server (no mcp_pin artefact type).
+    assert (servers, pins, pin_rows) == (1, 1, 0)

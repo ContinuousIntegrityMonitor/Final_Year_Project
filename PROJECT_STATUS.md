@@ -35,8 +35,8 @@
 
 | Item | Owner | Status |
 |------|-------|--------|
-| Contract 1.1 MCP writers (M1 off-chain) | Hamza | Next implement |
-| MCP `score_latest` → shared scorer | Hamza | After writers + Fasih library |
+| Contract 1.1 MCP writers (M1 fields on chain) | Hamza | Done (this ship); scorer still reads envelope_obs until switch |
+| MCP `score_latest` → shared scorer | Hamza | Next (after Fasih library or interim from chain) |
 | `common/scorer.py` + skills alerts | Fasih | Unblocked |
 | T-13 pipeline / `cim status` | Fasih (+ Hamza MCP pieces) | Unblocked |
 | ADR-006 store formula code | Hamza | After writers |

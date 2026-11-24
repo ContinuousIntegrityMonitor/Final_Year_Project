@@ -123,7 +123,8 @@ def load_board(db: Path) -> Board:
                 tools_by_server[server_id] = parsed
                 links_all.append(ChainLink(record.id, "schema", "Schema recorded", record.ts))
         elif record.kind == "integrity":
-            detail = _text(payload.get("path"))
+            # Contract 1.1: words in `detail`; `path` is a path-like id. Fall back for old stores.
+            detail = _text(payload.get("detail")) or _text(payload.get("path"))
             changes.append(
                 SchemaChange(
                     ts=record.ts,

@@ -11,6 +11,7 @@ from typing import Any
 from cim.common.schema.canonical import canonical_json
 from cim.common.schema.mcp import McpArtefactPayload, McpToolDescriptor
 from cim.common.store import BaselineStore
+from cim.mcp.events import append_mcp
 from cim.mcp.lab import MIN_HEXSTRIKE_TOOLS, enumerate_tools
 
 
@@ -88,6 +89,8 @@ def describe_tool(tool: dict[str, Any]) -> McpToolDescriptor:
         name=name,
         description=description,
         input_schema_digest=sha256_canonical(hashable(tool_input_schema(tool))),
+        # Contract 1.1 D3: whole tool object; inventory digests still use DIGEST_FIELDS only.
+        tool_digest=sha256_canonical(hashable(tool)),
     )
 
 
@@ -172,11 +175,14 @@ def write_inventory(
         # before its first tools/list was stored).
         server_aid = store.get_or_create_artefact("mcp_server", name, origin)
         record_ids.append(
-            store.append_record(
+            append_mcp(
+                store,
                 server_aid,
-                "artefact",
-                server_payload.model_dump(mode="json"),
-                ts,
+                artefact_type="mcp_server",
+                server_id=server_id,
+                kind="artefact",
+                payload=server_payload,
+                ts=ts,
             )
         )
         for descriptor in server_payload.tools:
@@ -192,11 +198,15 @@ def write_inventory(
             tool_aid = store.append_artefact("mcp_tool", descriptor.name, origin)
             tool_artefact_ids[descriptor.name] = tool_aid
             record_ids.append(
-                store.append_record(
+                append_mcp(
+                    store,
                     tool_aid,
-                    "artefact",
-                    tool_payload.model_dump(mode="json"),
-                    ts,
+                    artefact_type="mcp_tool",
+                    server_id=server_id,
+                    tool_id=descriptor.name,
+                    kind="artefact",
+                    payload=tool_payload,
+                    ts=ts,
                 )
             )
     return InventoryResult(
