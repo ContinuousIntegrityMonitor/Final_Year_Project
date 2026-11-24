@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-24):** Org `main` includes **#40** (ADR-006 hash v2 @ `4cdb861`; also #39 M2/M3/M5/L1). Next: Fasih `common/scorer.py`; T-13 MCP pieces. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
+3. **Active now (2026-11-25):** Org `main` includes **#42/#43** (shared scorer + MCP wire). Next: Fasih skills alerts + T-13 shared CLI + cross-check ([`docs/FASIH_ASK_2026-11-25.md`](docs/FASIH_ASK_2026-11-25.md)); then live MCP+skills demo. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
@@ -58,31 +58,25 @@ Rules:
 
 ### Hamza's assistant (MCP side)
 
-**Last updated:** 2026-11-24  
+**Last updated:** 2026-11-25  
 **Sign as:** Hamza Cursor (Hamza’s Cursor agent). Does not claim authorship of Fasih’s commits.
 
 **What I did**
 - Merged your stack **#29 → #33**; green light §11 / §10 posted (#34). Digest fix #32 and skills exec #33 included.
-- **Contract 1.1 MCP writers (#35):** behaviour on the chain carries `response_bytes`, `argument_shape_digest`, `value_classes`, `session_id`+`seq`; session from `initialize`; pin under `mcp_server`; integrity `detail`; inventory `tool_digest`; `append_mcp` / `Event` validation.
-- **MCP scorer switch (#37):** `score_latest` reads those chained fields; wiping `envelope_obs` no longer silences alerts (M1). Fixed rules kept until Fasih lands `common/scorer.py`.
-- **M2/M3/M5/L1 (#39):** SSE stream-through; session-keyed Capture; Host on dashboard GET; `%2e%2e` path refuse.
-- **ADR-006 hash v2 (#40):** new stores cover `ts`, `artefact_id`, and artefact row; v1 stores verify read-only and refuse append. SSE capture survives client disconnect (M3 flake fix).
-- **Ship gates (#36):** Windows `_ship.sh` fixed (`prepush_local` `--help` recursion); posix skill paths.
+- **Contract 1.1 MCP writers (#35);** M1 chain scorer input (#37); M2/M3/M5/L1 (#39); ADR-006 hash v2 (#40); ship gates (#36).
+- **Shared scorer (#42):** `cim.common.scorer` (integer milli-z, never-seen, A1 `baseline`). Hamza wrote the border library (override of design §10 item 2).
+- **MCP wire (#43):** `score_latest` calls the library; A1; `BehaviourAlertPayload`; live stdio PASS.
 
-**GREEN LIGHT — scorer §11** (already posted; Fasih unblocked)
-1–5 agree as proposed; **6** MCP switch landed (#37); shared-library wire waits on your `common/scorer.py`.
+**GREEN LIGHT — scorer §11 / T-13 §10** still stand. Library + MCP wire are on `main`; skills call site and T-13 shared remain yours.
 
-**GREEN LIGHT — T-13 §10** (already posted; Fasih unblocked)
-1–6 and 8 agree; **7 Hamza** takes MCP config / status text / gateway heartbeat / proxy session file.
-
-**Also:** H2 keep stand-ins. Demo date: plan week of 14 Dec. S2 closed by #40.
+**Also:** H2 keep stand-ins. Demo date: plan week of 14 Dec. Ask note: [`docs/FASIH_ASK_2026-11-25.md`](docs/FASIH_ASK_2026-11-25.md).
 
 **What I want from Fasih**
-1. **Implement** `common/scorer.py` + tests, then skills call site, then sweep. Announce stages here first.
-2. **Implement** T-13 shared parts; leave MCP pieces in (7) for Hamza.
-3. Please note: small `digest.record_path` posix fix is for Windows ship gates (skills territory, one line); review if you want a follow-up.
-4. **Border review** of ADR-006 on `main` @ `4cdb861` (`common/chain` + `store`) when you have a moment.
+1. **Cross-check** #42 and #43 vs the scorer design; reply here with errors / suggested fixes.
+2. **Implement** skills call site → `skill_behaviour_drift` + threshold sweep.
+3. **Implement** T-13 shared CLI (`cim status`, etc.); leave decision‑7 MCP pieces for Hamza after your structure.
+4. **Live demo prep:** after skills alerts, we jointly run live MCP + skills through CIM (dashboard + chain).
 
 **What I am about to do**
-1. After Fasih's `common/scorer.py`: wire `score_latest` to the shared library (A1 / alert payload).
-2. T-13 MCP pieces when you start the pipeline.
+1. Wait on your skills alerts + T-13 shared PRs.
+2. Then land T-13 decision‑7 MCP pieces and join the live demo.

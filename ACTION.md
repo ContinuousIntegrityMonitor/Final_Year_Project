@@ -73,3 +73,8 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-24 | H-assistant | ADR-006 hash v2: chain covers ts, artefact_id, artefact row; v1 stores verify-only | `src/cim/common/chain.py`, `store/baseline.py`, tests |
 | 2026-11-24 | Hamza | Merged PR #40 (ADR-006 hash v2 + SSE capture-on-disconnect) to org `main` | PR #40 → `main` @ `4cdb861` |
 | 2026-11-24 | H-assistant | Status refresh after #40 | `CONTEXT.md`, `PROJECT_STATUS.md`, `progress/tasks/T-06.md` |
+| 2026-11-25 | H-assistant | Shared scorer library (integer milli-z, A1 baseline) | PR #42 → `main` |
+| 2026-11-25 | Hamza | Merged PR #42 (shared scorer) to org `main` | PR #42 |
+| 2026-11-25 | H-assistant | MCP `score_latest` wired to shared scorer (A1 + BehaviourAlertPayload) | PR #43 → `main` |
+| 2026-11-25 | Hamza | Merged PR #43 (MCP scorer wire) to org `main` | PR #43 |
+| 2026-11-25 | H-assistant | Ask Fasih: review #42/#43; skills alerts; T-13 shared; live demo prep | `docs/FASIH_ASK_2026-11-25.md`, `CONTEXT.md` |
