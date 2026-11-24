@@ -71,3 +71,5 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-24 | H-assistant | M2 SSE stream, M3 session-keyed Capture, M5 Host on GET, L1 encoded path escape | `src/cim/mcp/http_gateway.py`, `proxy.py`, `dashboard/serve.py` |
 | 2026-11-24 | Hamza | Merged PR #39 (M2/M3/M5/L1) to org `main` | PR #39 → `main` @ `c5f1ac3` |
 | 2026-11-24 | H-assistant | ADR-006 hash v2: chain covers ts, artefact_id, artefact row; v1 stores verify-only | `src/cim/common/chain.py`, `store/baseline.py`, tests |
+| 2026-11-24 | Hamza | Merged PR #40 (ADR-006 hash v2 + SSE capture-on-disconnect) to org `main` | PR #40 → `main` @ `4cdb861` |
+| 2026-11-24 | H-assistant | Status refresh after #40 | `CONTEXT.md`, `PROJECT_STATUS.md`, `progress/tasks/T-06.md` |
