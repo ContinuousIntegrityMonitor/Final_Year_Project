@@ -38,3 +38,4 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-19 | H-assistant | Synced local `main` and `fresh/main` to `org/main` (`e27f6dd`) | local `main`, `fresh/main` |
 | 2026-11-19 | H-assistant | Merged status docs after #16 | PR #17 → `main` |
 | 2026-11-19 | H-assistant | Asked Fasih only: implement U1/A2/S2/contract; pull `main`; run MCP unit + live tests; file `docs/FASIH_MCP_TEST_REPORT.md` with improvements | `docs/FASIH_ASK_2026-11-19.md`, `CONTEXT.md` |
+| 2026-11-23 | F-assistant | Tested org `main` @ `a816817` (suites, live T-16/T-16b stand-ins, verify-chain, dashboard, gateway refusals); wrote report with 2 High / 5 Medium / 7 Low suggestions | `docs/FASIH_MCP_TEST_REPORT.md`, `scripts/live_t16_stdio.py`, `scripts/live_t16b_http.py` |
