@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-24):** Shipping **H1 + U1 wire-up**: gateway refuses to start without `CIM_HTTP_GATEWAY_TOKEN` when any route has `authorization_env`; dashboard `load_board` uses skills rail + MCP/Skills panels. ADR-006 **Accepted** (store formula code still a follow-up). Org tip before this ship was after PRs #20–#27. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
+3. **Active now (2026-11-24):** Merged Fasih **#29–#33**. **Green light:** scorer §11 and T-13 §10 answered (see Hamza section). Next: Hamza contract 1.1 MCP writers (fixes M1 off-chain) → MCP scorer switch; Fasih codes `common/scorer.py` + skills alerts + T-13. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
@@ -62,17 +62,36 @@ Rules:
 **Sign as:** Hamza Cursor (Hamza’s Cursor agent). Does not claim authorship of Fasih’s commits.
 
 **What I did**
-- **H1:** gateway requires `CIM_HTTP_GATEWAY_TOKEN` when any route has `authorization_env` (refuse to start); no Bearer attach without it; reject `Origin: null` and non-JSON POSTs. Docs updated.
-- **U1 wired:** `load_board` skips skill payloads into MCP lists, uses `rail_label` / `skills_board`; page shows **MCP** and **Skills** panels + skill-changes list. Shape accepted (skill changes stay separate).
-- **ADR-006:** Accepted (option 3, no migration). Hash formula **code** not in this ship — follow-up store PR.
-- Earlier: merged your PRs #20–#26 / status #27.
+- Merged your stack **#29 → #30 → #31 → #32 → #33** (merge commits; author HamzaFarooq3333; no AI/Cursor co-author). Org `main` @ tip after #33.
+- **H1 / U1 / ADR-006** as before (Accepted; store formula code still follow-up).
+- **#32 digest fix:** accepted (DIGEST_FIELDS). **ADR-007 / decision 8:** accepted for Phase 1 claim + Dec direct writes.
+
+**GREEN LIGHT — scorer §11** ([`docs/T16_SHARED_SCORER_DESIGN.md`](docs/T16_SHARED_SCORER_DESIGN.md))
+1. Agree: `common/scorer.py`, integer milli-z, floor `max(1, mean/10)`, upward-only.
+2. Agree: alerted runs stay **out** of the window (A1).
+3. Agree: **one alert record per alerting run**; board may group repeats.
+4. Agree: MCP features on chained behaviour + `BehaviourAlertPayload` (M1).
+5. Agree: default numeric **z ≥ 4** for December.
+6. **Hamza** owns the MCP `score_latest` switch; Fasih owns library + skills call site + sweep.
+
+**GREEN LIGHT — T-13 §10** ([`docs/T13_PIPELINE_DESIGN.md`](docs/T13_PIPELINE_DESIGN.md))
+1. Agree: one `cim.toml`, precedence, no secrets in file.
+2. Agree: watchdog supervises daemons, tracks wrappers.
+3. Agree: own `cim watch` supervisor (not systemd-alone).
+4. Agree: restarts as `alert` under artefact type `monitor`.
+5. Agree: thin border `cli.py`; side modules register commands; old commands keep working.
+6. Agree: `cim status` findings + exit 0/1/2.
+7. **Hamza** takes: `--config` on proxy/gateway, MCP status/event text, gateway heartbeat, proxy session file.
+8. Agree: Dec direct store writes via one function per side; Phase 2 single writer under `cim watch`.
+
+**Also:** H2 — keep your `scripts/live_t16_stdio.py` and `live_t16b_http.py`. M2–M5 / L1 — Hamza owns after writers. Milestone date — align later (plan week of 14 Dec vs ~1 Dec).
 
 **What I want from Fasih**
-1. Hold `common/scorer.py` until Hamza answers scorer design §11.
-2. Hold T-13 CLI reshape until Hamza answers pipeline design §10.
-3. Keep announcing stages here before new PRs.
+1. **Implement** `common/scorer.py` + tests, then skills call site (`skill_behaviour_drift`), then sweep script. Announce each stage here first.
+2. **Implement** T-13 shared parts (config loader, CLI mount, `cim status` / `events` / `watch`) after announcing; leave the four MCP pieces in (7) for Hamza or small agreed patches.
+3. Keep announcing stages before new PRs.
 
 **What I am about to do**
-1. Ship H1 + U1 board/page to org `main`.
-2. Answer scorer §11 and T-13 §10; implement ADR-006 in store (T-06).
-3. Adopt contract 1.1 MCP writer fields; then M2–M5.
+1. Contract 1.1 MCP writers (fill chained behaviour fields) — fixes M1 off-chain.
+2. MCP switch: `score_latest` → shared library; stop scoring from `envelope_obs`.
+3. ADR-006 store formula code; then M2–M5.
