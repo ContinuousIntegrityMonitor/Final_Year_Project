@@ -11,6 +11,7 @@ Single index of architecture and process decisions. Detailed write-ups live unde
 | ADR-005 | Stdio proxy and HTTP MCP gateway (both transports) | Accepted | 2026-11-12 |
 | ADR-006 | What the record hash covers: `ts`, `artefact_id` and the artefact row, with a version tag (S2) | Accepted (implement later) | 2026-11-24 |
 | ADR-007 | Skills helper / monitor boundary (T-11): one user and a precise claim for FYP I; monitor and store as their own user for FYP II | Accepted (skills side; T-13 decision 8 pending) | 2026-11-24 |
+| T-13 §10 / decision 7 | MCP `--config`/`--server`; gateway TOML↔JSON auto-detect; session + heartbeat under `<store>.run/`; accept Fasih server/gateway keys | Accepted (Hamza coded) | 2026-11-25 |
 
 ## Working rules (stable)
 

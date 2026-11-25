@@ -79,6 +79,8 @@ class GatewayConfig:
     # stored Bearer token is attached (H1). Empty is allowed only when no route
     # uses authorization_env.
     access_token: str = ""
+    # T-13 decision 7: touch ``<store>.run/http-gateway.heartbeat`` this often.
+    heartbeat_s: int = 10
 
     def route(self, server_id: str) -> GatewayRoute | None:
         for route in self.routes:
@@ -102,13 +104,87 @@ def require_gateway_token(config: GatewayConfig) -> None:
         )
 
 
+def looks_like_cim_toml(path: Path) -> bool:
+    """True when ``--config`` should be read as ``cim.toml`` (T-13 decision 7).
+
+    Decision: ``.toml`` suffix, or a file whose first non-empty non-comment line
+    starts with ``[``, means TOML. Everything else stays the legacy JSON routes file.
+    """
+    if path.suffix.lower() == ".toml":
+        return True
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            return stripped.startswith("[")
+    except OSError:
+        return False
+    return False
+
+
+def load_gateway_from_cim(
+    path: Path,
+    *,
+    db: Path | None = None,
+    host: str | None = None,
+    port: int | None = None,
+    env: Mapping[str, str] | None = None,
+    heartbeat_s: int | None = None,
+) -> GatewayConfig:
+    """Build a ``GatewayConfig`` from ``[mcp.gateway]`` in a ``cim.toml``."""
+    from cim.common.config import ConfigError, load_config
+
+    source = os.environ if env is None else env
+    try:
+        cim = load_config(path, env=source)
+    except ConfigError as exc:
+        raise ValueError(str(exc)) from exc
+    gateway = cim.mcp.gateway
+    if gateway is None:
+        raise ValueError(
+            f"{path}: no [mcp.gateway] section; add routes there or pass a JSON routes file"
+        )
+    routes = tuple(
+        GatewayRoute(
+            id=route.id,
+            upstream=route.upstream,
+            origin=route.origin,
+            root=route.root_name,
+            authorization_env=route.authorization_env,
+        )
+        for route in gateway.routes
+    )
+    access = str(source.get("CIM_HTTP_GATEWAY_TOKEN") or "").strip()
+    config = GatewayConfig(
+        db=db or cim.store_path,
+        host=host or gateway.host,
+        port=port if port is not None else gateway.port,
+        routes=routes,
+        access_token=access,
+        heartbeat_s=heartbeat_s if heartbeat_s is not None else cim.watchdog.heartbeat_s,
+    )
+    require_gateway_token(config)
+    return config
+
+
 def load_gateway_config(
     path: Path,
     *,
     db: Path | None = None,
     host: str | None = None,
     port: int | None = None,
+    env: Mapping[str, str] | None = None,
+    heartbeat_s: int | None = None,
 ) -> GatewayConfig:
+    """Load gateway settings from ``cim.toml`` or the legacy JSON routes file.
+
+    Format is auto-detected (see ``looks_like_cim_toml``). Flags beat file values.
+    """
+    if looks_like_cim_toml(path):
+        return load_gateway_from_cim(
+            path, db=db, host=host, port=port, env=env, heartbeat_s=heartbeat_s
+        )
     raw = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("gateway config must be a JSON object")
@@ -139,16 +215,18 @@ def load_gateway_config(
                 ),
             )
         )
+    source = os.environ if env is None else env
     db_value = db or Path(str(raw.get("db") or "logs/cursor-http.sqlite"))
     host_value = host or str(raw.get("host") or "127.0.0.1")
     port_value = port if port is not None else int(raw.get("port") or 8877)
-    access = str(raw.get("access_token") or os.environ.get("CIM_HTTP_GATEWAY_TOKEN") or "")
+    access = str(raw.get("access_token") or source.get("CIM_HTTP_GATEWAY_TOKEN") or "")
     config = GatewayConfig(
         db=db_value,
         host=host_value,
         port=port_value,
         routes=tuple(routes),
         access_token=access.strip(),
+        heartbeat_s=heartbeat_s if heartbeat_s is not None else 10,
     )
     require_gateway_token(config)
     return config
@@ -646,15 +724,21 @@ def serve_gateway(
 
 
 def run_gateway(config: GatewayConfig) -> int:
+    from cim.mcp.runtime import HeartbeatThread
+
     server = serve_gateway(config)
     bound = server.server_address[1]
     ids = ", ".join(r.id for r in config.routes)
     _log(f"listening on http://{config.host}:{bound}/s/<id>/  routes=[{ids}] db={config.db}")
+    heartbeat = HeartbeatThread(config.db, "http-gateway", interval_s=config.heartbeat_s)
+    heartbeat.start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         _log("shutting down")
     finally:
+        heartbeat.stop()
+        heartbeat.join(timeout=config.heartbeat_s + 1)
         writer: _StoreWriter | None = getattr(server, "cim_writer", None)
         sessions: dict[str, _RouteSession] = getattr(server, "cim_sessions", {})
         if writer is not None:

@@ -598,9 +598,27 @@ def run_proxy(
     *,
     clock: Clock = time.monotonic_ns,
 ) -> int:
-    """Run one proxied session. Returns the server's exit code."""
+    """Run one proxied session. Returns the server's exit code.
+
+    Registers ``<store>.run/sessions/proxy-<pid>.json`` for the session lifetime
+    (T-13 decision 7) so ``cim status`` / ``cim watch`` can list live wrappers.
+    """
     if not command:
         raise ValueError("server command is required")
+    from cim.mcp.runtime import proxy_session
+
+    with proxy_session(config.db, server_id=config.server_id, command=command):
+        return _run_proxy_body(command, config, client_in, client_out, clock=clock)
+
+
+def _run_proxy_body(
+    command: list[str],
+    config: ProxyConfig,
+    client_in: Iterable[bytes],
+    client_out: IO[bytes],
+    *,
+    clock: Clock,
+) -> int:
     try:
         child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     except OSError as exc:
