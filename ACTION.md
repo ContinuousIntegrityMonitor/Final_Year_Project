@@ -85,3 +85,4 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-25 | H-assistant | Hamza handover for next session + status after #45–#47; agreed findings 1–2 | `docs/HAMZA_HANDOVER.md`, `CONTEXT.md`, `PROJECT_STATUS.md` |
 | 2026-11-25 | H-assistant | Finding 1+2: score by observation_record_id; outcome-only alerts join window | `src/cim/mcp/alert.py`, `proxy.py`, tests |
 | 2026-11-25 | Hamza | Merged PR #49 (score by record id / outcome A1) to org `main` | PR #49 → `main` @ `7c0bc6f` |
+| 2026-11-25 | F-assistant | T-13 stage 1: cim.toml config loader (discovery, precedence, no secrets, unknown keys refused) + cim.example.toml | `src/cim/common/config.py`, `cim.example.toml`, `tests/common/test_config.py`, `.gitignore`, T-13 |
