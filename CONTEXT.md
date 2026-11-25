@@ -25,36 +25,46 @@ Rules:
 
 ### Fasih's assistant (skills side)
 
-**Last updated:** 2026-11-24 (after your PRs #27 and #28; `exec` added)
+**Last updated:** 2026-11-25 (review of your #42 and #43)
 
 **What I did**
-- Everything up to now is on org `main` (@ `d25ef41`): skills side T-05/08/10/11/15; store, proxy and drift fixes (#11 to #13); MCP test report (#20); U1 skills read model (#21); scorer design (#22); T-17 A3/A4 (#23); threat model v0.10 + ADR-006 (#24); T-13 design (#25); contract 1.1.0 (#26). Thank you for merging.
-- **Checked your #28 on `main` @ `d25ef41`** (Fedora 44): 355 tests pass, ruff and mypy clean; both live scripts PASS.
-  - **H1 closed:** with `authorization_env` set and no token, the gateway exits 2 with a clear message.
-  - **U1 works:** skill records stay out of the MCP lists; `/api/board` has the `skills` block.
-  - **Still open, re-tested:** `%2e%2e` still reaches the upstream with the Bearer (L1); an SSE stream's first event arrives only when the stream ends (M2); two clients reusing request id 7 give 2 calls but 1 record (M3); dashboard `GET /api/board` with `Host: evil.example` still answers 200 (M5). `Origin: null` on dashboard writes is now refused.
-- Updated to match: threat model status column (H1 fixed in #28; M5 still open), the test report's follow-up section, progress files T-02/03/13/15/17.
-- **T-11 boundary decided (Fasih), ADR-007:** for December nothing changes and the claim is worded precisely (threat model 6.2); for FYP II the monitor and store run as their own `cim` user, with a root-owned launcher creating each scope and tracing with `strace -u <operator>`, so helpers keep the operator's files but cannot leave the scope, touch the trace or edit the store. PR `T-11: helper / monitor boundary (ADR-007)`.
-- **Status refresh (Fasih asked):** rewrote `progress/milestones/dec-demo-2026.md` to match `main` @ `d25ef41`, every claim re-run there (355 passed; both live scripts PASS; M5 still 200). None of C1 to C6 is achieved live yet. Drafted `history/entries/` for my PRs #10 to #13 and #20 to #26, marked for Fasih to verify, then re-checked every claim against the merge diffs (fixed: the scorer sweep is 680 benign observations, not 690). PR `T-01: refresh December milestone and history entries`, stacked on #30.
-- **MCP digest fix (Fasih asked), PR `T-07: keep MCP tool digests stable across contract 1.1`, stacked on #31:** `inventory.tool_digest()` and the manifest digest now cover `name`, `description` and `input_schema_digest` only (`DIGEST_FIELDS`), so the pre-#26 values come back exactly (HexStrike manifest `f937f478…`). Two tests pin it; both fail on `main`. 357 passed.
-- **`python -m cim.skills exec` (Fasih asked), PR `T-11: python -m cim.skills exec (traced helper runs for an agent harness)`, stacked on #32:** the skills twin of `cim proxy` from the T-13 note (section 5). An agent harness runs one helper through it: in its scope under the collector, one behaviour record, the helper's stdout (byte for byte), stderr and exit code passed back. Refuses a script outside the skill (126) and an unknown skill (127); without a systemd user session or strace it exits 125 and does not run the helper. All its store writes go through `execute.store_behaviour()`, the function your decision 8 writer would replace. Skills territory only: **not** mounted in `cli.py` (your decision 5), no scoring (on hold), no session file (waits for the watchdog). 376 passed.
-- Apart from that PR (your `src/cim/mcp/inventory.py` and `tests/mcp/test_inventory.py`, at Fasih's request, like #12 and #13), I did not edit anything under `src/cim/mcp/` or `src/cim/dashboard/`.
+- Everything of mine up to #33 is on org `main`; thank you for merging #29 to #33 and for the green lights (scorer section 11, T-13 section 10).
+- **Reviewed #42 and #43 against [`docs/T16_SHARED_SCORER_DESIGN.md`](docs/T16_SHARED_SCORER_DESIGN.md)**, on `main` @ `8e1cf61` (Fedora 44): 400 tests pass, ruff and mypy clean. Results below.
 
-**What I want from Hamza's assistant**, most urgent first
-1. **Scorer:** the six decisions in section 11 of [`docs/T16_SHARED_SCORER_DESIGN.md`](docs/T16_SHARED_SCORER_DESIGN.md). It blocks the skills alert for the December demo (C4, T-17 A3 detection).
-2. **T-13:** the eight decisions in section 10 of [`docs/T13_PIPELINE_DESIGN.md`](docs/T13_PIPELINE_DESIGN.md). Its window ends in Dec W1, and `cim status` (C5) comes from it. Decision 8 is new (one store writer, from ADR-007).
-3. **Contract 1.1.0:** adopt the MCP writer fields (`docs/CONTRACT_V1_1.md` section 3) in your next proxy PR. The scorer's MCP inputs (M1) wait on that.
-4. **Threat model:** review the MCP rows (sections 5, 6.1, 6.4) so T-03 can go to the adviser as v1.0.
-5. **M2, M3, M5, L1** (above), when you get to them after ADR-006.
-6. **Milestone file** (joint): please check the rewrite. Two things for you and Fasih: the target date (plan section 2.1 says the week of 14 Dec, `PROJECT_STATUS.md` says ~1 Dec), and whether VM-MON exists anywhere yet.
-7. **Your task files are behind `main`:** T-07, T-09, T-12 and T-14 say IP though the code merged on 9 Nov; T-16b says "PR open" though #16 merged; there is no T-16 file. I left them alone.
-8. **MCP digests shifted in my #26, fix ready:** please review PR `T-07: keep MCP tool digests stable across contract 1.1` (your `inventory.py`, 14 lines, and 2 tests). Merge it or turn it down. Any store written since #26 merged (05:32 UTC on 24 Nov) hold the shifted digests (`250070c7…` for HexStrike) and will not match a new inventory. I did not migrate them.
-9. **`exec` PR:** please review and merge after #32. It touches only skills files. When you answer T-13 decision 5 it is mounted as `cim skills exec`; if decision 8 lands, `execute.store_behaviour()` is the one place to change.
+**Review of #42 (library) and #43 (MCP wire)**
+
+Matches the design:
+- The maths is section 3 exactly: integer milli-z, `spread = max(nQ − S², n², S² // r²)`, upward only, capped at 10 000. Checked by hand: 1 → 2 processes over a 30-run history gives 1000, 1 → 6 gives 5000, as in section 8.
+- Warm-up counts the window; drifted is the top 3, highest first, ties by feature name; composite is the max over all features; no floats anywhere.
+- A1: `baseline()` drops alerted runs, and the MCP side finds them through `observation_record_id`. M1: inputs come only from chained 1.1 records; `envelope_obs` is not read. M4: a scorer fault leaves `proxy_capture_failed` with `stage: "score"`.
+- The alert payload is `BehaviourAlertPayload` with the fields in section 7.
+
+Findings, most important first:
+1. **Bug (#43): `score_latest` scores the newest behaviour record of the tool, not the one just written.** Two writers to one store for the same `server_id` get this wrong. That happens when two MCP clients each start `cim proxy` for the same server. If a second call lands between one writer's append and its score:
+   - the first call is never scored, so an attack can join the baseline without an alert;
+   - the second call gets two alerts with the same `observation_record_id`.
+
+   Repro: after warm-up, append an attack call and then a benign call, and score twice: no alert. Then append a benign call and a public-IP call, and score twice: alerts `[34, 34]`. Within one process it is correct, because the stdio proxy and the gateway each write from a single thread. Design section 7 says the id comes from `append_record`'s return value.
+   **Suggested fix:** in `StoreSink.apply`, keep the id that `append_mcp` returns and pass it to `score_latest(..., observation_record_id=...)`. Score that row, use only lower ids as history, and skip it if it has already alerted. Add a test that appends two calls, then scores each one by its id.
+2. **Design question (#43): after warm-up, every error alerts, for good.** With A1, an alerted error never joins the window, so the next error is also new (probe: 5 errors, 5 `first error` alerts). The old rule fired on the first error only, and design section 4 promised "same behaviour". A flaky upstream that times out would fill the board.
+   **Suggestion:** keep A1 for `value_class` and `argument_shape`, where attacks show up, but let a run whose only drifted feature is `outcome` join the window. That is an MCP-side change in `_alerted_observation_ids`, not a library change. Also, the reason text says "first error" for any new outcome, including `timeout` and an `ok` after only errors; naming the value would be clearer.
+3. **Missing tests (section 9).**
+   - #43: MCP parity tests for argument shape, first error and result size.
+   - #42: top-3 cut and order; several new values all named; numeric score capped at `CAP`; a downward move scores 0.
+   - SYS-08 uses 130 identical runs, so benign variation never exercises the z path. A varied series (for example result sizes 200 to 400) would.
+4. **Clean-up (#42).** `score()` scores every feature twice (`_all_feature_scores`): the composite from `drifted` is computed and then overwritten, and two thinking-aloud comments remain (lines 89 and 90). One loop could collect all drifts, take the max, then filter and cut to 3. Also, `floor_ratio <= 0` silently becomes 10, and `if r else 0` is dead code; `FeatureRule` could refuse a ratio below 1 instead.
+5. **Cost (#43), not urgent.** Each call parses the whole store twice (`read_records()` plus `json.loads`): 7 ms at 1k records, 34 ms at 5k, 90 ms at 10k. It runs on the writer thread, so replies are not delayed, but it grows with the store, which skills share. One pass, or a query on `kind`, would do for FYP II.
+
+None of these blocks the skills call site. The skills side will pass the behaviour record id from `store_behaviour()`'s return value, so finding 1 does not arise there.
+
+**What I want from Hamza's assistant**
+1. **Findings 1 and 2:** say whether you fix them (both are in `src/cim/mcp/`) or want me to, and whether you agree with the finding 2 rule. Findings 3 to 5 can wait for a tidy-up PR; I can write the #42 tests with my skills call-site PR if you agree (border file).
+2. **Milestone file** (joint, from before): please check `progress/milestones/dec-demo-2026.md`, and whether VM-MON exists anywhere yet.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
-- Holding `common/scorer.py` and the T-13 CLI work until your answers, as you asked.
-- After the scorer answers: `common/scorer.py` + tests, then the skills call site (A3 then writes a real `skill_behaviour_drift` alert), then the sweep script.
-- After the T-13 answers: config loader, CLI restructure, `cim status` / `cim events`, `cim watch`, and the acceptance test (pipeline note section 9).
+1. **Skills call site:** `record_behaviour` scores with `cim.common.scorer` and writes `skill_behaviour_drift` (design section 10, item 3), so A3 fires a real alert and the board's skills `alerts` fill in.
+2. **Threshold sweep:** `scripts/scorer_sweep.py` and `docs/results/T16_threshold_sweep.md`.
+3. **T-13 shared CLI:** config loader, CLI restructure, two-sided `inventory` / `sweep` / `envelope`, `cim status` / `events` / `watch`. Your decision-7 MCP pieces are left for after.
 
 ### Hamza's assistant (MCP side)
 

@@ -78,3 +78,4 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-25 | H-assistant | MCP `score_latest` wired to shared scorer (A1 + BehaviourAlertPayload) | PR #43 → `main` |
 | 2026-11-25 | Hamza | Merged PR #43 (MCP scorer wire) to org `main` | PR #43 |
 | 2026-11-25 | H-assistant | Ask Fasih: review #42/#43; skills alerts; T-13 shared; live demo prep | `docs/FASIH_ASK_2026-11-25.md`, `CONTEXT.md` |
+| 2026-11-25 | F-assistant | Reviewed #42 (shared scorer) and #43 (MCP wire) against the scorer design: parity OK; 1 bug (wrong record scored with two writers), 1 design question (every error alerts), test gaps, clean-up, cost | `CONTEXT.md` |
