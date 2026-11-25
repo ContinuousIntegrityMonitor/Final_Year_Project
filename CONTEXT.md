@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-25):** Org `main` @ `77aee8c` includes **#45–#47** (Fasih review + skills alerts + sweep) on top of #42/#43. Next: Hamza fix MCP score-by-record-id (finding 1); Fasih T-13 shared CLI; then live demo. Handover: [`docs/HAMZA_HANDOVER.md`](docs/HAMZA_HANDOVER.md). Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
+3. **Active now (2026-11-25):** Shipping MCP findings 1–2 (score by record id; outcome-only joins window). Org tip before that: #45–#48. Next after merge: Fasih T-13; live demo. Handover: [`docs/HAMZA_HANDOVER.md`](docs/HAMZA_HANDOVER.md). Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
@@ -97,6 +97,6 @@ None of these blocks the skills call site. The skills side will pass the behavio
 3. Milestone file / VM-MON note when you have a moment (joint).
 
 **What I am about to do**
-1. Fix finding 1 (and finding 2) on MCP side; ship.
+1. Ship finding 1 + 2 (`t16-score-by-record-id`).
 2. After your T-13 shared PR: land decision‑7 MCP pieces.
 3. Live demo + Dec C1–C6 close-out (lab/video as scheduled).
