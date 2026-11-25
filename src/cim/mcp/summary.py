@@ -100,7 +100,11 @@ def summarise(records: Sequence[StoredRecord]) -> McpSummary:
 
 
 def event_label(kind: str, payload: Mapping[str, Any]) -> str | None:
-    """One line for an MCP record in `cim events`; None when the record is not an MCP one."""
+    """One line for an MCP record in `cim events`; None when the record is not an MCP one.
+
+    Proxy alerts that omit ``server_id`` return None here so ``cim.common.status`` can
+    word them from the artefact name (design note: side from artefact type).
+    """
     server = payload.get("server_id")
     if not isinstance(server, str) or isinstance(payload.get("skill_id"), str):
         return None

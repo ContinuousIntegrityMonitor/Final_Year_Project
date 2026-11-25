@@ -96,7 +96,9 @@ def test_full_file_is_read_and_paths_follow_the_file(tmp_path: Path) -> None:
     assert config.source == path and config.log_level == "DEBUG"
     assert config.store.path == here / "data/store.sqlite"
     assert config.store.origin == "laptop"
-    assert config.skills.roots == (here / "skills", Path("/opt/skills"))
+    assert config.skills.roots[0] == here / "skills"
+    # Absolute lab roots stay absolute; on Windows Path("/opt/…") may show a drive letter.
+    assert config.skills.roots[1].as_posix().endswith("/opt/skills")
     assert (config.skills.sweep_interval_s, config.skills.inotify) == (30, False)
     hexstrike = config.server("hexstrike")
     assert hexstrike is not None
