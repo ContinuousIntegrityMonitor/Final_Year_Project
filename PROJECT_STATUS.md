@@ -3,8 +3,8 @@
 - **Updated:** 2026-11-25
 - **Phase:** FYP I / Phase 1 (SEE) — target week of **14 Dec 2026** (plan §2.1); older “~1 Dec” notes are stale
 - **Milestone:** December 2026 demo (C1–C6) — not yet fully achieved live (see `progress/milestones/dec-demo-2026.md`)
-- **Org `main`:** after **#43** (MCP scorer wire); includes #42 shared scorer; tip @ `51736fa`
-- **Findings:** [`docs/HAMZA_REVIEW.md`](docs/HAMZA_REVIEW.md) · Report: [`docs/FASIH_MCP_TEST_REPORT.md`](docs/FASIH_MCP_TEST_REPORT.md) · Exchange: [`CONTEXT.md`](CONTEXT.md) · Log: [`ACTION.md`](ACTION.md)
+- **Org `main`:** after **#47** (threshold sweep); tip @ `77aee8c` (includes #45 review, #46 skills alerts, #42/#43 scorer)
+- **Findings:** [`docs/HAMZA_REVIEW.md`](docs/HAMZA_REVIEW.md) · Report: [`docs/FASIH_MCP_TEST_REPORT.md`](docs/FASIH_MCP_TEST_REPORT.md) · Exchange: [`CONTEXT.md`](CONTEXT.md) · Log: [`ACTION.md`](ACTION.md) · Handover: [`docs/HAMZA_HANDOVER.md`](docs/HAMZA_HANDOVER.md)
 
 ## Remotes
 
@@ -17,7 +17,7 @@
 
 | Task | Summary | Evidence |
 |------|---------|----------|
-| T-07 / T-09 / T-12 / T-14 | Inventory, proxy, drift, envelope on `main` | merges since 2026-11-09; task files refreshed |
+| T-07 / T-09 / T-12 / T-14 | Inventory, proxy, drift, envelope on `main` | merges since 2026-11-09 |
 | T-16 / T-16b | Behaviour alerts + HTTP gateway; G1–G3 / X1–X2 | PR #16 |
 | Fasih ask stack | Report, U1, designs, T-17, contract 1.1 schema | PRs #20–#26 |
 | H1 + U1 UI | Gateway token required; Skills + MCP panels | PR #28 |
@@ -30,14 +30,19 @@
 | ADR-006 hash v2 | `store_meta.hash_version=2`; ts + artefact in hash; v1 refuse-append | PR #40 |
 | Shared scorer | `cim.common.scorer` milli-z + A1 baseline | PR #42 |
 | MCP scorer wire | `score_latest` → shared library + BehaviourAlertPayload | PR #43 |
+| Fasih review #42/#43 | Findings in CONTEXT (score-by-id bug, outcome A1) | PR #45 |
+| Skills behaviour alerts | `skill_behaviour_drift` via shared scorer | PR #46 |
+| Threshold sweep | `scorer_sweep.py` + recorded results | PR #47 |
 
 ## Decisions (Hamza)
 
 | Item | Status |
 |------|--------|
-| Scorer §11 | **Green light** — library + MCP wire done (#42/#43) |
+| Scorer §11 | **Done** library + MCP + skills wire (#42/#43/#46) |
 | T-13 §10 (+ decision 8) | **Green light** — Fasih implements shared; Hamza does (7) after |
-| ADR-006 hash formula | **Done** (#40) — S2 closed |
+| Finding 1 (score by record id) | **Agreed** — Hamza fixes next |
+| Finding 2 (outcome joins window) | **Agreed** — Hamza implements with/after finding 1 |
+| ADR-006 hash formula | **Done** (#40) |
 | H2 live scripts | Keep Fasih stand-ins |
 | Demo date | Prefer plan: week of **14 Dec 2026** |
 
@@ -45,13 +50,13 @@
 
 | Item | Owner | Status |
 |------|-------|--------|
-| Cross-check #42/#43 | Fasih | Ask: `docs/FASIH_ASK_2026-11-25.md` |
-| Skills alerts + sweep | Fasih | Unblocked (library on `main`) |
-| T-13 shared CLI / `cim status` | Fasih | Unblocked |
+| MCP score by `observation_record_id` (+ finding 2) | Hamza | **Next** — see `docs/HAMZA_HANDOVER.md` |
+| T-13 shared CLI / `cim status` | Fasih | In progress (announced) |
 | T-13 decision‑7 MCP pieces | Hamza | After Fasih structure |
-| Live MCP + skills demo | Both | After skills alerts |
-| M2–M5 / L1 | Hamza | Done (#39) |
-| ADR-006 / shared scorer / MCP wire | Hamza | Done (#40/#42/#43) |
+| Live MCP + skills demo | Both | After finding 1 |
+| T-17 MCP attack pack A1/A2 | Hamza | Open |
+| C6 video / demo script | Both | Open |
+| FYP I progress (rough) | — | ~80% code; ~55–60% live C1–C6 |
 
 ## Decisions index
 
