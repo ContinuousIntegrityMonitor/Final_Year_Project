@@ -35,7 +35,8 @@
 **C5 — `cim status` shows inventory, events, alerts; chain verification passes.** Partly achieved.
 - Done: `uv run cim verify-chain --db S` → `ok (N records) tip=…`; `--expect-tip` and `--min-count` catch a chain cut short (PR #11, `tests/common/test_store.py::test_cli_catches_a_chain_that_was_cut_short`).
 - Done: `cim dashboard --db S` shows tools, calls, changes and alerts, with MCP and Skills panels (PR #21 read model, wired in PR #28).
-- Open: `uv run cim status` → `status: not implemented (awaiting T-13 pipeline integration)`. T-13 is designed (PR #25) but not coded; it waits on the decisions in section 10 of the design note (decision 8 is added by open PR #30).
+- In review (PR `T-13: cim status and cim events`): `cim status` shows store and chain, inventory (both sides), findings as changed artefacts, behaviour alerts, monitor events, capture faults and learning state; `--json`; exit 0 clean / 1 otherwise. `cim events` lists every record by side. Checked on a live `cim proxy` store (1 MCP behaviour alert) and an A3 store (1 skill alert), both exit 1.
+- Open: the `collectors` line, and exit 2 for a monitor that is not running, come with `cim watch` (T-13 stage 4). Not run on VM-MON.
 
 **C6 — Backup video recorded; demo script committed to the repo.** Not achieved.
 - No demo script is in the repo (searched `docs/` and the root). No video recorded. Both belong to T-18 (rehearsals), which has no progress file yet.
@@ -69,7 +70,7 @@ State on org `main` @ `d25ef41`. "Task file" is what `progress/tasks/T-XX.md` sa
 ## Still open for December
 
 - VM-MON is not built anywhere yet, so nothing has run on it: no HexStrike session (C2), no rug-pull swap (C3), no trigger (C4). It will be built on Fasih's machine, and the demo runs there (Fasih, 2026-11-25).
-- T-13 is in progress: a single two-sided `cim inventory` (C1) comes with the CLI restructure PR; `cim status` (C5) is the next stage.
+- T-13 is in progress: a single two-sided `cim inventory` (C1) comes with the CLI restructure PR, `cim status` (C5) with the status PR; `cim watch` is next.
 - No live HexStrike call has been made through the proxy or gateway.
 - No backup video and no demo script (C6, T-18).
 

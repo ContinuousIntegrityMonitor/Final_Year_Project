@@ -4,9 +4,10 @@ T-13 decision 5 (docs/T13_PIPELINE_DESIGN.md, section 5): this file builds the c
 sides share and mounts each side's own commands from that side's module, so neither edits the
 other's commands to add its own.
 
-- Shared, here: `version`, `init`, `inventory`, `sweep`, `envelope`, `status`, `verify-chain`,
-  `dashboard`. `inventory`, `sweep` and `envelope` cover both sides: skills for the configured
-  skill roots, MCP for each configured server, or for the one named on the command line.
+- Shared, here: `version`, `init`, `inventory`, `sweep`, `envelope`, `status`, `events`,
+  `verify-chain`, `dashboard`. `inventory`, `sweep` and `envelope` cover both sides: skills
+  for the configured skill roots, MCP for each configured server, or for the one named on the
+  command line.
 - MCP, from `cim.mcp.cli`: `proxy`, `http-gateway`.
 - Skills, from `cim.skills.cli`: `cim skills ...` (corpus, observe, exec, attack, board, ...).
 
@@ -16,6 +17,8 @@ command that worked before keeps working with the same flags and the same output
 
 from __future__ import annotations
 
+import json
+import time
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -25,6 +28,7 @@ from typing import Annotated
 import typer
 
 from cim import __version__
+from cim.common import status as monitor_status
 from cim.common.config import CimConfig, ConfigError, load_config, starter_toml
 from cim.common.store import BaselineStore
 from cim.dashboard.board import load_board
@@ -64,6 +68,7 @@ SkillRootOption = Annotated[
     ),
 ]
 SideOption = Annotated[Side, typer.Option("--side", help="Which side to cover")]
+FOLLOW_POLL_S = 1.0
 
 
 @app.callback()
@@ -160,9 +165,82 @@ def init(
 
 
 @app.command("status")
-def status() -> None:
-    """Show monitor status (stub until T-13)."""
-    typer.echo("status: not implemented (awaiting T-13 pipeline integration)")
+def status(
+    config_path: ConfigOption = None,
+    db: DbOption = None,
+    as_json: Annotated[bool, typer.Option("--json", help="Print JSON instead of lines")] = False,
+) -> None:
+    """C5: store and chain, inventory, findings, alerts, learning state, for both sides.
+
+    Exit 0 when clean; 1 when the chain is broken or anything was found; 2 with no store.
+    """
+    path = _existing_store(db or _settings(config_path).store_path, "status")
+    found = monitor_status.load_status(path)
+    if as_json:
+        typer.echo(json.dumps(monitor_status.as_dict(found), indent=2))
+    else:
+        for line in monitor_status.render(found):
+            typer.echo(line)
+    if not found.clean:
+        raise typer.Exit(code=1)
+
+
+class EventSide(StrEnum):
+    both = "both"
+    skills = "skills"
+    mcp = "mcp"
+    monitor = "monitor"
+
+
+class EventKind(StrEnum):
+    artefact = "artefact"
+    integrity = "integrity"
+    behaviour = "behaviour"
+    alert = "alert"
+
+
+@app.command("events")
+def events(
+    config_path: ConfigOption = None,
+    db: DbOption = None,
+    since: Annotated[
+        str | None,
+        typer.Option("--since", help="UTC time or prefix, e.g. 2026-11-25 or 2026-11-25T10:30"),
+    ] = None,
+    kind: Annotated[
+        list[EventKind] | None, typer.Option("--kind", help="Record kind, repeatable")
+    ] = None,
+    side: Annotated[EventSide, typer.Option("--side")] = EventSide.both,
+    last: Annotated[int, typer.Option("--last", min=0, help="Only the newest N (0: all)")] = 50,
+    follow: Annotated[
+        bool, typer.Option("--follow", "-f", help="Keep printing new records until Ctrl-C")
+    ] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="One JSON object per line")] = False,
+) -> None:
+    """One line per store record, newest last, worded by the side that wrote it."""
+    path = _existing_store(db or _settings(config_path).store_path, "events")
+    kinds = [str(item) for item in kind or ()]
+
+    def show(found: list[monitor_status.Event]) -> None:
+        for event in found:
+            typer.echo(json.dumps(event.as_dict()) if as_json else event.render())
+
+    with BaselineStore(path) as store:
+        artefacts = {item.id: item for item in store.read_artefacts()}
+        every = monitor_status.events(store.read_records(), artefacts)
+        show(monitor_status.select(every, since=since, kinds=kinds, side=str(side), last=last))
+        seen = every[-1].record_id if every else 0
+        try:
+            while follow:
+                time.sleep(FOLLOW_POLL_S)
+                fresh = [r for r in store.read_records() if r.id > seen]
+                if fresh:
+                    seen = fresh[-1].id
+                    artefacts = {item.id: item for item in store.read_artefacts()}
+                    new = monitor_status.events(fresh, artefacts)
+                    show(monitor_status.select(new, since=since, kinds=kinds, side=str(side)))
+        except KeyboardInterrupt:
+            pass
 
 
 @app.command("dashboard")

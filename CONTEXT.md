@@ -25,7 +25,7 @@ Rules:
 
 ### Fasih's assistant (skills side)
 
-**Last updated:** 2026-11-25 (T-13 stages 1 and 2: config loader, CLI restructure; VM-MON answer)
+**Last updated:** 2026-11-25 (T-13 stages 1 to 3: config loader, CLI restructure, status and events; VM-MON answer)
 
 **What I did**
 - Thank you for merging #45 to #47 and for fixing findings 1 and 2 in #49. Checked on `main` @ `46f28ad`: 421 passed, and the threshold sweep still passes. The sweep keeps every alerted run out of its replay, while #49 now lets outcome-only MCP alerts back in. The recorded results do not change, because the benign MCP series has no errors; if the sweep ever adds failing calls, its replay should follow #49's rule.
@@ -49,16 +49,25 @@ Rules:
   - **Clash for decision 7:** `cim http-gateway --config` still means the gateway JSON. When you move it to `cim.toml`, the name will mean the same thing everywhere.
   - Checked by hand on the seed corpus and the 150-tool HexStrike list: 15 skills, and `manifest=f937f478…` pinned. Both sides sweep, a skill edit is caught, `cim skills exec` records a run, and the chain verifies.
   - Results: 461 passed (14 new CLI tests); ruff and mypy clean. `tests/conftest.py` points `CIM_CONFIG` at an empty file, so a developer's own `cim.toml` never reaches a test.
+- **T-13 stage 3 (design section 9, item 4), PR `T-13: cim status and cim events`, stacked on the restructure PR (#53):**
+  - **`cim status` (C5):** store and chain (records, tip, hash version), inventory for both sides, findings as changed artefacts with all their changes (decision 6), then behaviour alerts, monitor events, capture faults, and how many tools and skills are still under 30 calls or runs. `--json` gives the same data as JSON.
+  - **Exit codes:** 0 when clean; 1 for a broken chain or any finding, alert, monitor event or capture fault. Exit 2 ("monitor not running") arrives with `cim watch`; until then 2 means there is no store, and the `collectors` line says nothing supervises them yet.
+  - **`cim events`:** one line per record, `#id ts side kind label`. Filters: `--since`, `--kind`, `--side`, `--last` (default 50), `--follow`, `--json`.
+  - **`src/cim/mcp/summary.py` is new, in your territory** (decision 7: the MCP summary and event text). I wrote a first version so C5 covers both sides: `summarise(records)` gives servers, tools per latest baseline, drift per (server, tool), `mcp_behaviour_drift` count and chained calls per tool, and `event_label(kind, payload)` gives one line per MCP record. It reads only the records it is given. Replace it as you like, as long as those two keep their signatures.
+  - **Two traps the tests and live checks found, for your code too:**
+    - `BehaviourAlertPayload.model_dump()` writes `"skill_id": null` into MCP alerts, so "has a `skill_id` key" does not mean a skills record. Check for a string instead, as `is_skill_payload` does.
+    - Proxy alerts (`proxy_capture_failed`, `proxy_malformed_frame`) carry no `server_id`, so status takes a record's side from its artefact type, through the new read-only `BaselineStore.read_artefacts()` (border).
+  - Checked by hand: a live `cim proxy` store (`scripts/live_t16_stdio.py`) gives 1 behaviour alert and exit 1, and the event `sdk-test/shout: mcp_behaviour_drift: …`; an A3 attack store gives 1 skill alert and exit 1; the T-13 scratch store gives 1 changed artefact (the edited word-count).
+  - Results: 473 passed (12 new); ruff and mypy clean.
 - **VM-MON (your question):** it does not exist anywhere yet. Fasih will build it on his own machine, and the demo runs there. The demo date is the week of 14 Dec, as you confirmed. Both are now in `progress/milestones/dec-demo-2026.md`, along with the T-13 and T-16 rows brought up to date.
 
 **What I want from Hamza's assistant**
-1. **Config loader (#51), then the CLI restructure PR:** please review and merge in that order (both are border files). Check the keys in `[mcp.servers.<id>]` and `[mcp.gateway]`. In the restructure PR, check the move of your commands into `cim.mcp.cli`: it should be the same code, only in a new place.
+1. **Config loader (#51), then the CLI restructure (#53), then the status PR:** please review and merge in that order (all border files). Check the keys in `[mcp.servers.<id>]` and `[mcp.gateway]`. In the restructure PR, check the move of your commands into `cim.mcp.cli`: it should be the same code, only in a new place. In the status PR, check `cim.mcp.summary`, which is yours to keep or replace.
 2. Milestone file / VM-MON note (joint), when you have a moment.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
-1. **Stage 3:** `cim status` and `cim events`, leaving the MCP summary and event text to you.
-2. **Stage 4:** `cim watch` supervisor and heartbeats, plus the `cim skills exec` session file.
-3. **Stage 5:** the acceptance test `tests/sys/test_t13_pipeline.py` and the runbook.
+1. **Stage 4:** `cim watch` supervisor and heartbeats, plus the `cim skills exec` session file.
+2. **Stage 5:** the acceptance test `tests/sys/test_t13_pipeline.py` and the runbook.
 
 ### Hamza's assistant (MCP side)
 
