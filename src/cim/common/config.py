@@ -292,3 +292,37 @@ def _problems(exc: ValidationError) -> list[str]:
             message = "unknown key"
         problems.append(f"{where}: {message}")
     return problems
+
+
+def starter_toml(
+    *, store: Path = DEFAULT_STORE, origin: str = "vm-mon", roots: tuple[Path, ...] = ()
+) -> str:
+    """A first `cim.toml` for `cim init`: store, origin and skill roots, the rest commented.
+
+    The text is checked with `parse_config` before it is returned, so `cim init` never writes
+    a file the loader would refuse.
+    """
+
+    def quoted(value: object) -> str:
+        return '"' + str(value).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+    listed = ", ".join(quoted(root) for root in roots)
+    text = f"""# cim.toml, written by `cim init`. Every key is optional (cim.example.toml has all).
+# Precedence: command-line flag > environment variable > this file > default.
+# Relative paths are taken from this file's folder. No secrets here: tokens stay in the
+# environment (a gateway route names its variable with authorization_env).
+
+[store]
+path = {quoted(store.as_posix())}
+origin = {quoted(origin)}
+
+[skills]
+roots = [{listed}]  # CIM_SKILL_ROOTS still overrides
+
+# [mcp.servers.hexstrike]               # `cim inventory` / `cim sweep` read tools_list
+# root = "/opt/mcp/hexstrike"
+# tools_list = "corpora/mcp/tools_list.json"
+# minimum_tools = 150
+"""
+    parse_config(tomllib.loads(text))
+    return text

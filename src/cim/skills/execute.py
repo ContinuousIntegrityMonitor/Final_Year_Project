@@ -136,6 +136,7 @@ def store_behaviour(db: Path, skill: Skill, observation: Observation, origin: st
     `cim watch` runs the single store writer, this becomes the client that hands the
     observation to it, and nothing else in exec changes.
     """
+    db.parent.mkdir(parents=True, exist_ok=True)
     with BaselineStore(db) as store:
         return record_behaviour(store, skill, observation, origin=origin)
 
