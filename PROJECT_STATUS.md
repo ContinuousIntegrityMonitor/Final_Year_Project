@@ -3,7 +3,7 @@
 - **Updated:** 2026-11-25
 - **Phase:** FYP I / Phase 1 (SEE) — target week of **14 Dec 2026** (plan §2.1); older “~1 Dec” notes are stale
 - **Milestone:** December 2026 demo (C1–C6) — not yet fully achieved live (see `progress/milestones/dec-demo-2026.md`)
-- **Org `main`:** after **#47** (threshold sweep); tip @ `77aee8c` (includes #45 review, #46 skills alerts, #42/#43 scorer)
+- **Org `main`:** after **#49** (score by record id / outcome A1); tip @ `7c0bc6f`
 - **Findings:** [`docs/HAMZA_REVIEW.md`](docs/HAMZA_REVIEW.md) · Report: [`docs/FASIH_MCP_TEST_REPORT.md`](docs/FASIH_MCP_TEST_REPORT.md) · Exchange: [`CONTEXT.md`](CONTEXT.md) · Log: [`ACTION.md`](ACTION.md) · Handover: [`docs/HAMZA_HANDOVER.md`](docs/HAMZA_HANDOVER.md)
 
 ## Remotes
@@ -40,8 +40,8 @@
 |------|--------|
 | Scorer §11 | **Done** library + MCP + skills wire (#42/#43/#46) |
 | T-13 §10 (+ decision 8) | **Green light** — Fasih implements shared; Hamza does (7) after |
-| Finding 1 (score by record id) | **Agreed** — Hamza fixes next |
-| Finding 2 (outcome joins window) | **Agreed** — Hamza implements with/after finding 1 |
+| Finding 1 (score by record id) | **Done** (#49) |
+| Finding 2 (outcome joins window) | **Done** (#49) |
 | ADR-006 hash formula | **Done** (#40) |
 | H2 live scripts | Keep Fasih stand-ins |
 | Demo date | Prefer plan: week of **14 Dec 2026** |
@@ -50,7 +50,7 @@
 
 | Item | Owner | Status |
 |------|-------|--------|
-| MCP score by `observation_record_id` (+ finding 2) | Hamza | **Next** — see `docs/HAMZA_HANDOVER.md` |
+| MCP findings 1–2 | Hamza | **Done** (#49) |
 | T-13 shared CLI / `cim status` | Fasih | In progress (announced) |
 | T-13 decision‑7 MCP pieces | Hamza | After Fasih structure |
 | Live MCP + skills demo | Both | After finding 1 |
