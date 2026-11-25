@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-25):** Org `main` includes **#42/#43** (shared scorer + MCP wire). Next: Fasih skills alerts + T-13 shared CLI + cross-check ([`docs/FASIH_ASK_2026-11-25.md`](docs/FASIH_ASK_2026-11-25.md)); then live MCP+skills demo. Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
+3. **Active now (2026-11-25):** Org `main` @ `77aee8c` includes **#45–#47** (Fasih review + skills alerts + sweep) on top of #42/#43. Next: Hamza fix MCP score-by-record-id (finding 1); Fasih T-13 shared CLI; then live demo. Handover: [`docs/HAMZA_HANDOVER.md`](docs/HAMZA_HANDOVER.md). Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
@@ -82,21 +82,21 @@ None of these blocks the skills call site. The skills side will pass the behavio
 **Sign as:** Hamza Cursor (Hamza’s Cursor agent). Does not claim authorship of Fasih’s commits.
 
 **What I did**
-- Merged your stack **#29 → #33**; green light §11 / §10 posted (#34). Digest fix #32 and skills exec #33 included.
-- **Contract 1.1 MCP writers (#35);** M1 chain scorer input (#37); M2/M3/M5/L1 (#39); ADR-006 hash v2 (#40); ship gates (#36).
-- **Shared scorer (#42):** `cim.common.scorer` (integer milli-z, never-seen, A1 `baseline`). Hamza wrote the border library (override of design §10 item 2).
-- **MCP wire (#43):** `score_latest` calls the library; A1; `BehaviourAlertPayload`; live stdio PASS.
+- Merged your stack **#29 → #33**; green lights; contract 1.1 / M1 / M2–M5/L1 / ADR-006 / ship gates / scorer #42 / MCP wire #43.
+- **Merged your #45 → #46 → #47** (review + skills alerts + threshold sweep) to org `main` @ `77aee8c`.
+- Wrote [`docs/HAMZA_HANDOVER.md`](docs/HAMZA_HANDOVER.md) for the next Hamza session.
 
-**GREEN LIGHT — scorer §11 / T-13 §10** still stand. Library + MCP wire are on `main`; skills call site and T-13 shared remain yours.
-
-**Also:** H2 keep stand-ins. Demo date: plan week of 14 Dec. Ask note: [`docs/FASIH_ASK_2026-11-25.md`](docs/FASIH_ASK_2026-11-25.md).
+**On your findings (#42/#43 review)**
+1. **Finding 1 (score by record id):** agree — Hamza will fix in `mcp/alert.py` + `proxy.py` (+ test). Not asking you to implement.
+2. **Finding 2 (outcome / first error):** agree with your suggestion — A1 for value_class/argument_shape; outcome-only drifts may join the window. Will implement with finding 1 or right after.
+3. Findings 3–5: tidy later; you may add #42 tests in a border PR if you want.
 
 **What I want from Fasih**
-1. **Cross-check** #42 and #43 vs the scorer design; reply here with errors / suggested fixes.
-2. **Implement** skills call site → `skill_behaviour_drift` + threshold sweep.
-3. **Implement** T-13 shared CLI (`cim status`, etc.); leave decision‑7 MCP pieces for Hamza after your structure.
-4. **Live demo prep:** after skills alerts, we jointly run live MCP + skills through CIM (dashboard + chain).
+1. **Implement T-13 shared CLI** (announce stages here first); leave decision‑7 MCP pieces for Hamza.
+2. After finding 1 lands: joint **live MCP + skills demo**.
+3. Milestone file / VM-MON note when you have a moment (joint).
 
 **What I am about to do**
-1. Wait on your skills alerts + T-13 shared PRs.
-2. Then land T-13 decision‑7 MCP pieces and join the live demo.
+1. Fix finding 1 (and finding 2) on MCP side; ship.
+2. After your T-13 shared PR: land decision‑7 MCP pieces.
+3. Live demo + Dec C1–C6 close-out (lab/video as scheduled).
