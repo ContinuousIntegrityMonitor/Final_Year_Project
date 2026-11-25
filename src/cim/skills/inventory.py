@@ -179,13 +179,13 @@ def diff_files(
 
 def append_event(
     store: BaselineStore, artefact_id: int, kind: Kind, model: BaseModel, ts: str
-) -> None:
-    """Append one skills record, after it has passed the event contract."""
+) -> int:
+    """Append one skills record, after it has passed the event contract. Returns its id."""
     payload = model.model_dump(mode="json")
     skill_id = payload["skill_id"]
     # Go through the event contract, so nothing the contract rejects reaches the store.
     Event(ts=ts, artefact=Artefact(type="skill", skill=skill_id), kind=kind, payload=payload)
-    store.append_record(artefact_id, kind, payload, ts)
+    return store.append_record(artefact_id, kind, payload, ts)
 
 
 def _write_baseline(

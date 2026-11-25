@@ -93,7 +93,7 @@ The board uses the five states from `docs/DASHBOARD_RESEARCH_NOTES.md`. For Dece
 
 A skill that has never run is `learning`, never `healthy`. The research notes asked for this: a quiet board during warm-up must not read as a clean bill of health. The page should say "0 of 30" for it.
 
-`alerts` is empty today: nothing raises a skill alert until the shared scorer (A2). Any `alert` record whose payload has `skill_id` lands here, so the scorer needs no change to the board.
+`alerts` fills in from the shared scorer: `record_behaviour` writes a `skill_behaviour_drift` alert (contract `BehaviourAlertPayload`) for a run that leaves the skill's learned pattern, or `skill_score_failed` if scoring failed. Any `alert` record whose payload has `skill_id` lands here, so the board did not change for it.
 
 ## 3. Wiring in `board.py` (yours)
 

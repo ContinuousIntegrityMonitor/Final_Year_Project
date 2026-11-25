@@ -142,13 +142,17 @@ def _observe(args: argparse.Namespace) -> int:
             skill = skills[skill_id]
             for run in manifest[skill_id].runs:
                 seen = observe(skill, skill.path / run.script, run.args)
-                record_behaviour(store, skill, seen, origin=args.origin)
+                recorded = record_behaviour(store, skill, seen, origin=args.origin)
                 events = ", ".join(f"{kind} {what}" for kind, what in seen.events) or "nothing"
                 print(
                     f"observe: {skill_id} {run.script} exit={seen.run.result.returncode} "
                     f"processes={seen.process_count} leaked={len(seen.run.leaked)}: {events}",
                     flush=True,
                 )
+                if recorded.alert is not None:
+                    print(f"observe: behaviour alert: {recorded.alert.detail}", flush=True)
+                if recorded.score_error is not None:
+                    print(f"observe: run recorded, not scored: {recorded.score_error}", flush=True)
     return 0
 
 
