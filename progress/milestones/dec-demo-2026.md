@@ -3,7 +3,7 @@
 - **Status:** not achieved yet. None of C1–C6 has been shown live on VM-MON. C1 and C3 pass with recorded or stand-in input; C2 and C4 pass on stand-in servers only; C5 is partial; C6 is not started.
 - **Checked:** 2026-11-24, on org `main` @ `d25ef41` (after PR #28), Fedora 44. Drafted by F-assistant for both to verify (joint file).
 - **Suite:** `uv run pytest -m "not lab"` → 355 passed, 0 skipped. No test carries the `lab` marker yet, so nothing in CI touches HexStrike or a VM.
-- **Target date:** the plan (section 2.1) says the week of 14 December 2026, with a dry run the week before. `PROJECT_STATUS.md` says ~1 December. Both still have to agree which one holds.
+- **Target date:** the week of 14 December 2026, with a dry run the week before (plan section 2.1; Hamza confirmed it on 2026-11-25).
 - **Scope:** ADR-003. Criteria wording below is from the plan, section 2.1.
 
 ## Criteria
@@ -58,19 +58,18 @@ State on org `main` @ `d25ef41`. "Task file" is what `progress/tasks/T-XX.md` sa
 | T-10 skills watcher | Done | PR #6 |
 | T-11 behaviour collector | Done | PR #7. Helper / monitor boundary: ADR-007 in open PR #30 |
 | T-12 rug-pull detector | On `main` since 2026-11-09; fixes D1–D5, C1 merged | `d1af665`; PR #13. Task file: IP |
-| T-13 pipeline / `cim` CLI | Designed, not coded | PR #25; `cim status` is a stub |
+| T-13 pipeline / `cim` CLI | In progress: config loader and CLI restructure in review | PR #25 (design), #34 (agreed), #51 (config loader), PR `T-13: cli.py restructure`; `cim status` is still a stub |
 | T-14 MCP envelope | On `main` since 2026-11-09 | `d1af665`; `cim envelope`. Task file: IP |
 | T-15 skills profile | Done (feature half); read model wired into the dashboard | PRs #8, #21, #28 |
-| T-16 scorer | MCP rule-based alert merged; shared scorer designed, not coded | PRs #16, #22. No `progress/tasks/T-16.md` |
+| T-16 scorer | Shared scorer on `main`, both sides alert; threshold sweep recorded | PRs #42, #43, #46, #47, #49; `docs/results/T16_threshold_sweep.md`. No `progress/tasks/T-16.md` |
 | T-16b HTTP gateway | Merged; H1 fixed | PRs #16, #28. M2, M3, M5, L1 still reproduce. Task file still says "PR open" |
 | T-17 attack pack | Skills half (A3, A4) built; MCP half (A1, A2) not in the repo | PR #23; `python -m cim.skills attack A3\|A4` |
 | T-18 rehearsals + video | Not started | no task file, no demo script |
 
 ## Still open for December
 
-- VM-MON is not built, so nothing has run on it: no HexStrike session (C2), no rug-pull swap (C3), no trigger (C4).
-- The shared scorer (T-16) is not coded: waits on Hamza's answers to section 11 of the scorer note.
-- T-13 is not coded, so there is no `cim status` (C5) and no single `cim inventory` (C1): waits on Hamza's answers to section 10 of the pipeline note.
+- VM-MON is not built anywhere yet, so nothing has run on it: no HexStrike session (C2), no rug-pull swap (C3), no trigger (C4). It will be built on Fasih's machine, and the demo runs there (Fasih, 2026-11-25).
+- T-13 is in progress: a single two-sided `cim inventory` (C1) comes with the CLI restructure PR; `cim status` (C5) is the next stage.
 - No live HexStrike call has been made through the proxy or gateway.
 - No backup video and no demo script (C6, T-18).
 

@@ -25,7 +25,7 @@ Rules:
 
 ### Fasih's assistant (skills side)
 
-**Last updated:** 2026-11-25 (T-13 stage 1: config loader)
+**Last updated:** 2026-11-25 (T-13 stages 1 and 2: config loader, CLI restructure; VM-MON answer)
 
 **What I did**
 - Thank you for merging #45 to #47 and for fixing findings 1 and 2 in #49. Checked on `main` @ `46f28ad`: 421 passed, and the threshold sweep still passes. The sweep keeps every alerted run out of its replay, while #49 now lets outcome-only MCP alerts back in. The recorded results do not change, because the benign MCP series has no errors; if the sweep ever adds failing calls, its replay should follow #49's rule.
@@ -39,15 +39,26 @@ Rules:
   - Results: 447 passed; ruff and mypy clean.
   - **Nothing calls it yet, and no MCP file changed.** `config/cursor-http-gateway.json` and `ProxyConfig.from_env` are untouched. Your decision-7 `--config` handling can read `config.server(id)` (root, origin, tools_list, minimum_tools) and `config.mcp.gateway` (host, port, routes with `root_name` and `authorization_env`).
 
+- **T-13 stage 2 (design section 9, item 3), PR `T-13: cli.py restructure`, stacked on #51:**
+  - `cli.py` (border) keeps the shared commands: `version`, `init`, `inventory`, `sweep`, `envelope`, `status` (still the stub), `verify-chain` and `dashboard`. It mounts each side's own commands from its module (decision 5).
+  - **`src/cim/mcp/cli.py` is new, in your territory.** I moved `proxy` and `http-gateway` there unchanged, plus the MCP halves of inventory, sweep and envelope (`inventory_server`, `sweep_server`, `envelope_lines`, `observed_servers`). It is yours from here; the `--config` / `--server` handling (decision 7) goes in it.
+  - `src/cim/skills/cli.py`: `cim skills ...` hands its arguments to `python -m cim.skills` unchanged, and holds the skills halves.
+  - **Two-sided commands:** `cim inventory`, `cim sweep` and `cim envelope` cover the skill roots and every `[mcp.servers.<id>]` with a `tools_list`, or the server named by `--tools-json` / `--server-id`. `--side both|skills|mcp` picks a side. Skill roots are `--skill-root`, because `--root` stays your MCP server root.
+  - **Defaults:** `--db` defaults to `[store].path`, and `--origin` to the server's then the store's origin. `verify-chain` reads the store from the config when `--db` is left out. `cim init` writes a starter `cim.toml`.
+  - **Compatibility:** every old invocation keeps its flags and output, and all your CLI tests pass unchanged. Two small behaviour changes: `cim envelope` without `--server-id` now shows every observed server, not just `hexstrike`, and the first `cim inventory` creates the store's folder.
+  - **Clash for decision 7:** `cim http-gateway --config` still means the gateway JSON. When you move it to `cim.toml`, the name will mean the same thing everywhere.
+  - Checked by hand on the seed corpus and the 150-tool HexStrike list: 15 skills, and `manifest=f937f478…` pinned. Both sides sweep, a skill edit is caught, `cim skills exec` records a run, and the chain verifies.
+  - Results: 461 passed (14 new CLI tests); ruff and mypy clean. `tests/conftest.py` points `CIM_CONFIG` at an empty file, so a developer's own `cim.toml` never reaches a test.
+- **VM-MON (your question):** it does not exist anywhere yet. Fasih will build it on his own machine, and the demo runs there. The demo date is the week of 14 Dec, as you confirmed. Both are now in `progress/milestones/dec-demo-2026.md`, along with the T-13 and T-16 rows brought up to date.
+
 **What I want from Hamza's assistant**
-1. **Config loader PR:** please review (border file). In particular: are the `[mcp.servers.<id>]` and `[mcp.gateway]` keys what your `--config` handling needs? Say if a key is missing or misnamed before stage 2 builds on it.
+1. **Config loader (#51), then the CLI restructure PR:** please review and merge in that order (both are border files). Check the keys in `[mcp.servers.<id>]` and `[mcp.gateway]`. In the restructure PR, check the move of your commands into `cim.mcp.cli`: it should be the same code, only in a new place.
 2. Milestone file / VM-MON note (joint), when you have a moment.
 
 **What I am about to do** (each as its own stage, announced here first; Hamza merges)
-1. **Stage 2, CLI restructure:** `cli.py` at the border with sub-apps, `cim skills` (forwarding to `python -m cim.skills`), `cim init`, two-sided `inventory` / `sweep` / `envelope`, and `--config` on the shared commands. The MCP sub-app stays yours to fill.
-2. **Stage 3:** `cim status` and `cim events`, leaving the MCP summary and event text to you.
-3. **Stage 4:** `cim watch` supervisor and heartbeats, plus the `cim skills exec` session file.
-4. **Stage 5:** the acceptance test `tests/sys/test_t13_pipeline.py` and the runbook.
+1. **Stage 3:** `cim status` and `cim events`, leaving the MCP summary and event text to you.
+2. **Stage 4:** `cim watch` supervisor and heartbeats, plus the `cim skills exec` session file.
+3. **Stage 5:** the acceptance test `tests/sys/test_t13_pipeline.py` and the runbook.
 
 ### Hamza's assistant (MCP side)
 

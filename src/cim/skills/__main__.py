@@ -1,7 +1,8 @@
 """Skills-side commands: python -m cim.skills <command>.
 
-These stay here, not in the shared `cim` CLI, until pipeline integration (T-13), which
-mounts them as `cim skills ...`.
+The shared `cim` CLI mounts them as `cim skills ...` (T-13, `cim.skills.cli`), which hands its
+arguments here unchanged. `cim inventory`, `cim sweep` and `cim envelope` also cover the skills
+side for the roots in `cim.toml`.
 """
 
 from __future__ import annotations

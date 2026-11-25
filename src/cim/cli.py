@@ -1,25 +1,37 @@
-"""cim CLI entrypoint."""
+"""cim CLI entrypoint (border file: both review).
+
+T-13 decision 5 (docs/T13_PIPELINE_DESIGN.md, section 5): this file builds the commands both
+sides share and mounts each side's own commands from that side's module, so neither edits the
+other's commands to add its own.
+
+- Shared, here: `version`, `init`, `inventory`, `sweep`, `envelope`, `status`, `verify-chain`,
+  `dashboard`. `inventory`, `sweep` and `envelope` cover both sides: skills for the configured
+  skill roots, MCP for each configured server, or for the one named on the command line.
+- MCP, from `cim.mcp.cli`: `proxy`, `http-gateway`.
+- Skills, from `cim.skills.cli`: `cim skills ...` (corpus, observe, exec, attack, board, ...).
+
+Settings come from `cim.toml` (`cim.common.config`): flag > environment > file > default. Every
+command that worked before keeps working with the same flags and the same output.
+"""
 
 from __future__ import annotations
 
-import dataclasses
-import sys
+from collections.abc import Sequence
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
 from cim import __version__
+from cim.common.config import CimConfig, ConfigError, load_config, starter_toml
 from cim.common.store import BaselineStore
 from cim.dashboard.board import load_board
 from cim.dashboard.page import render_page
 from cim.dashboard.serve import make_server
-from cim.mcp.drift import diff_tools, pinned_tools, record_sweep, server_artefact, write_pin
-from cim.mcp.envelope import envelopes
-from cim.mcp.http_gateway import load_gateway_config, run_gateway
-from cim.mcp.inventory import hashable, load_tools_list, write_inventory
-from cim.mcp.proxy import ProxyConfig, run_proxy
+from cim.mcp import cli as mcp_cli
+from cim.skills import cli as skills_cli
 
 app = typer.Typer(
     name="cim",
@@ -28,15 +40,123 @@ app = typer.Typer(
 )
 
 
+class Side(StrEnum):
+    both = "both"
+    skills = "skills"
+    mcp = "mcp"
+
+
+ConfigOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--config",
+        help="cim.toml to read (default: $CIM_CONFIG, ./cim.toml, ~/.config/cim/cim.toml)",
+    ),
+]
+DbOption = Annotated[
+    Path | None, typer.Option("--db", help="Baseline store path (default: [store].path)")
+]
+SkillRootOption = Annotated[
+    list[Path] | None,
+    typer.Option(
+        "--skill-root",
+        help="Skill root, repeatable (default: $CIM_SKILL_ROOTS, then [skills].roots)",
+    ),
+]
+SideOption = Annotated[Side, typer.Option("--side", help="Which side to cover")]
+
+
 @app.callback()
 def main() -> None:
     """CIM command group."""
+
+
+mcp_cli.register(app)
+skills_cli.register(app)
+
+
+def _settings(path: Path | None) -> CimConfig:
+    try:
+        return load_config(path)
+    except ConfigError as exc:
+        typer.echo(f"cim: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+
+def _now() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _existing_store(db: Path, command: str) -> Path:
+    if not db.is_file():  # reading or sweeping must not create a store
+        typer.echo(f"{command}: no store at {db}; run cim inventory first", err=True)
+        raise typer.Exit(code=2)
+    return db
+
+
+def _skill_roots(flags: Sequence[Path] | None, config: CimConfig) -> tuple[Path, ...]:
+    return tuple(flags) if flags else config.skills.roots
+
+
+def _mcp_targets(
+    config: CimConfig, tools_json: Path | None, server_id: str | None, command: str
+) -> list[tuple[str, Path]]:
+    """(server id, tools/list file) pairs: the one on the command line, or the configured ones."""
+    if tools_json is not None:
+        return [(server_id or mcp_cli.DEFAULT_SERVER_ID, tools_json)]
+    listed = {
+        name: server.tools_list
+        for name, server in config.mcp.servers.items()
+        if server.tools_list is not None
+    }
+    if server_id is not None:
+        if server_id not in listed:
+            typer.echo(
+                f"{command}: no tools list for {server_id}: give --tools-json or set "
+                f"[mcp.servers.{server_id}].tools_list",
+                err=True,
+            )
+            raise typer.Exit(code=2)
+        return [(server_id, listed[server_id])]
+    return sorted(listed.items())
+
+
+def _nothing_to_do(command: str, side: Side) -> None:
+    wanted = []
+    if side is not Side.mcp:
+        wanted.append("skill roots (--skill-root, $CIM_SKILL_ROOTS or [skills].roots)")
+    if side is not Side.skills:
+        wanted.append("MCP tools list (--tools-json or [mcp.servers.<id>].tools_list)")
+    typer.echo(f"{command}: nothing to do: no {' and no '.join(wanted)}", err=True)
+    raise typer.Exit(code=2)
 
 
 @app.command("version")
 def version() -> None:
     """Print package version."""
     typer.echo(f"cim {__version__}")
+
+
+@app.command("init")
+def init(
+    path: Annotated[Path, typer.Argument(help="Where to write it")] = Path("cim.toml"),
+    db: Annotated[Path, typer.Option("--db", help="Store path to write in")] = Path(
+        "logs/cim-store.sqlite"
+    ),
+    origin: Annotated[str, typer.Option("--origin", help="Host name for artefacts")] = "vm-mon",
+    skill_root: Annotated[
+        list[Path] | None, typer.Option("--skill-root", help="Skill root, repeatable")
+    ] = None,
+    force: Annotated[bool, typer.Option("--force", help="Replace an existing file")] = False,
+) -> None:
+    """Write a starter cim.toml: store path, origin and skill roots (T-13)."""
+    if path.exists() and not force:
+        typer.echo(f"init: {path} exists; pass --force to replace it", err=True)
+        raise typer.Exit(code=1)
+    roots = tuple(root.expanduser().resolve() for root in skill_root or ())
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(starter_toml(store=db, origin=origin, roots=roots), encoding="utf-8")
+    typer.echo(f"init: wrote {path} (store {db}, origin {origin}, {len(roots)} skill root(s))")
 
 
 @app.command("status")
@@ -96,183 +216,152 @@ def dashboard(
 
 @app.command("inventory")
 def inventory(
-    db: Annotated[
-        Path,
-        typer.Option("--db", help="Baseline store SQLite path (created if missing)"),
-    ],
+    config_path: ConfigOption = None,
+    db: DbOption = None,
+    side: SideOption = Side.both,
+    skill_root: SkillRootOption = None,
     tools_json: Annotated[
-        Path,
+        Path | None,
         typer.Option(
             "--tools-json",
             exists=True,
             dir_okay=False,
             readable=True,
-            help="Recorded MCP tools/list JSON (list or {tools:[...]})",
+            help="Recorded MCP tools/list JSON (list or {tools:[...]}); "
+            "default: each [mcp.servers.<id>].tools_list",
         ),
-    ],
-    server_id: Annotated[str, typer.Option("--server-id")] = "hexstrike",
-    name: Annotated[str, typer.Option("--name")] = "hexstrike",
-    description: Annotated[str, typer.Option("--description")] = "HexStrike MCP",
-    root: Annotated[str, typer.Option("--root")] = "/opt/mcp/hexstrike",
-    origin: Annotated[str, typer.Option("--origin")] = "vm-mon",
+    ] = None,
+    server_id: Annotated[str | None, typer.Option("--server-id")] = None,
+    name: Annotated[str | None, typer.Option("--name")] = None,
+    description: Annotated[str | None, typer.Option("--description")] = None,
+    root: Annotated[str | None, typer.Option("--root", help="MCP server root")] = None,
+    origin: Annotated[str | None, typer.Option("--origin")] = None,
     minimum: Annotated[
-        int,
+        int | None,
         typer.Option("--minimum", help="Minimum tool count (HexStrike lab = 150)"),
-    ] = 150,
+    ] = None,
 ) -> None:
-    """Write MCP server + tool artefact baselines from a recorded tools/list (T-07)."""
-    tools = load_tools_list(tools_json)
-    ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    with BaselineStore(db) as store:
-        result = write_inventory(
-            store,
-            server_id=server_id,
-            name=name,
-            description=description,
-            root=root,
-            origin=origin,
-            tools=tools,
-            ts=ts,
-            minimum=minimum,
-        )
-        pinned_now = pinned_tools(store, server_id) is None
-        if pinned_now:  # the first inventory of a server is its reference for `cim sweep`
-            write_pin(
-                store,
-                server_id=server_id,
-                origin=origin,
-                tools=hashable(tools),
-                ts=ts,
-                server_artefact_id=result.server_artefact_id,
-            )
-        status = store.verify_chain()
-    typer.echo(
-        f"inventory: server={server_id} tools={len(result.tool_digests)} "
-        f"manifest={result.manifest_digest[:12]}… chain={'ok' if status.ok else 'broken'} "
-        f"pin={'written' if pinned_now else 'kept'}"
+    """Store baselines: every skill under the skill roots, and each MCP server's tools (T-07).
+
+    One line per skills inventory and per MCP server. The first inventory of a server also
+    pins it, as the reference for `cim sweep`.
+    """
+    config = _settings(config_path)
+    roots = _skill_roots(skill_root, config) if side is not Side.mcp else ()
+    targets = (
+        _mcp_targets(config, tools_json, server_id, "inventory") if side is not Side.skills else []
     )
-    if not status.ok:
+    if not roots and not targets:
+        _nothing_to_do("inventory", side)
+    ok = True
+    ts = _now()
+    path = db or config.store_path
+    path.parent.mkdir(parents=True, exist_ok=True)  # the first inventory creates the store
+    with BaselineStore(path) as store:
+        if roots:
+            line, chain = skills_cli.inventory_lines(store, roots, origin or config.store.origin)
+            typer.echo(line)
+            ok &= chain
+        for target_id, listed in targets:
+            server = config.server(target_id)
+            line, chain = mcp_cli.inventory_server(
+                store,
+                tools_json=listed,
+                server_id=target_id,
+                name=name or (target_id if server else mcp_cli.DEFAULT_NAME),
+                description=description
+                or (f"{target_id} MCP" if server else mcp_cli.DEFAULT_DESCRIPTION),
+                root=root or (server.root if server else mcp_cli.DEFAULT_ROOT),
+                origin=origin or (server.origin if server else None) or config.store.origin,
+                minimum=minimum
+                if minimum is not None
+                else (server.minimum_tools if server else mcp_cli.DEFAULT_MINIMUM),
+                ts=ts,
+            )
+            typer.echo(line)
+            ok &= chain
+    if not ok:
         raise typer.Exit(code=1)
-
-
-@app.command(
-    "proxy",
-    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
-)
-def proxy(
-    ctx: typer.Context,
-    db: Annotated[
-        Path | None,
-        typer.Option("--db", help="Baseline store path (default: $CIM_PROXY_DB)"),
-    ] = None,
-) -> None:
-    """Run an MCP server behind the capture proxy: cim proxy --db store.sqlite -- <server cmd>.
-
-    stdout carries the MCP stream, so this command never prints to it.
-    """
-    command = [arg for arg in ctx.args if arg != "--"]
-    if not command:
-        typer.echo("proxy: missing server command after --", err=True)
-        raise typer.Exit(code=2)
-    config = ProxyConfig.from_env()
-    if db is not None:
-        config = dataclasses.replace(config, db=db)
-    raise typer.Exit(code=run_proxy(command, config, sys.stdin.buffer, sys.stdout.buffer))
-
-
-@app.command("http-gateway")
-def http_gateway(
-    config: Annotated[
-        Path,
-        typer.Option(
-            "--config",
-            exists=True,
-            dir_okay=False,
-            readable=True,
-            help="JSON routes file (see config/cursor-http-gateway.json)",
-        ),
-    ],
-    db: Annotated[
-        Path | None,
-        typer.Option("--db", help="Baseline store path (overrides config db)"),
-    ] = None,
-    host: Annotated[str | None, typer.Option("--host")] = None,
-    port: Annotated[int | None, typer.Option("--port", min=1, max=65535)] = None,
-) -> None:
-    """Proxy Cursor URL / Streamable-HTTP MCPs into the baseline store (T-16b).
-
-    Point Cursor at http://127.0.0.1:<port>/s/<server-id> instead of the real URL.
-    Authorization headers are forwarded and never logged.
-    """
-    try:
-        loaded = load_gateway_config(config, db=db, host=host, port=port)
-    except ValueError as exc:
-        typer.echo(f"cim http-gateway: {exc}", err=True)
-        raise typer.Exit(code=2) from exc
-    raise typer.Exit(code=run_gateway(loaded))
 
 
 @app.command("sweep")
 def sweep(
-    db: Annotated[Path, typer.Option("--db", exists=True, dir_okay=False, readable=True)],
+    config_path: ConfigOption = None,
+    db: DbOption = None,
+    side: SideOption = Side.both,
+    skill_root: SkillRootOption = None,
     tools_json: Annotated[
-        Path,
-        typer.Option("--tools-json", exists=True, dir_okay=False, readable=True),
-    ],
-    server_id: Annotated[str, typer.Option("--server-id")] = "hexstrike",
+        Path | None,
+        typer.Option(
+            "--tools-json",
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help="MCP tools/list to compare with the pin (default: each configured tools_list)",
+        ),
+    ] = None,
+    server_id: Annotated[str | None, typer.Option("--server-id")] = None,
+    origin: Annotated[str | None, typer.Option("--origin")] = None,
 ) -> None:
-    """Re-read a tools/list and record schema drift against the pinned baseline (T-12)."""
-    current = hashable(load_tools_list(tools_json))
-    ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-    with BaselineStore(db) as store:
-        pin = pinned_tools(store, server_id)
-        if pin is None:
-            typer.echo(f"sweep: no pin for {server_id}; run inventory or the proxy first")
-            raise typer.Exit(code=2)
-        artefact_id = server_artefact(store, server_id)
-        if artefact_id is None:
-            artefact_id = store.get_or_create_artefact("mcp_server", server_id, "sweep")
-        recorded = record_sweep(
-            store,
-            server_id=server_id,
-            server_artefact_id=artefact_id,
-            pinned=pin,
-            current=current,
-            ts=ts,
-        )
-    differences = diff_tools(pin, current)
-    for drift in recorded:
-        typer.echo(f"sweep: {drift.detail}")
-    if not recorded and differences:
-        typer.echo(
-            f"sweep: {server_id} still differs from the pin "
-            f"({len(differences)} differences, already recorded)"
-        )
-    elif not recorded:
-        typer.echo(f"sweep: {server_id} unchanged")
+    """Record what changed since the baselines: skill files (T-08) and MCP tool schemas (T-12)."""
+    config = _settings(config_path)
+    roots = _skill_roots(skill_root, config) if side is not Side.mcp else ()
+    targets = (
+        _mcp_targets(config, tools_json, server_id, "sweep") if side is not Side.skills else []
+    )
+    if not roots and not targets:
+        _nothing_to_do("sweep", side)
+    code = 0
+    ts = _now()
+    with BaselineStore(_existing_store(db or config.store_path, "sweep")) as store:
+        if roots:
+            for line in skills_cli.sweep_store(store, roots, origin or config.store.origin):
+                typer.echo(line)
+        for target_id, listed in targets:
+            lines, status_code = mcp_cli.sweep_server(
+                store, tools_json=listed, server_id=target_id, ts=ts
+            )
+            for line in lines:
+                typer.echo(line)
+            code = max(code, status_code)
+    if code:
+        raise typer.Exit(code=code)
 
 
 @app.command("envelope")
 def envelope(
-    db: Annotated[Path, typer.Option("--db", exists=True, dir_okay=False, readable=True)],
-    server_id: Annotated[str, typer.Option("--server-id")] = "hexstrike",
-    tool: Annotated[str | None, typer.Option("--tool")] = None,
+    config_path: ConfigOption = None,
+    db: DbOption = None,
+    side: SideOption = Side.both,
+    server_id: Annotated[
+        str | None, typer.Option("--server-id", help="One MCP server (default: all observed)")
+    ] = None,
+    tool: Annotated[str | None, typer.Option("--tool", help="One MCP tool")] = None,
+    skill: Annotated[str | None, typer.Option("--skill", help="One skill")] = None,
 ) -> None:
-    """Show per-tool behavioural features and whether warm-up is done (T-14)."""
-    rows = envelopes(db, server_id, tool)
-    if not rows:
-        typer.echo(f"envelope: no observations for {server_id}")
+    """Show behavioural profiles and whether warm-up is done: MCP tools (T-14), skills (T-15)."""
+    config = _settings(config_path)
+    path = _existing_store(db or config.store_path, "envelope")
+    lines: list[str] = []
+    if side is not Side.skills:
+        servers = [server_id] if server_id is not None else mcp_cli.observed_servers(path)
+        for name in servers:
+            lines += mcp_cli.envelope_lines(path, name, tool)
+    if side is not Side.mcp:
+        with BaselineStore(path) as store:
+            lines += skills_cli.envelope_lines(store, skill)
+    if not lines:
+        wanted = server_id or skill
+        typer.echo(f"envelope: no observations{f' for {wanted}' if wanted else ''}")
         raise typer.Exit(code=2)
-    for row in rows:
-        typer.echo(row.render())
+    for line in lines:
+        typer.echo(line)
 
 
 @app.command("verify-chain")
 def verify_chain(
-    db: Annotated[
-        Path,
-        typer.Option("--db", exists=True, dir_okay=False, readable=True),
-    ],
+    config_path: ConfigOption = None,
+    db: DbOption = None,
     expect_tip: Annotated[
         str | None,
         typer.Option("--expect-tip", help="Fail unless the last record has this hash"),
@@ -288,7 +377,8 @@ def verify_chain(
     tip and count this command prints somewhere outside the store, and pass them back with
     --expect-tip / --min-count to catch that as well.
     """
-    with BaselineStore(db) as store:
+    path = _existing_store(db or _settings(config_path).store_path, "verify-chain")
+    with BaselineStore(path) as store:
         result = store.verify_chain()
     if not result.ok:
         typer.echo(f"verify-chain: broken at record {result.broken_at}: {result.reason}")
