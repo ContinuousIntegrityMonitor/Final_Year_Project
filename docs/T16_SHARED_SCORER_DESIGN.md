@@ -199,6 +199,8 @@ The prototype is the maths above, run over real stores from this laptop:
 
 The implementation PR commits the sweep as a script (`scripts/scorer_sweep.py`) and its output (`docs/results/T16_threshold_sweep.md`), which is the "threshold sweep recorded in the repo" acceptance item. Rerun it whenever a threshold changes.
 
+**Recorded (2026-11-25):** [`docs/results/T16_threshold_sweep.md`](results/T16_threshold_sweep.md), run with the real library and both call sites. It agrees with the tables above at z ≥ 4 and on every injected row, with one difference from the prototype: at z ≥ 2, MCP `shout` raised 4 benign alerts out of 120 (none at z ≥ 3).
+
 ## 9. Tests (one per acceptance item)
 
 - **SYS-08:** 130 benign observations per side (synthetic in unit tests, real ones in the sweep) → zero alerts after warm-up.
