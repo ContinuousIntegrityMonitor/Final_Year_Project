@@ -25,6 +25,7 @@ from cim.skills.attacks import (
     run_a3,
     run_a4,
 )
+from cim.skills.board import skills_board
 from cim.skills.corpus import default_root, load_manifest, verify_manifest
 from cim.skills.envelope import build_profile
 from cim.skills.runner import discover_skills
@@ -115,6 +116,14 @@ def test_a3_alerts_on_behaviour_while_the_files_stay_the_same(
     assert report.profile.destinations == ()  # the benign runs never connect
     assert len(report.run.egress) == 1 and report.run.egress[0].dest_class == "private_ip"
     assert report.novel == (f"destinations: private_ip:{report.run.egress[0].port}",)
+    # T-16: the scorer wrote a real alert for the attack run, naming the new destination.
+    assert report.alert is not None and report.alert.code == "skill_behaviour_drift"
+    assert report.alert.features[0].feature == "destinations"
+    assert report.alert.features[0].values == [f"private_ip:{report.run.egress[0].port}"]
+    with BaselineStore(tmp_path / "store.sqlite") as store:
+        board = skills_board(store.read_records())
+        assert store.verify_chain().ok
+    assert [(a.skill_id, a.code) for a in board.alerts] == [(A3_SKILL, "skill_behaviour_drift")]
     assert report.received is not None and b"CIM-LAB-DECOY" in report.received
     assert verify_manifest(CORPUS) == []  # the corpus itself was not touched
 
@@ -132,6 +141,7 @@ def test_a4_update_is_a_file_change_and_not_a_behaviour_change(
     ]
     assert report.digest_before != report.digest_after
     assert report.novel == ()
+    assert report.alert is None  # a legitimate update: no behaviour alert
     assert verify_manifest(CORPUS) == []
     assert (CORPUS / A4_SKILL / "scripts" / "count.py").read_text(encoding="utf-8").count(
         "longest"
@@ -146,5 +156,6 @@ def test_cli_runs_an_attack(
     assert "attack A3: sweep recorded no file change" in out
     assert "attack A3: tree digest unchanged" in out
     assert out.count(": PASS") == 1
+    assert "attack A3: behaviour alert: meeting-brief changed how it behaves: destinations" in out
     with pytest.raises(SystemExit, match="not empty"):
         main(["attack", "A3", "--work", str(tmp_path / "w")])

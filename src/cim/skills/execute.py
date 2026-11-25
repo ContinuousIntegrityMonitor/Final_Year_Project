@@ -3,7 +3,8 @@
 The skills twin of `cim proxy` (T-13 design note, section 5). The agent harness calls it in
 place of running the helper itself. The helper runs as `observe` runs it: in its own cgroup
 scope under strace (cim.skills.collector). One behaviour record goes into the store under
-the skill, and the helper's output and exit status go back to the caller.
+the skill (with a behaviour alert if the run leaves the skill's learned pattern), and the
+helper's output and exit status go back to the caller.
 
 Rules:
 - The skill must be installed under one of the roots, and the script must be a helper
@@ -12,7 +13,8 @@ Rules:
   with EXIT_NOT_TRACED.
 - Everything exec writes to the store goes through store_behaviour(). ADR-007 and T-13
   decision 8: that function is what the single store writer replaces later.
-- No score is computed here (the T-16 scorer is on hold).
+- The run is scored as it is recorded (T-16, in record_behaviour). A behaviour alert is
+  stored and named on stderr; it does not change the exit status, which stays the helper's.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ from typing import BinaryIO
 from cim.common.store import BaselineStore
 from cim.skills.collector import (
     Observation,
+    Recorded,
     TraceError,
     observe,
     record_behaviour,
@@ -126,7 +129,7 @@ def resolve_script(skill: Skill, script: str) -> Path:
     return target
 
 
-def store_behaviour(db: Path, skill: Skill, observation: Observation, origin: str) -> None:
+def store_behaviour(db: Path, skill: Skill, observation: Observation, origin: str) -> Recorded:
     """Every store write exec makes goes through here (ADR-007, T-13 decision 8).
 
     For December it opens the store and writes the record itself, as `cim proxy` does. Once
@@ -134,7 +137,7 @@ def store_behaviour(db: Path, skill: Skill, observation: Observation, origin: st
     observation to it, and nothing else in exec changes.
     """
     with BaselineStore(db) as store:
-        record_behaviour(store, skill, observation, origin=origin)
+        return record_behaviour(store, skill, observation, origin=origin)
 
 
 def exit_status(returncode: int) -> int:
@@ -187,8 +190,9 @@ def run(request: Request, out: BinaryIO, err: BinaryIO) -> int:
 
     # Record first: the evidence must not depend on the caller reading the output.
     stored: Exception | None = None
+    recorded: Recorded | None = None
     try:
-        store_behaviour(request.db, skill, observation, request.origin)
+        recorded = store_behaviour(request.db, skill, observation, request.origin)
     except Exception as exc:  # any failure here must reach the caller, not hide behind output
         stored = exc
 
@@ -204,6 +208,10 @@ def run(request: Request, out: BinaryIO, err: BinaryIO) -> int:
     if stored is not None:
         _note(err, f"the helper ran but its behaviour was not recorded: {stored}")
         return EXIT_NOT_TRACED
+    if recorded is not None and recorded.alert is not None:
+        _note(err, f"behaviour alert: {recorded.alert.detail}")
+    if recorded is not None and recorded.score_error is not None:
+        _note(err, f"the run was recorded but could not be scored: {recorded.score_error}")
     if request.verbose:
         events = ", ".join(f"{kind} {what}" for kind, what in observation.events) or "nothing"
         _note(

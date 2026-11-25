@@ -33,8 +33,10 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from cim.common.schema.alerts import BehaviourAlertPayload
 from cim.common.schema.skills import Egress, SkillBehaviourPayload
 from cim.common.store import BaselineStore
+from cim.skills.alert import record_score_failure, score_run
 from cim.skills.digest import record_path
 from cim.skills.inventory import (
     DEFAULT_ORIGIN,
@@ -492,6 +494,15 @@ def _last_stamp(lines: list[str]) -> int | None:
     return None
 
 
+@dataclass(frozen=True)
+class Recorded:
+    """What `record_behaviour` stored for one run."""
+
+    record_id: int  # the behaviour record
+    alert: BehaviourAlertPayload | None  # the skill_behaviour_drift alert it raised, if any
+    score_error: str | None = None  # scoring failed; a skill_score_failed record says so
+
+
 def record_behaviour(
     store: BaselineStore,
     skill: Skill,
@@ -499,17 +510,37 @@ def record_behaviour(
     *,
     origin: str = DEFAULT_ORIGIN,
     ts: str | None = None,
-) -> None:
-    """Append one behaviour record for the invocation, under the skill's own artefact.
+) -> Recorded:
+    """Append one behaviour record for the invocation, under the skill's own artefact, and
+    score it (T-16): a run that leaves the skill's learned pattern gets a
+    `skill_behaviour_drift` alert right after its record.
 
     A skill the store has not seen yet is baselined first, so the record has an artefact to
-    belong to.
+    belong to. Scoring never loses the run: if it fails, the behaviour record stays and a
+    `skill_score_failed` record names it.
     """
     stamp = ts or utc_now()
     known = known_skills(store)
     if skill.skill_id not in known:
         write_baselines(store, {skill.skill_id: describe_skill(skill)}, origin=origin, ts=stamp)
         known = known_skills(store)
-    append_event(
-        store, known[skill.skill_id].artefact_id, "behaviour", observation.payload(), stamp
-    )
+    artefact_id = known[skill.skill_id].artefact_id
+    record_id = append_event(store, artefact_id, "behaviour", observation.payload(), stamp)
+    try:
+        alert = score_run(
+            store, artefact_id=artefact_id, skill_id=skill.skill_id, record_id=record_id, ts=stamp
+        )
+    except Exception as exc:  # noqa: BLE001 — scoring must never lose the run
+        try:
+            record_score_failure(
+                store,
+                artefact_id=artefact_id,
+                skill_id=skill.skill_id,
+                record_id=record_id,
+                error=exc,
+                ts=stamp,
+            )
+        except Exception:  # noqa: BLE001 — the store itself is failing; the run is kept
+            pass
+        return Recorded(record_id, None, f"{type(exc).__name__}: {exc}")
+    return Recorded(record_id, alert)

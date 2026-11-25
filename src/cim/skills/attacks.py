@@ -16,9 +16,11 @@ A4 (`word-count`): the attack step is a legitimate update copied over the skill.
 must record it (detector: T-08 / T-10), and the run after it must show nothing the warm-up
 had not shown, so no behavioural alert can follow.
 
-Until the T-16 scorer exists, "a destination the warm-up never had" is checked with
-`novel_values`, the never-seen comparison the scorer makes for categorical features
-(docs/T16_SHARED_SCORER_DESIGN.md, section 3). Nothing writes an alert yet.
+The behavioural detector is the T-16 scorer: `record_behaviour` scores every run and writes a
+`skill_behaviour_drift` alert when one leaves the learned pattern. A3 passes only if that alert
+names the new destination; A4 passes only if no alert follows the update. `novel_values` (the
+never-seen comparison, docs/T16_SHARED_SCORER_DESIGN.md section 3) stays in the report as a
+plain cross-check of what the scorer saw.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from cim.common.schema.alerts import BehaviourAlertPayload
 from cim.common.schema.skills import SkillBehaviourPayload, SkillIntegrityPayload
 from cim.common.store import BaselineStore
 from cim.skills.collector import observe, record_behaviour
@@ -59,6 +62,7 @@ class AttackReport:
     digest_after: str
     run: SkillBehaviourPayload  # the run after the attack step
     novel: tuple[str, ...]  # values in that run the warm-up never showed
+    alert: BehaviourAlertPayload | None  # the scorer's alert on that run, if it raised one
     received: bytes | None  # what the local listener got; None when no local listener ran
     passed: bool
     expected: str
@@ -67,8 +71,7 @@ class AttackReport:
 def novel_values(profile: SkillProfile, run: SkillBehaviourPayload) -> list[str]:
     """Categorical values in `run` that the profile's window never showed, as `feature: value`.
 
-    This is the never-seen check of the T-16 design. It stands in for the scorer here only
-    until the scorer exists.
+    This is the never-seen check of the T-16 design, kept as a cross-check of the scorer.
     """
     seen = {
         "binaries": {value for value, _ in profile.binaries},
@@ -158,7 +161,7 @@ def run_a3(
     else:
         host, port = listener
         seen = observe(skill, script, (trigger, "--host", host, "--port", str(port)))
-    record_behaviour(store, skill, seen)
+    alert = record_behaviour(store, skill, seen).alert
     changes = sweep(store, [root]).events
     after = describe_skill(_skill(root, A3_SKILL)).tree_digest
     run = seen.payload()
@@ -166,7 +169,8 @@ def run_a3(
     passed = (
         not changes
         and before == after
-        and any(item.startswith("destinations: ") for item in novel)
+        and alert is not None
+        and any(f.feature == "destinations" and f.how == "never_seen" for f in alert.features)
         and (received is None or b'"env_names"' in received)
     )
     return AttackReport(
@@ -179,9 +183,10 @@ def run_a3(
         digest_after=after,
         run=run,
         novel=tuple(novel),
+        alert=alert,
         received=received,
         passed=passed,
-        expected="files unchanged; a never-seen destination (T-16 behavioural alert)",
+        expected="files unchanged; a T-16 behaviour alert naming a never-seen destination",
     )
 
 
@@ -200,10 +205,10 @@ def run_a4(store: BaselineStore, root: Path, *, warmup: int = WARMUP) -> AttackR
     after = describe_skill(skill).tree_digest
     scripted = load_manifest(root)[A4_SKILL].runs[0]
     seen = observe(skill, skill.path / scripted.script, scripted.args)
-    record_behaviour(store, skill, seen)
+    alert = record_behaviour(store, skill, seen).alert
     run = seen.payload()
     novel = novel_values(profile, run)
-    passed = bool(changes) and before != after and not novel
+    passed = bool(changes) and before != after and alert is None and not novel
     return AttackReport(
         attack="A4",
         skill_id=A4_SKILL,
@@ -214,9 +219,10 @@ def run_a4(store: BaselineStore, root: Path, *, warmup: int = WARMUP) -> AttackR
         digest_after=after,
         run=run,
         novel=tuple(novel),
+        alert=alert,
         received=None,
         passed=passed,
-        expected="the update recorded as file changes (T-08/T-10); no new behaviour (no T-16)",
+        expected="the update recorded as file changes (T-08/T-10); no T-16 behaviour alert",
     )
 
 
@@ -244,5 +250,9 @@ def render(report: AttackReport) -> list[str]:
             f"{report.received[:200]!r}"
         )
     lines.append(f"{name}: never seen during warm-up: {', '.join(report.novel) or 'nothing'}")
+    if report.alert is not None:
+        lines.append(f"{name}: behaviour alert: {report.alert.detail}")
+    else:
+        lines.append(f"{name}: behaviour alert: none")
     lines.append(f"{name}: expected {report.expected}: {'PASS' if report.passed else 'FAIL'}")
     return lines
