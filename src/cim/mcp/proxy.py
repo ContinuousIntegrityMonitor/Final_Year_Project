@@ -462,7 +462,7 @@ class StoreSink:
                 argument_shape_digest=sha256_canonical(argument_shape(event.arguments)),
                 value_classes=classes,
             )
-            append_mcp(
+            behaviour_id = append_mcp(
                 self._store,
                 self._tool_aid(event.tool),
                 artefact_type="mcp_tool",
@@ -480,8 +480,7 @@ class StoreSink:
                 result_size=event.response_size,
                 outcome=event.outcome,
             )
-            # T-16: score after the observation is committed. Scoring must never
-            # stop capture (fail-open); a scorer fault leaves proxy_capture_failed.
+            # T-16: score the row just written (finding 1). Fail-open on scorer faults.
             try:
                 score_latest(
                     self._store,
@@ -489,6 +488,7 @@ class StoreSink:
                     server_id=self._config.server_id,
                     tool=event.tool,
                     ts=self._now(),
+                    observation_record_id=behaviour_id,
                 )
             except Exception as exc:  # noqa: BLE001 — scoring must never stop capture
                 try:

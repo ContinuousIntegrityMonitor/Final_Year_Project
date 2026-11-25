@@ -2,7 +2,12 @@
 
 Observations come from hash-chained ``behaviour`` records (contract 1.1 fields).
 Scoring uses ``cim.common.scorer`` (integer milli-z). Alerted runs stay out of the
-baseline window (A1). The off-chain ``envelope_obs`` table is never read.
+baseline window (A1) unless the only drifted feature was ``outcome`` (finding 2).
+The off-chain ``envelope_obs`` table is never read.
+
+Callers must pass ``observation_record_id`` of the behaviour row just written
+(finding 1): scoring that id, not "the newest row", so two writers cannot steal
+each other's score.
 """
 
 from __future__ import annotations
@@ -25,6 +30,9 @@ from cim.mcp.events import append_mcp
 
 _CODE: Literal["mcp_behaviour_drift"] = "mcp_behaviour_drift"
 
+# Features that keep the run out of later windows when they alert (A1 / finding 2).
+_A1_FEATURES = frozenset({"argument_shape", "value_class", "result_size"})
+
 MCP_SCORER = ScorerConfig(
     rules={
         "argument_shape": FeatureRule(kind="categorical"),
@@ -44,20 +52,25 @@ def score_latest(
     server_id: str,
     tool: str,
     ts: str,
+    observation_record_id: int,
 ) -> list[str]:
-    """Alert when the newest call leaves the pattern learned so far. Empty means no alert."""
+    """Score the behaviour row ``observation_record_id``. Empty means no alert."""
     rows = _observations(store, server_id, tool)
-    if not rows:
-        return []
+    target = next((obs for rid, obs in rows if rid == observation_record_id), None)
+    if target is None:
+        raise ValueError(
+            f"record {observation_record_id} is not a behaviour record of {server_id}/{tool}"
+        )
     alerted_ids = _alerted_observation_ids(store, server_id, tool)
-    history = [(obs, record_id in alerted_ids) for record_id, obs in rows]
-    latest_id, latest_obs = rows[-1]
-    prior = baseline(history[:-1], MCP_SCORER)
-    result = score(prior, latest_obs, MCP_SCORER)
+    if observation_record_id in alerted_ids:
+        return []
+    history = [(obs, rid in alerted_ids) for rid, obs in rows if rid < observation_record_id]
+    prior = baseline(history, MCP_SCORER)
+    result = score(prior, target, MCP_SCORER)
     if not result.alert:
         return []
     reasons = _reason_strings(result.drifted)
-    input_change, output_change = _plain_changes(result.drifted, latest_obs)
+    input_change, output_change = _plain_changes(result.drifted, target)
     detail = f"{tool} changed how it is used: " + "; ".join(reasons)
     features = [
         DriftFeature(
@@ -73,7 +86,7 @@ def score_latest(
         code=_CODE,
         server_id=server_id,
         tool_id=tool,
-        observation_record_id=latest_id,
+        observation_record_id=observation_record_id,
         composite_milli=result.composite_milli,
         features=features,
         window=MCP_SCORER.window,
@@ -131,7 +144,11 @@ def _observations(store: BaselineStore, server_id: str, tool: str) -> list[tuple
 
 
 def _alerted_observation_ids(store: BaselineStore, server_id: str, tool: str) -> set[int]:
-    """Behaviour record ids that already raised ``mcp_behaviour_drift`` for this tool."""
+    """Ids kept out of later windows (A1).
+
+    Finding 2: an alert whose drifted features are only ``outcome`` does **not**
+    exclude the run, so a flaky error can join the baseline and stop repeating.
+    """
     found: set[int] = set()
     for row in store.read_records():
         if row.kind != "alert":
@@ -145,8 +162,20 @@ def _alerted_observation_ids(store: BaselineStore, server_id: str, tool: str) ->
         if payload.get("server_id") != server_id or payload.get("tool_id") != tool:
             continue
         oid = payload.get("observation_record_id")
-        if isinstance(oid, int) and not isinstance(oid, bool):
+        if not isinstance(oid, int) or isinstance(oid, bool):
+            continue
+        features = payload.get("features")
+        if not isinstance(features, list) or not features:
             found.add(oid)
+            continue
+        names = {
+            str(item.get("feature"))
+            for item in features
+            if isinstance(item, dict) and item.get("feature") is not None
+        }
+        if names & _A1_FEATURES:
+            found.add(oid)
+        # else: outcome-only (or unknown-only) — run may join the window
     return found
 
 
@@ -159,7 +188,7 @@ def _reason_strings(drifts: tuple[Any, ...]) -> list[str]:
         elif item.feature == "argument_shape":
             found.append("argument shape")
         elif item.feature == "outcome":
-            found.append("first error")
+            found.append("outcome " + ", ".join(item.values))
         elif item.feature == "result_size":
             found.append("result size")
         else:
@@ -169,7 +198,6 @@ def _reason_strings(drifts: tuple[Any, ...]) -> list[str]:
 
 def _plain_changes(drifts: tuple[Any, ...], latest: Observation) -> tuple[str, str]:
     """Say what moved in the input and in the output, in plain words."""
-    features = {item.feature for item in drifts}
     input_parts: list[str] = []
     output_parts: list[str] = []
     for item in drifts:
@@ -180,7 +208,8 @@ def _plain_changes(drifts: tuple[Any, ...], latest: Observation) -> tuple[str, s
         elif item.feature == "argument_shape":
             input_parts.append("Input shape is different from earlier calls.")
         elif item.feature == "outcome":
-            output_parts.append("Output failed. Earlier calls succeeded.")
+            values = ", ".join(item.values) if item.values else "error"
+            output_parts.append(f"Output outcome is now {values}.")
         elif item.feature == "result_size":
             size = latest.numeric.get("result_size", 0)
             output_parts.append(f"Output grew to {size}.")
@@ -188,5 +217,4 @@ def _plain_changes(drifts: tuple[Any, ...], latest: Observation) -> tuple[str, s
         input_parts.append("Input matches the calls seen so far.")
     if not output_parts:
         output_parts.append("Output size and result match earlier calls.")
-    _ = features  # kept for clarity when extending
     return " ".join(input_parts), " ".join(output_parts)
