@@ -143,8 +143,8 @@ def skills_series(runs: int, work: Path) -> list[Series]:
 
 
 async def _mcp_calls(db: Path, calls: int, seed: int) -> None:
-    from mcp import ClientSession, StdioServerParameters
-    from mcp.client.stdio import stdio_client
+    from mcp.client.session import ClientSession
+    from mcp.client.stdio import StdioServerParameters, stdio_client
 
     rng = random.Random(seed)
     env = {
