@@ -137,10 +137,14 @@ def test_heartbeat_thread_writes_and_clears(tmp_path: Path) -> None:
 
 
 def test_cli_proxy_help_mentions_config_and_server() -> None:
-    result = runner.invoke(app, ["proxy", "--help"])
+    # Wide COLUMNS: rich help on CI otherwise truncates the Options block.
+    result = runner.invoke(
+        app, ["proxy", "--help"], env={**os.environ, "COLUMNS": "120", "NO_COLOR": "1"}
+    )
     assert result.exit_code == 0
-    assert "--config" in result.stdout
-    assert "--server" in result.stdout
+    text = result.stdout + result.stderr
+    assert "--config" in text
+    assert "--server" in text
 
 
 def test_cli_http_gateway_rejects_toml_without_gateway(tmp_path: Path) -> None:
