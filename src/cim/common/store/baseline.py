@@ -76,6 +76,16 @@ class StoredRecord:
 
 
 @dataclass(frozen=True)
+class StoredArtefact:
+    """One artefact row. Under hash v2 the chain covers it (ADR-006)."""
+
+    id: int
+    type: str
+    name: str
+    origin: str
+
+
+@dataclass(frozen=True)
 class ChainStatus:
     """Result of recomputing the hash chain from stored rows."""
 
@@ -234,6 +244,19 @@ class BaselineStore:
         if self._hash_version == HASH_V1:
             return self._verify_v1()
         return self._verify_v2()
+
+    def read_artefacts(self) -> list[StoredArtefact]:
+        """Return every artefact row by id. Does not modify the store."""
+        rows = self._conn.execute("SELECT id, type, name, origin FROM artefact ORDER BY id")
+        return [
+            StoredArtefact(
+                id=int(row["id"]),
+                type=str(row["type"]),
+                name=str(row["name"]),
+                origin=str(row["origin"]),
+            )
+            for row in rows.fetchall()
+        ]
 
     def read_records(self) -> list[StoredRecord]:
         """Return every record in chain order. Does not modify the store."""
