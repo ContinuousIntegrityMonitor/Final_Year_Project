@@ -83,3 +83,5 @@ One line per finished action, oldest first. Both assistants append here; nobody 
 | 2026-11-25 | F-assistant | Threshold sweep recorded: 680 benign observations, 0 alerts at z>=3 (MCP shout 4/120 at z>=2), 7 injected rows and A3/A4 as expected | `scripts/scorer_sweep.py`, `docs/results/T16_threshold_sweep.md`, test |
 | 2026-11-25 | Hamza | Merged Fasih PRs #45 → #46 → #47 (review, skills alerts, sweep) to org `main` | `main` @ `77aee8c` |
 | 2026-11-25 | H-assistant | Hamza handover for next session + status after #45–#47; agreed findings 1–2 | `docs/HAMZA_HANDOVER.md`, `CONTEXT.md`, `PROJECT_STATUS.md` |
+| 2026-11-25 | H-assistant | Finding 1+2: score by observation_record_id; outcome-only alerts join window | `src/cim/mcp/alert.py`, `proxy.py`, tests |
+| 2026-11-25 | Hamza | Merged PR #49 (score by record id / outcome A1) to org `main` | PR #49 → `main` @ `7c0bc6f` |

@@ -5,7 +5,7 @@ Paste into Claude or Cursor:
 *You are assisting Hamza Farooq on CIM (MCP lead). Read `docs/HAMZA_HANDOVER.md` first, then `CONTEXT.md` (Hamza’s assistant section), `ACTION.md`, `PROJECT_STATUS.md`, `docs/FASIH_ASK_2026-11-25.md`, and Fasih’s review notes in `CONTEXT.md` under Fasih’s section (findings on #42/#43). Follow territory and git rules. Do not invent Fasih skills work. Do not use `git commit` from the agent — ship with `scripts/_ship.sh` / commit-tree only. No Cursor/AI co-author trailers. Author: HamzaFarooq3333 / hamzafarooqsea@gmail.com.*
 
 **Handover date:** 2026-11-25  
-**Org `main` tip after this merge stack:** `77aee8c` (PR #47)  
+**Org `main` tip:** `7c0bc6f` (PR #49 — findings 1–2 fixed; includes #45–#48)  
 **Remotes:** `org` = ContinuousIntegrityMonitor/Final_Year_Project (committee); `origin` = HamzaFarooq3333/Final_Year_Project (may diverge — prefer `org`).
 
 ---
@@ -30,32 +30,23 @@ Paste into Claude or Cursor:
 | **#45** | Fasih review of #42/#43 in CONTEXT |
 | **#46** | Skills behaviour alerts (`cim.skills.alert`) |
 | **#47** | Threshold sweep `scripts/scorer_sweep.py` + `docs/results/T16_threshold_sweep.md` |
+| **#49** | Findings 1–2: score by `observation_record_id`; outcome-only joins window |
 
-Skills C4 path is now coded: A3 writes `skill_behaviour_drift`. MCP stand-in alerts already work via shared scorer.
+Skills C4 path is now coded: A3 writes `skill_behaviour_drift`. MCP stand-in alerts already work via shared scorer. Findings 1–2 are fixed.
 
 ---
 
 ## Your next work (priority order)
 
-### 1. Fix MCP finding 1 (blocking quality) — **you own**
+### 1. Findings 1–2 — **done (#49)**
 
-Fasih’s review (CONTEXT, Fasih section): `score_latest` scores the **newest** behaviour row for the tool, not the row just written. Two writers (two `cim proxy` for the same `server_id`) can skip an attack or double-alert.
+Do not re-implement. `score_latest` requires `observation_record_id`; proxy passes `append_mcp`’s return. A1 excludes only alerts that drifted on `argument_shape` / `value_class` / `result_size`.
 
-**Fix:** In `StoreSink.apply` ([`src/cim/mcp/proxy.py`](../src/cim/mcp/proxy.py)), keep the id returned by `append_mcp` for the behaviour record and pass it into `score_latest(..., observation_record_id=...)`. In [`src/cim/mcp/alert.py`](../src/cim/mcp/alert.py), score **that** id only; history = lower ids; skip if already alerted. Add a test that appends two calls then scores each by id.
-
-Gateway path (if it also calls `score_latest`) must pass the same id.
-
-Branch suggestion: `t16-score-by-record-id`. Ship → CI → PR → merge.
-
-### 2. Decide finding 2 (MCP `outcome` / “first error”)
-
-With A1, every new error alerts forever (flaky upstream fills the board). Fasih suggests: keep A1 for `value_class` / `argument_shape`, but let a run whose **only** drift is `outcome` join the window. Reply in CONTEXT (Hamza section) with agree/disagree, then implement if agreed.
-
-### 3. Optional tidy (findings 3–5) — low priority
+### 2. Optional tidy (findings 3–5) — low priority
 
 Missing MCP parity tests (argument shape, first error, result size); scorer double-loop clean-up; store parse cost. Can wait or small follow-up PR.
 
-### 4. After Fasih lands T-13 shared CLI — **your decision‑7 pieces**
+### 3. After Fasih lands T-13 shared CLI — **your decision‑7 pieces**
 
 Green-lit T-13 §10 decision **7** (Hamza):
 
@@ -66,11 +57,11 @@ Green-lit T-13 §10 decision **7** (Hamza):
 
 Do **not** invent the whole CLI; wait for his structure (`cim status`, two-sided inventory, etc.).
 
-### 5. Live demo (with Fasih)
+### 4. Live demo (with Fasih)
 
-After finding 1 (and preferably T-13 stub usable): run live MCP + skills through CIM, confirm alerts + dashboard + `verify-chain`. No quarantine. Scripts: `scripts/live_t16_stdio.py`, `scripts/live_t16b_http.py` (Unix venv paths; on Windows use `.venv/Scripts/`).
+Preferably after T-13 stub usable: run live MCP + skills through CIM, confirm alerts + dashboard + `verify-chain`. No quarantine. Scripts: `scripts/live_t16_stdio.py`, `scripts/live_t16b_http.py` (Unix venv paths; on Windows use `.venv/Scripts/`).
 
-### 6. Still open for Dec demo C1–C6
+### 5. Still open for Dec demo C1–C6
 
 | Criterion | Gap |
 |-----------|-----|
@@ -83,7 +74,7 @@ After finding 1 (and preferably T-13 stub usable): run live MCP + skills through
 
 Rough progress: **~80% code building blocks**; **~55–60% live Dec criteria** until T-13 + lab + video.
 
-### 7. Do **not** start unless asked
+### 6. Do **not** start unless asked
 
 - Docker Desktop / containerized test harness (not a Phase 1 deliverable; Engine+CLI is T-01 tooling only)  
 - FYP II: T-29 quarantine, attestation  
@@ -95,7 +86,7 @@ Rough progress: **~80% code building blocks**; **~55–60% live Dec criteria** u
 
 - T-13 shared CLI (config loader, restructure, `cim status` / `events` / `watch`, two-sided inventory/sweep/envelope)  
 - He asked you to merge #45→#46→#47 (**done** 2026-11-25)  
-- He asked whether you fix findings 1–2 or want him to (answer in CONTEXT)
+- Findings 1–2: Hamza fixed in **#49** (answered in CONTEXT)
 
 ---
 

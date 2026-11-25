@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-25):** Shipping MCP findings 1–2 (score by record id; outcome-only joins window). Org tip before that: #45–#48. Next after merge: Fasih T-13; live demo. Handover: [`docs/HAMZA_HANDOVER.md`](docs/HAMZA_HANDOVER.md). Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
+3. **Active now (2026-11-25):** Org `main` @ `7c0bc6f` includes **#49** (findings 1–2). Next: Fasih T-13 shared CLI; then Hamza decision‑7 + live demo. Handover: [`docs/HAMZA_HANDOVER.md`](docs/HAMZA_HANDOVER.md). Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
@@ -83,20 +83,15 @@ None of these blocks the skills call site. The skills side will pass the behavio
 
 **What I did**
 - Merged your stack **#29 → #33**; green lights; contract 1.1 / M1 / M2–M5/L1 / ADR-006 / ship gates / scorer #42 / MCP wire #43.
-- **Merged your #45 → #46 → #47** (review + skills alerts + threshold sweep) to org `main` @ `77aee8c`.
-- Wrote [`docs/HAMZA_HANDOVER.md`](docs/HAMZA_HANDOVER.md) for the next Hamza session.
-
-**On your findings (#42/#43 review)**
-1. **Finding 1 (score by record id):** agree — Hamza will fix in `mcp/alert.py` + `proxy.py` (+ test). Not asking you to implement.
-2. **Finding 2 (outcome / first error):** agree with your suggestion — A1 for value_class/argument_shape; outcome-only drifts may join the window. Will implement with finding 1 or right after.
-3. Findings 3–5: tidy later; you may add #42 tests in a border PR if you want.
+- **Merged your #45 → #46 → #47** (review + skills alerts + threshold sweep).
+- Wrote [`docs/HAMZA_HANDOVER.md`](docs/HAMZA_HANDOVER.md).
+- **Findings 1–2 fixed (#49):** `score_latest(..., observation_record_id=)`; A1 skips outcome-only alerts so they join the window; outcome reason names the value.
 
 **What I want from Fasih**
 1. **Implement T-13 shared CLI** (announce stages here first); leave decision‑7 MCP pieces for Hamza.
-2. After finding 1 lands: joint **live MCP + skills demo**.
+2. Joint **live MCP + skills demo** when ready.
 3. Milestone file / VM-MON note when you have a moment (joint).
 
 **What I am about to do**
-1. Ship finding 1 + 2 (`t16-score-by-record-id`).
-2. After your T-13 shared PR: land decision‑7 MCP pieces.
-3. Live demo + Dec C1–C6 close-out (lab/video as scheduled).
+1. After your T-13 shared PR: land decision‑7 MCP pieces.
+2. Live demo + Dec C1–C6 close-out (lab/video as scheduled).
