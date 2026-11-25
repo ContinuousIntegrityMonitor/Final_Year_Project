@@ -53,3 +53,6 @@ scripts/_*
 
 # Personal study notes — never push
 WHAT_TO_LEARN.md
+
+# The operator's own CIM config (cim.example.toml is the tracked template)
+/cim.toml

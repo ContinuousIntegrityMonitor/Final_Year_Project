@@ -1,0 +1,52 @@
+# cim.toml: one config file for both sides of CIM (docs/T13_PIPELINE_DESIGN.md, section 4).
+#
+# Copy this to ./cim.toml or ~/.config/cim/cim.toml, or point --config / CIM_CONFIG at it.
+# Every key is optional: what you leave out keeps its default (shown here).
+# Precedence: command-line flag > environment variable > this file > default.
+# Relative paths are taken from this file's own folder.
+#
+# No secrets here. A key whose name holds "token", "secret" or "password" is refused.
+# Tokens stay in the environment; a gateway route names the variable (authorization_env).
+
+# log_level = "INFO"                    # DEBUG, INFO, WARNING or ERROR
+
+[store]
+path = "logs/cim-store.sqlite"          # the one hash-chained store both sides write
+origin = "vm-mon"                       # the host name recorded with every artefact
+
+[skills]
+roots = []                              # e.g. ["/opt/skills"]; CIM_SKILL_ROOTS still overrides
+sweep_interval_s = 60                   # cim skills watch: seconds between sweeps
+inotify = true                          # also sweep on file notifications
+
+# One table per MCP server. `cim proxy --server hexstrike -- <server command>` reads it.
+# [mcp.servers.hexstrike]
+# root = "/opt/mcp/hexstrike"            # where the server lives, recorded with its artefact
+# origin = "vm-mon"                      # defaults to [store].origin
+# tools_list = "corpora/mcp/tools_list.json"   # optional: offline `cim inventory` / `cim sweep`
+# minimum_tools = 150                    # refuse an inventory with fewer tools
+
+# The HTTP gateway. When this table is present, `cim watch` starts the gateway.
+# Its access token comes from CIM_HTTP_GATEWAY_TOKEN, never from this file.
+# [mcp.gateway]
+# host = "127.0.0.1"
+# port = 8877
+#
+# [[mcp.gateway.routes]]
+# id = "graphiti"                        # served at /s/graphiti/
+# upstream = "http://127.0.0.1:8000/mcp/"
+# origin = "cursor"
+# root = "cursor-graphiti"               # defaults to "cursor-<id>"
+# authorization_env = "CIM_MCP_AUTH_GRAPHITI"   # the NAME of a variable, never the token
+
+[dashboard]
+host = "127.0.0.1"
+port = 8765
+
+[scorer]                                # T-16 (docs/T16_SHARED_SCORER_DESIGN.md)
+threshold_milli = 4000                  # z >= 4.0 for numeric features
+
+[watchdog]                              # cim watch (design section 6)
+heartbeat_s = 10                        # a child silent for 3 intervals is treated as hung
+backoff_max_s = 60                      # restart backoff 1, 2, 4 ... up to this
+max_restarts = 5                        # in 10 minutes; then give up on that child
