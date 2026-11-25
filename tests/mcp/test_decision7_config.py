@@ -136,15 +136,15 @@ def test_heartbeat_thread_writes_and_clears(tmp_path: Path) -> None:
     assert not path.exists()
 
 
-def test_cli_proxy_help_mentions_config_and_server() -> None:
-    # Wide COLUMNS: rich help on CI otherwise truncates the Options block.
-    result = runner.invoke(
-        app, ["proxy", "--help"], env={**os.environ, "COLUMNS": "120", "NO_COLOR": "1"}
-    )
-    assert result.exit_code == 0
-    text = result.stdout + result.stderr
-    assert "--config" in text
-    assert "--server" in text
+def test_cli_proxy_registers_config_and_server() -> None:
+    """Rich help truncates on narrow CI terminals; assert the Typer params instead."""
+    import inspect
+
+    from cim.mcp import cli as mcp_cli
+
+    params = inspect.signature(mcp_cli.proxy).parameters
+    assert "config" in params and "server" in params
+    assert "db" in params
 
 
 def test_cli_http_gateway_rejects_toml_without_gateway(tmp_path: Path) -> None:
