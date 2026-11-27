@@ -371,6 +371,7 @@ def test_init_prints_a_systemd_unit(tmp_path: Path) -> None:
     target = tmp_path / "cim.toml"
     result = runner.invoke(app, ["init", str(target), "--systemd"])
     assert result.exit_code == 0 and target.exists()
+    assert result.stdout.startswith("# ~/.config/systemd/user/cim-watch.service")  # unit only
     assert f"ExecStart={sys.executable} -m cim watch --config {target.resolve()}" in result.output
     assert "Restart=on-failure" in result.output
     again = runner.invoke(app, ["init", str(target), "--systemd"])

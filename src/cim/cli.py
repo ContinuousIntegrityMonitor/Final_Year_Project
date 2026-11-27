@@ -176,7 +176,11 @@ def init(
     roots = tuple(root.expanduser().resolve() for root in skill_root or ())
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(starter_toml(store=db, origin=origin, roots=roots), encoding="utf-8")
-    typer.echo(f"init: wrote {path} (store {db}, origin {origin}, {len(roots)} skill root(s))")
+    # With --systemd, stdout is the unit (to redirect into a file), so the note goes to stderr.
+    typer.echo(
+        f"init: wrote {path} (store {db}, origin {origin}, {len(roots)} skill root(s))",
+        err=systemd,
+    )
     if systemd:
         typer.echo(systemd_unit(path))
 
