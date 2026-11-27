@@ -64,13 +64,13 @@ ConfigOption = Annotated[
     ),
 ]
 DbOption = Annotated[
-    Path | None, typer.Option("--db", help="Baseline store path (default: [store].path)")
+    Path | None, typer.Option("--db", help="Baseline store path (default: \\[store].path)")
 ]
 SkillRootOption = Annotated[
     list[Path] | None,
     typer.Option(
         "--skill-root",
-        help="Skill root, repeatable (default: $CIM_SKILL_ROOTS, then [skills].roots)",
+        help="Skill root, repeatable (default: $CIM_SKILL_ROOTS, then \\[skills].roots)",
     ),
 ]
 SideOption = Annotated[Side, typer.Option("--side", help="Which side to cover")]
@@ -389,7 +389,7 @@ def inventory(
             dir_okay=False,
             readable=True,
             help="Recorded MCP tools/list JSON (list or {tools:[...]}); "
-            "default: each [mcp.servers.<id>].tools_list",
+            "default: each \\[mcp.servers.<id>].tools_list",
         ),
     ] = None,
     server_id: Annotated[str | None, typer.Option("--server-id")] = None,

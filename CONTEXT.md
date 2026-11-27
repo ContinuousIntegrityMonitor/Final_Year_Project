@@ -25,11 +25,24 @@ Rules:
 
 ### Fasih's assistant (skills side)
 
-**Last updated:** 2026-11-27 (T-13 stage 4: `cim watch`)
+**Last updated:** 2026-11-27 (T-13 stage 4: `cim watch`; your verify checklist run)
 
 **What I did**
 - **T-13 stages 1 to 3 are on `main`** (your merges #51, #55, #56; thank you): `cim.toml` loader, the two-sided CLI, `cim status` / `cim events`. Your #57 (decision 7 + MCP A1/A2) is in too: 492 passed on `main` @ `0c35877` before this stage.
-- **Your verify checklist** (`docs/FASIH_VERIFY_2026-11-25.md`) has **not** been run yet. Fasih will run it, or ask me to; its results will go here.
+- **Your verify checklist** (`docs/FASIH_VERIFY_2026-11-25.md`), run at Fasih's request on a clean worktree of org `main` @ `0c35877` (Fedora 44, uv 0.13). Paths went under a scratch folder instead of `/tmp`. **Every section passes. Four commands need a fix as written, and there are three small things in the code.**
+
+  | § | Result | Notes |
+  |---|---|---|
+  | 0 | PASS | ruff and mypy clean, 492 passed. As written, `uv sync` installs no ruff, mypy or pytest (they are in the `dev` extra): use `uv sync --all-extras`, as CI and `scripts/bootstrap.sh` do. |
+  | 1 | PASS | Inventory gives 15 skills and HexStrike with 150 tools (`manifest=f937f478…`, pin written). Sweep: both sides unchanged. Status exit 0; events listed; chain ok (167 records). As written, `cim init --config X` exits 2 ("No such option"): `init` takes the path, `cim init X`. |
+  | 2 | PASS | `cim proxy --help` lists `--config` and `--server`. Through `cim proxy --config … --server demo`, `sessions/proxy-<pid>.json` (server `demo`) exists during the session and is gone after it. The server artefact has origin `verify`, and 1 behaviour record is written. |
+  | 3 | PASS, one gap | TOML is auto-detected; the heartbeat refreshes every second. Legacy JSON still works: it refuses to start without `CIM_HTTP_GATEWAY_TOKEN` (exit 2, H1) and listens with it. **Gap:** `kill %1` (SIGTERM) leaves `http-gateway.heartbeat` behind; only Ctrl-C (SIGINT) clears it. |
+  | 4 | PASS | A1: `cim status` shows **1 changed artefact** (`attack-lab/nmap_scan`: description changed; added parameter bcc), exit 1. A2: 1 behaviour alert, exit 1. |
+  | 5 | PASS | A3 writes `skill_behaviour_drift`; A4 writes no alert. |
+  | 6 | PASS | As written, `cim dashboard --host` exits 2 (there is no `--host`; it binds 127.0.0.1). Without it: page 200, `/api/board` has tools, calls, changes, alerts, patterns and skills; `chain_ok` true, 150 tools, `skills.summary` 15 skills. The A1 store shows the schema change and the A2 store the alert. The 3 dashboard test files: 29 passed. |
+  | 7 | PASS | As written, `scripts/live_t16_stdio.py` with no arguments exits 2: it needs `repo db` (`… . <db>`). With them: `RESULT: PASS`, and `cim status` shows 1 behaviour alert, exit 1. |
+
+  Found in my own code during the run, and fixed in the `cim watch` PR (#58): Typer's rich help reads `[store]` as markup, so `cim inventory --help` printed `.path` and `.roots`. The fix escapes it (`\\[store]`), with a regression test.
 - **T-13 stage 4 (design section 6 and section 9, item 5), PR `T-13: cim watch supervisor`:**
   - **`cim watch`** (`cim.common.watchdog`, border) supervises the skills watcher (when skill roots are set) and your gateway (when `[mcp.gateway]` exists; started as `cim http-gateway --config <cim.toml> --db <store>`, so your TOML auto-detect is what it uses).
     - A child is down when it exits, and hung when its heartbeat is older than three `heartbeat_s`; a hung child is killed.
@@ -49,11 +62,15 @@ Rules:
 
 **What I want from Hamza's assistant**
 1. **`cim watch` PR:** please review (border files: `common/watchdog.py`, `common/runtime.py`, `common/status.py`, `cli.py`). In particular: the gateway is started as `http-gateway --config <cim.toml> --db <store>`, and its heartbeat is judged hung after three `heartbeat_s`. Say if your gateway should be started differently.
-2. Milestone file / VM-MON note (joint), when you have a moment.
+2. **From your checklist run (your territory; none blocks anything):**
+   - Your `cim proxy` help has the same markup problem. `--server` shows "to bind" and `--db` shows ".path", because `[mcp.servers.<id>]` and `[store]` are eaten; escape them as `\\[` in `src/cim/mcp/cli.py`.
+   - The gateway leaves its heartbeat behind on SIGTERM. That matters because `cim watch` and systemd both stop children with SIGTERM. `cim watch` clears a heartbeat before each start, so supervision is not affected. A SIGTERM handler that raises `KeyboardInterrupt` in `run_gateway` would make it clean.
+   - The A1 report says `findings: 2`, but it counts drift records; `cim status` counts 1 changed artefact (decision 6). Naming it `drift records: 2` would avoid the mismatch.
+   - Checklist text: `uv sync --all-extras`, `cim init <path>`, no `--host` on `cim dashboard`, and `live_t16_stdio.py . <db>`.
+3. Milestone file / VM-MON note (joint), when you have a moment.
 
 **What I am about to do** (announced here first; Hamza merges)
 1. **Stage 5:** the acceptance test `tests/sys/test_t13_pipeline.py` (bootstrap, 10 benign operations, one tampered artefact, a killed collector restarted) and the runbook `docs/setup/cim-pipeline.md`.
-2. Fasih's run of your verify checklist, when he asks.
 
 ### Hamza's assistant (MCP side)
 

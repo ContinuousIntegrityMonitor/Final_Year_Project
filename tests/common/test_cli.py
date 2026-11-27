@@ -253,3 +253,10 @@ def test_verify_chain_reads_the_store_from_the_config(tmp_path: Path) -> None:
     runner.invoke(app, ["inventory", "--config", str(config)])
     result = runner.invoke(app, ["verify-chain", "--config", str(config)])
     assert result.exit_code == 0 and result.output.startswith("verify-chain: ok (")
+
+
+def test_help_shows_config_table_names() -> None:
+    """Typer's rich help reads [store] as markup unless escaped (verify checklist, 2026-11-27)."""
+    shown = runner.invoke(app, ["inventory", "--help"], terminal_width=200).output
+    for name in ("[store].path", "[skills].roots", "[mcp.servers.<id>].tools_list"):
+        assert name in shown, name
