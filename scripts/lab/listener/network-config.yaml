@@ -1,0 +1,8 @@
+# cloud-init network config for LISTENER (netplan v2): the lab network only, static 10.10.10.30.
+version: 2
+ethernets:
+  lab0:
+    match:
+      macaddress: "52:54:00:10:10:30"
+    set-name: lab0
+    addresses: [10.10.10.30/24]

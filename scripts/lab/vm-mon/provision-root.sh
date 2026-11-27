@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# VM-MON system setup, run as root by `scripts/lab/vm_mon.sh provision` (through labadmin).
-# Args: HEXSTRIKE_URL HEXSTRIKE_SHA (from corpora/mcp/hexstrike.pin).
+# VM-MON system setup, run as root by `scripts/lab/lab.sh vm-mon provision` (through labadmin).
+# Environment: HEXSTRIKE_URL HEXSTRIKE_SHA (from corpora/mcp/hexstrike.pin).
 #
 # - /opt/skills and /opt/mcp belong to cim, the operator: skills and MCP servers are installed
 #   by the user who runs them, which is what CIM watches.
 # - HexStrike is checked out at the pinned commit (never master) with its own virtualenv.
 set -euo pipefail
-HEXSTRIKE_URL="$1"
-HEXSTRIKE_SHA="$2"
+HEXSTRIKE_URL="${HEXSTRIKE_URL:-$1}"
+HEXSTRIKE_SHA="${HEXSTRIKE_SHA:-$2}"
 
 cloud-init status --wait >/dev/null || true  # its result is checked below, not trusted
 id cim >/dev/null

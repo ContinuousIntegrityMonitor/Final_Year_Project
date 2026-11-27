@@ -1,0 +1,46 @@
+<!-- VM-TGT: 2 vCPU, 2 GiB, 20 GB disk (an overlay on the Ubuntu 24.04 cloud image).
+     lab0 on cim-lab (10.10.10.20); nat0, QEMU user-mode networking (passt), only while the
+     target images are pulled; `scripts/lab/lab.sh vm-tgt isolate` removes it for good. -->
+<domain type="kvm">
+  <name>vm-tgt</name>
+  <description>CIM lab VM-TGT (T-04): vulnerable vulhub targets for benign scanning workloads</description>
+  <memory unit="MiB">2048</memory>
+  <vcpu>2</vcpu>
+  <os>
+    <type arch="x86_64" machine="q35">hvm</type>
+    <boot dev="hd"/>
+  </os>
+  <features><acpi/><apic/></features>
+  <cpu mode="host-passthrough"/>
+  <clock offset="utc"/>
+  <devices>
+    <disk type="volume" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source pool="cim-lab" volume="vm-tgt.qcow2"/>
+      <target dev="vda" bus="virtio"/>
+    </disk>
+    <disk type="volume" device="cdrom">
+      <driver name="qemu" type="raw"/>
+      <source pool="cim-lab" volume="vm-tgt-seed.iso"/>
+      <target dev="sda" bus="sata"/>
+      <readonly/>
+    </disk>
+    <interface type="network">
+      <source network="cim-lab"/>
+      <mac address="52:54:00:10:10:20"/>
+      <model type="virtio"/>
+    </interface>
+    <interface type="user">
+      <backend type="passt"/>
+      <mac address="52:54:00:10:10:98"/>
+      <model type="virtio"/>
+    </interface>
+    <serial type="pty"/>
+    <console type="pty"/>
+    <channel type="unix">
+      <target type="virtio" name="org.qemu.guest_agent.0"/>
+    </channel>
+    <rng model="virtio"><backend model="random">/dev/urandom</backend></rng>
+    <memballoon model="virtio"/>
+  </devices>
+</domain>

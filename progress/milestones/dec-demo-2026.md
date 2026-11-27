@@ -17,7 +17,7 @@
 **C2 — Live benign session against HexStrike through the proxy; every tool call captured and visible.** Not achieved live.
 - Done (stand-ins): `tests/mcp/test_proxy.py::test_scripted_replay_logs_100_calls_in_order` and `::test_real_mcp_client_session_through_proxy`. `scripts/live_t16_stdio.py` (real MCP SDK client → `cim proxy` → SDK server) → 37 behaviour records, `RESULT: PASS`. `scripts/live_t16b_http.py` (HTTP gateway) → 36 behaviour records, `RESULT: PASS`.
 - Visible: `cim dashboard --db S` shows calls, tools and changes, with separate MCP and Skills panels since PR #28.
-- Done on VM-MON (2026-11-27): a live MCP session against HexStrike through `cim proxy` (initialize + `tools/list`, 150 tools). Open: no tool calls against HexStrike yet (VM-TGT, its targets, is the next lab stage).
+- Done on VM-MON (2026-11-27): a live MCP session against HexStrike through `cim proxy` (initialize + `tools/list`, 150 tools). VM-TGT's targets answer from VM-MON. Open: no HexStrike tool calls against them yet.
 - Open, HTTP path only (re-tested with `live_t16b_http.py` probes c and d on `d25ef41`): an SSE stream's first event reaches the client only when the stream ends (M2); two clients reusing request id 7 give 2 calls but 1 record (M3). Details: `docs/FASIH_MCP_TEST_REPORT.md` section 5.
 
 **C3 — Rug-pull live: swapping to a backdoored server version fires a schema-drift alert with a human-readable diff.** Achieved on recorded input; not live.
@@ -30,7 +30,7 @@
 - Done (MCP, stand-ins): the rule-based MCP alert `cim/mcp/alert.py` `score_latest` (PR #16). Both live scripts give one `mcp_behaviour_drift` alert naming `value class private_ip` after 30 warm-up calls (output above).
 - Open: the shared scorer (T-16, `src/cim/common/scorer.py`) is not coded. Its design (`docs/T16_SHARED_SCORER_DESIGN.md`, PR #22) waits on the six decisions in its section 11. The MCP rule above is not the scorer: it has no threshold, and an unusual call joins the baseline, so a repeated attack alerts once (review A1).
 - Skills side (a stretch goal in the plan): `uv run python -m cim.skills attack A3 --work <empty dir>` → tree digest unchanged, sweep records no file change, the run after the trigger has a never-seen destination, `PASS`. But no alert record is written: the store holds 15 artefact and 31 behaviour records, and `python -m cim.skills board --json` shows `alerts: 0`. The alert waits on the scorer.
-- Open: no trigger tool against HexStrike; nothing run on VM-MON.
+- Done on the lab (2026-11-27), skills side: A3 on VM-MON against the lab listener → PASS, `skill_behaviour_drift` naming `private_ip:9000`; the listener logged the payload. Open: no MCP trigger against HexStrike yet.
 
 **C5 — `cim status` shows inventory, events, alerts; chain verification passes.** Partly achieved.
 - Done: `uv run cim verify-chain --db S` → `ok (N records) tip=…`; `--expect-tip` and `--min-count` catch a chain cut short (PR #11, `tests/common/test_store.py::test_cli_catches_a_chain_that_was_cut_short`).
@@ -50,7 +50,7 @@ State on org `main` @ `d25ef41`. "Task file" is what `progress/tasks/T-XX.md` sa
 | T-01 infra / CI | Done | `ci-push` and `merge-gate` workflows; assistant exchange PR #10 |
 | T-02 contract | 1.0, then 1.0.1 and 1.1.0 merged (additions only) | `637b043`; PR #26, `tests/common/test_schema_v11.py`. MCP writers have not adopted the 1.1 fields yet (`docs/CONTRACT_V1_1.md` section 3) |
 | T-03 threat model | Draft v0.10 on `main` | PR #24. v0.11 and v0.12 are in open PRs #29 and #30. Waits on Hamza's review of the MCP rows, then the adviser |
-| T-04 MCP lab | Done (pin, topology, harness); VM-MON built 2026-11-27 | `0d87cf9`; pin `corpora/mcp/hexstrike.pin`; 150-tool list `corpora/mcp/tools_list.json`. VM-MON: `scripts/lab/vm_mon.sh`, `docs/setup/vm-mon.md`; VM-TGT and the listener not built yet |
+| T-04 MCP lab | Done (pin, topology, harness); lab built 2026-11-27 | `0d87cf9`; pin `corpora/mcp/hexstrike.pin`; 150-tool list `corpora/mcp/tools_list.json`. VM-MON, VM-TGT, listener: `scripts/lab/lab.sh`, `docs/setup/lab.md`; `scripts/lab/check_lab.sh` PASS |
 | T-05 skills runner + corpus | Done | PRs #2, #4; `corpus verify` |
 | T-06 baseline store | Merged; fixes S1, S3–S5 merged | PRs #1, #11. ADR-006 (S2) accepted in PR #28; its hash-formula code is not written. Task file: IP |
 | T-07 MCP inventory | On `main` since 2026-11-09 | merge `d1af665` (no PR); `cim inventory` above. Task file: IP |
@@ -69,7 +69,7 @@ State on org `main` @ `d25ef41`. "Task file" is what `progress/tasks/T-XX.md` sa
 
 ## Still open for December
 
-- VM-MON is built on Fasih's machine (2026-11-27): isolated on 10.10.10.0/24, CIM + skills + HexStrike at the pin, `base` snapshot. Still to do there: VM-TGT and the listener, HexStrike tool calls (C2), the rug-pull swap (C3) and the trigger (C4) live.
+- The lab is built on Fasih's machine (2026-11-27): VM-MON (CIM + skills + HexStrike at the pin), VM-TGT (3 vulhub targets, pinned by digest) and the listener, all isolated on 10.10.10.0/24, each with a `base` snapshot; `scripts/lab/check_lab.sh` PASS, including A3 against the lab listener. Still to do: HexStrike tool calls against VM-TGT (C2), the rug-pull swap (C3) and the MCP trigger (C4) live.
 - T-13 is in progress: a single two-sided `cim inventory` (C1) comes with the CLI restructure PR, `cim status` (C5) with the status PR; `cim watch` is next.
 - No live HexStrike call has been made through the proxy or gateway.
 - No backup video and no demo script (C6, T-18).

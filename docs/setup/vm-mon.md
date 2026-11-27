@@ -6,7 +6,7 @@ Fasih's laptop, on a host-only lab network with no route to the internet, and it
 seed skill corpus and HexStrike AI at the pinned commit. Once it is up, everything on it follows
 [`cim-pipeline.md`](cim-pipeline.md).
 
-VM-TGT (the targets, 10.10.10.20) and the listener (10.10.10.30) are a separate stage.
+VM-TGT (the targets, 10.10.10.20) and the listener (10.10.10.30) are in [`lab.md`](lab.md), with the lab-wide check. `scripts/lab/vm_mon.sh` is `scripts/lab/lab.sh vm-mon`, plus the `hexstrike` check.
 
 ## What gets built
 

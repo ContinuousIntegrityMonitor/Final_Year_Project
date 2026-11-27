@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# T-04 acceptance on VM-MON, run as cim (`scripts/lab/vm_mon.sh hexstrike`): HexStrike at the pin,
+# T-04 acceptance on VM-MON, run as cim (`scripts/lab/lab.sh vm-mon run cim check-hexstrike.sh`): HexStrike at the pin,
 # behind `cim proxy`, lists 150+ tools, and the store records the server with them. Offline.
 set -euo pipefail
 UV="$HOME/.local/bin/uv"

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# VM-MON operator setup, run as cim by `scripts/lab/vm_mon.sh provision`, following
+# VM-MON operator setup, run as cim by `scripts/lab/lab.sh vm-mon provision`, following
 # docs/setup/cim-pipeline.md: install, cim.toml, first inventory, cim watch under systemd.
-# Args: REPO_URL REPO_REF.
+# Environment: REPO_URL REPO_REF.
 set -euo pipefail
-REPO_URL="$1"
-REPO_REF="$2"
+REPO_URL="${REPO_URL:-$1}"
+REPO_REF="${REPO_REF:-$2}"
 UV_VERSION=0.13.0
 UV="$HOME/.local/bin/uv"
 

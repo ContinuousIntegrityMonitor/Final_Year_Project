@@ -1,0 +1,18 @@
+#cloud-config
+# VM-TGT first boot (Ubuntu 24.04 cloud image). @LAB_KEY@ is replaced by scripts/lab/lab.sh.
+# Only labadmin (sudo, key only): nothing on VM-TGT is monitored; it is what HexStrike scans.
+hostname: vm-tgt
+fqdn: vm-tgt.lab
+manage_etc_hosts: true
+ssh_pwauth: false
+disable_root: true
+users:
+  - name: labadmin
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys: ["@LAB_KEY@"]
+package_update: true
+packages: [docker.io, docker-compose-v2, curl, qemu-guest-agent]
+final_message: "vm-tgt cloud-init done after $UPTIME s"
