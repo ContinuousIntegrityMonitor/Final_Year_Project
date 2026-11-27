@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sqlite3
 import tomllib
@@ -257,6 +258,9 @@ def test_verify_chain_reads_the_store_from_the_config(tmp_path: Path) -> None:
 
 def test_help_shows_config_table_names() -> None:
     """Typer's rich help reads [store] as markup unless escaped (verify checklist, 2026-11-27)."""
-    shown = runner.invoke(app, ["inventory", "--help"], terminal_width=200).output
+    env = {"COLUMNS": "200", "TERM": "dumb", "NO_COLOR": "1"}
+    raw = runner.invoke(app, ["inventory", "--help"], env=env, terminal_width=200).output
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", raw)  # CI terminals add colour codes
+    flat = re.sub(r"[\s│]+", "", plain)  # and wrap lines inside the box
     for name in ("[store].path", "[skills].roots", "[mcp.servers.<id>].tools_list"):
-        assert name in shown, name
+        assert name in flat, name
