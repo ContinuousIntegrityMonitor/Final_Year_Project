@@ -1,0 +1,48 @@
+<!-- VM-MON: 4 vCPU, 6 GiB, 40 GB disk (an overlay on the Ubuntu 24.04 cloud image).
+     Two cards while provisioning: lab0 on cim-lab (10.10.10.10) and nat0, QEMU user-mode
+     networking (passt) for the installs; `scripts/lab/vm_mon.sh isolate` removes nat0 for good.
+     passt, not libvirt's NAT network: the QEMU process makes the connections itself, so the
+     host's firewall (Docker sets FORWARD to drop) does not matter and no root is needed. -->
+<domain type="kvm">
+  <name>vm-mon</name>
+  <description>CIM lab VM-MON (T-04): CIM, the skill corpus, HexStrike at the pinned commit</description>
+  <memory unit="MiB">6144</memory>
+  <vcpu>4</vcpu>
+  <os>
+    <type arch="x86_64" machine="q35">hvm</type>
+    <boot dev="hd"/>
+  </os>
+  <features><acpi/><apic/></features>
+  <cpu mode="host-passthrough"/>
+  <clock offset="utc"/>
+  <devices>
+    <disk type="volume" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source pool="cim-lab" volume="vm-mon.qcow2"/>
+      <target dev="vda" bus="virtio"/>
+    </disk>
+    <disk type="volume" device="cdrom">
+      <driver name="qemu" type="raw"/>
+      <source pool="cim-lab" volume="vm-mon-seed.iso"/>
+      <target dev="sda" bus="sata"/>
+      <readonly/>
+    </disk>
+    <interface type="network">
+      <source network="cim-lab"/>
+      <mac address="52:54:00:10:10:10"/>
+      <model type="virtio"/>
+    </interface>
+    <interface type="user">
+      <backend type="passt"/>
+      <mac address="52:54:00:10:10:99"/>
+      <model type="virtio"/>
+    </interface>
+    <serial type="pty"/>
+    <console type="pty"/>
+    <channel type="unix">
+      <target type="virtio" name="org.qemu.guest_agent.0"/>
+    </channel>
+    <rng model="virtio"><backend model="random">/dev/urandom</backend></rng>
+    <memballoon model="virtio"/>
+  </devices>
+</domain>

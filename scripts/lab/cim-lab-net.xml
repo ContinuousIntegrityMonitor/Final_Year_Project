@@ -1,0 +1,8 @@
+<!-- T-04 lab network (corpora/mcp/topology.json): host-only 10.10.10.0/24, no <forward>, so no
+     route from the lab to the internet or any other network. The host is 10.10.10.1 on the
+     bridge (it reaches the VMs over SSH); VMs have static addresses, so there is no DHCP. -->
+<network>
+  <name>cim-lab</name>
+  <bridge name="virbr-cimlab" stp="on" delay="0"/>
+  <ip address="10.10.10.1" netmask="255.255.255.0"/>
+</network>

@@ -1,6 +1,6 @@
 # December 2026 demo — C1–C6
 
-- **Status:** not achieved yet. None of C1–C6 has been shown live on VM-MON. C1 and C3 pass with recorded or stand-in input; C2 and C4 pass on stand-in servers only; C5 is partial; C6 is not started.
+- **Status:** not achieved yet. VM-MON exists since 2026-11-27 (C1 inventory and a HexStrike `tools/list` session done there); C2–C4 are not yet live on it. **Lines not about VM-MON were last refreshed on 2026-11-24 and are partly stale (T-16 scorer, T-13, A1/A2 are on `main` now); a full refresh is due.** C1 and C3 pass with recorded or stand-in input; C2 and C4 pass on stand-in servers only; C5 is partial; C6 is not started.
 - **Checked:** 2026-11-24, on org `main` @ `d25ef41` (after PR #28), Fedora 44. Drafted by F-assistant for both to verify (joint file).
 - **Suite:** `uv run pytest -m "not lab"` → 355 passed, 0 skipped. No test carries the `lab` marker yet, so nothing in CI touches HexStrike or a VM.
 - **Target date:** the week of 14 December 2026, with a dry run the week before (plan section 2.1; Hamza confirmed it on 2026-11-25).
@@ -11,13 +11,13 @@
 **C1 — `cim inventory` shows every bound MCP tool (with schema digests) and every installed skill (with content hashes), all in the append-only store.** Partly achieved.
 - Done: `uv run cim inventory --db S --tools-json corpora/mcp/tools_list.json` → `tools=150 … chain=ok pin=written`. The list is the pinned HexStrike `tools/list` (commit `d689933`), recorded on the dev PC, not on VM-MON.
 - Done: `uv run python -m cim.skills inventory --db S --root corpora/skills` → `skills=15 new_baselines=15 chain=ok` into the same store; `cim verify-chain --db S` → `ok (167 records)`. Corpus manifest: `python -m cim.skills corpus verify` → `manifest verifies` (11 benign, 4 suspicious; T-05 PRs #2, #4, T-17 PR #23).
-- Open: it is two commands, not one `cim inventory`. Making `inventory` cover both sides is in the T-13 design (`docs/T13_PIPELINE_DESIGN.md`, PR #25), not coded.
-- Open: no inventory has been taken on VM-MON.
+- Done (2026-11-27): one `cim inventory` covers both sides (T-13, PR #55).
+- Done on VM-MON (2026-11-27, `docs/setup/vm-mon.md`): 15 skills baselined; HexStrike at the pin listed 150 tools through `cim proxy`; `cim status` → 1 server, 150 tools, 15 skills, chain ok.
 
 **C2 — Live benign session against HexStrike through the proxy; every tool call captured and visible.** Not achieved live.
 - Done (stand-ins): `tests/mcp/test_proxy.py::test_scripted_replay_logs_100_calls_in_order` and `::test_real_mcp_client_session_through_proxy`. `scripts/live_t16_stdio.py` (real MCP SDK client → `cim proxy` → SDK server) → 37 behaviour records, `RESULT: PASS`. `scripts/live_t16b_http.py` (HTTP gateway) → 36 behaviour records, `RESULT: PASS`.
 - Visible: `cim dashboard --db S` shows calls, tools and changes, with separate MCP and Skills panels since PR #28.
-- Open: no session against HexStrike. VM-MON is not built.
+- Done on VM-MON (2026-11-27): a live MCP session against HexStrike through `cim proxy` (initialize + `tools/list`, 150 tools). Open: no tool calls against HexStrike yet (VM-TGT, its targets, is the next lab stage).
 - Open, HTTP path only (re-tested with `live_t16b_http.py` probes c and d on `d25ef41`): an SSE stream's first event reaches the client only when the stream ends (M2); two clients reusing request id 7 give 2 calls but 1 record (M3). Details: `docs/FASIH_MCP_TEST_REPORT.md` section 5.
 
 **C3 — Rug-pull live: swapping to a backdoored server version fires a schema-drift alert with a human-readable diff.** Achieved on recorded input; not live.
@@ -36,7 +36,7 @@
 - Done: `uv run cim verify-chain --db S` → `ok (N records) tip=…`; `--expect-tip` and `--min-count` catch a chain cut short (PR #11, `tests/common/test_store.py::test_cli_catches_a_chain_that_was_cut_short`).
 - Done: `cim dashboard --db S` shows tools, calls, changes and alerts, with MCP and Skills panels (PR #21 read model, wired in PR #28).
 - In review (PR `T-13: cim status and cim events`): `cim status` shows store and chain, inventory (both sides), findings as changed artefacts, behaviour alerts, monitor events, capture faults and learning state; `--json`; exit 0 clean / 1 otherwise. `cim events` lists every record by side. Checked on a live `cim proxy` store (1 MCP behaviour alert) and an A3 store (1 skill alert), both exit 1.
-- Open: the `collectors` line, and exit 2 for a monitor that is not running, come with `cim watch` (T-13 stage 4). Not run on VM-MON.
+- Done on VM-MON (2026-11-27): `cim status --require-watch` exit 0 with `cim watch` running under systemd and supervising the skills watcher (T-13 stage 4, PR #58, still in review).
 
 **C6 — Backup video recorded; demo script committed to the repo.** Not achieved.
 - No demo script is in the repo (searched `docs/` and the root). No video recorded. Both belong to T-18 (rehearsals), which has no progress file yet.
@@ -50,7 +50,7 @@ State on org `main` @ `d25ef41`. "Task file" is what `progress/tasks/T-XX.md` sa
 | T-01 infra / CI | Done | `ci-push` and `merge-gate` workflows; assistant exchange PR #10 |
 | T-02 contract | 1.0, then 1.0.1 and 1.1.0 merged (additions only) | `637b043`; PR #26, `tests/common/test_schema_v11.py`. MCP writers have not adopted the 1.1 fields yet (`docs/CONTRACT_V1_1.md` section 3) |
 | T-03 threat model | Draft v0.10 on `main` | PR #24. v0.11 and v0.12 are in open PRs #29 and #30. Waits on Hamza's review of the MCP rows, then the adviser |
-| T-04 MCP lab | Done (pin, topology, harness) | `0d87cf9`; pin `corpora/mcp/hexstrike.pin`; 150-tool list `corpora/mcp/tools_list.json`. VM-MON itself is not built |
+| T-04 MCP lab | Done (pin, topology, harness); VM-MON built 2026-11-27 | `0d87cf9`; pin `corpora/mcp/hexstrike.pin`; 150-tool list `corpora/mcp/tools_list.json`. VM-MON: `scripts/lab/vm_mon.sh`, `docs/setup/vm-mon.md`; VM-TGT and the listener not built yet |
 | T-05 skills runner + corpus | Done | PRs #2, #4; `corpus verify` |
 | T-06 baseline store | Merged; fixes S1, S3–S5 merged | PRs #1, #11. ADR-006 (S2) accepted in PR #28; its hash-formula code is not written. Task file: IP |
 | T-07 MCP inventory | On `main` since 2026-11-09 | merge `d1af665` (no PR); `cim inventory` above. Task file: IP |
@@ -69,7 +69,7 @@ State on org `main` @ `d25ef41`. "Task file" is what `progress/tasks/T-XX.md` sa
 
 ## Still open for December
 
-- VM-MON is not built anywhere yet, so nothing has run on it: no HexStrike session (C2), no rug-pull swap (C3), no trigger (C4). It will be built on Fasih's machine, and the demo runs there (Fasih, 2026-11-25).
+- VM-MON is built on Fasih's machine (2026-11-27): isolated on 10.10.10.0/24, CIM + skills + HexStrike at the pin, `base` snapshot. Still to do there: VM-TGT and the listener, HexStrike tool calls (C2), the rug-pull swap (C3) and the trigger (C4) live.
 - T-13 is in progress: a single two-sided `cim inventory` (C1) comes with the CLI restructure PR, `cim status` (C5) with the status PR; `cim watch` is next.
 - No live HexStrike call has been made through the proxy or gateway.
 - No backup video and no demo script (C6, T-18).
