@@ -20,10 +20,12 @@ Rules:
 from __future__ import annotations
 
 from collections.abc import Iterable
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
 
+from cim.common.runtime import session
 from cim.common.store import BaselineStore
 from cim.skills.collector import (
     Observation,
@@ -161,7 +163,22 @@ def _dropped(err: BinaryIO, name: str, stream: Captured) -> None:
 
 
 def run(request: Request, out: BinaryIO, err: BinaryIO) -> int:
-    """Run the request's helper traced, record it, hand its output on. Returns the exit status."""
+    """Run the request's helper traced, record it, hand its output on. Returns the exit status.
+
+    While it runs, `<db>.run/sessions/exec-<pid>.json` says so, for `cim status` (T-13 design,
+    section 6). The session file is runtime state: if it cannot be written, the run goes on.
+    """
+    with ExitStack() as stack:
+        try:
+            stack.enter_context(
+                session(request.db, "exec", skill_id=request.skill_id, script=request.script)
+            )
+        except OSError as exc:
+            _note(err, f"no session file ({exc}); running anyway")
+        return _run(request, out, err)
+
+
+def _run(request: Request, out: BinaryIO, err: BinaryIO) -> int:
     try:
         if not request.roots:
             raise ExecRefused("give --root or set CIM_SKILL_ROOTS", EXIT_USAGE)

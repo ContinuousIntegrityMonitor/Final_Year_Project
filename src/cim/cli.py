@@ -5,7 +5,7 @@ sides share and mounts each side's own commands from that side's module, so neit
 other's commands to add its own.
 
 - Shared, here: `version`, `init`, `inventory`, `sweep`, `envelope`, `status`, `events`,
-  `verify-chain`, `dashboard`. `inventory`, `sweep` and `envelope` cover both sides: skills
+  `watch`, `verify-chain`, `dashboard`. `inventory`, `sweep` and `envelope` cover both sides: skills
   for the configured skill roots, MCP for each configured server, or for the one named on the
   command line.
 - MCP, from `cim.mcp.cli`: `proxy`, `http-gateway`.
@@ -18,6 +18,10 @@ command that worked before keeps working with the same flags and the same output
 from __future__ import annotations
 
 import json
+import os
+import signal
+import sys
+import threading
 import time
 from collections.abc import Sequence
 from datetime import UTC, datetime
@@ -29,7 +33,9 @@ import typer
 
 from cim import __version__
 from cim.common import status as monitor_status
+from cim.common import watchdog
 from cim.common.config import CimConfig, ConfigError, load_config, starter_toml
+from cim.common.runtime import read_watch_state
 from cim.common.store import BaselineStore
 from cim.dashboard.board import load_board
 from cim.dashboard.page import render_page
@@ -153,8 +159,17 @@ def init(
         list[Path] | None, typer.Option("--skill-root", help="Skill root, repeatable")
     ] = None,
     force: Annotated[bool, typer.Option("--force", help="Replace an existing file")] = False,
+    systemd: Annotated[
+        bool,
+        typer.Option(
+            "--systemd", help="Also print a systemd user unit that runs cim watch on this file"
+        ),
+    ] = False,
 ) -> None:
     """Write a starter cim.toml: store path, origin and skill roots (T-13)."""
+    if systemd and path.exists() and not force:
+        typer.echo(systemd_unit(path))  # the file is there already: print the unit only
+        return
     if path.exists() and not force:
         typer.echo(f"init: {path} exists; pass --force to replace it", err=True)
         raise typer.Exit(code=1)
@@ -162,6 +177,26 @@ def init(
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(starter_toml(store=db, origin=origin, roots=roots), encoding="utf-8")
     typer.echo(f"init: wrote {path} (store {db}, origin {origin}, {len(roots)} skill root(s))")
+    if systemd:
+        typer.echo(systemd_unit(path))
+
+
+def systemd_unit(config: Path) -> str:
+    """A systemd user unit for `cim watch` (systemd restarts it; it restarts the collectors)."""
+    where = config.expanduser().resolve()
+    return f"""# ~/.config/systemd/user/cim-watch.service
+# systemctl --user daemon-reload && systemctl --user enable --now cim-watch
+[Unit]
+Description=CIM monitor (cim watch)
+
+[Service]
+ExecStart={sys.executable} -m cim watch --config {where}
+WorkingDirectory={where.parent}
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target"""
 
 
 @app.command("status")
@@ -169,10 +204,15 @@ def status(
     config_path: ConfigOption = None,
     db: DbOption = None,
     as_json: Annotated[bool, typer.Option("--json", help="Print JSON instead of lines")] = False,
+    require_watch: Annotated[
+        bool, typer.Option("--require-watch", help="Exit 2 unless cim watch is running")
+    ] = False,
 ) -> None:
-    """C5: store and chain, inventory, findings, alerts, learning state, for both sides.
+    """C5: store and chain, collectors, inventory, findings, alerts, learning state.
 
-    Exit 0 when clean; 1 when the chain is broken or anything was found; 2 with no store.
+    Exit 0 when clean; 1 when the chain is broken or anything was found; 2 when the monitor is
+    not running (cim watch ran for this store and has stopped; or never ran, with
+    --require-watch), or when there is no store.
     """
     path = _existing_store(db or _settings(config_path).store_path, "status")
     found = monitor_status.load_status(path)
@@ -181,8 +221,51 @@ def status(
     else:
         for line in monitor_status.render(found):
             typer.echo(line)
-    if not found.clean:
+    code = found.exit_code(require_watch=require_watch)
+    if code:
+        raise typer.Exit(code=code)
+
+
+@app.command("watch")
+def watch(config_path: ConfigOption = None, db: DbOption = None) -> None:
+    """Supervise the collectors until stopped: the skills watcher and, if configured, the gateway.
+
+    Restarts a child that exits or whose heartbeat stops, with backoff, and records each
+    restart in the chain (`collector_restarted`, `collector_failed`). Ctrl-C or SIGTERM stops
+    the children too. On VM-MON run it under systemd (`cim init --systemd`).
+    """
+    config = _settings(config_path)
+    store = db or config.store_path
+    children = watchdog.children_for(config, store=store)
+    if not children:
+        typer.echo(
+            "watch: nothing to supervise: set [skills].roots (or $CIM_SKILL_ROOTS) "
+            "or [mcp.gateway] in cim.toml",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    current = read_watch_state(store)
+    if current is not None and current.running and current.pid != os.getpid():
+        typer.echo(f"watch: already running for {store} (pid {current.pid})", err=True)
         raise typer.Exit(code=1)
+    store.parent.mkdir(parents=True, exist_ok=True)
+    supervisor = watchdog.Supervisor(
+        store,
+        children,
+        origin=config.store.origin,
+        heartbeat_s=config.watchdog.heartbeat_s,
+        backoff_max_s=config.watchdog.backoff_max_s,
+        max_restarts=config.watchdog.max_restarts,
+    )
+    stop = threading.Event()
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, lambda *_args: stop.set())
+    names = ", ".join(child.name for child in children)
+    typer.echo(f"watch: supervising {names}; store {store}", err=True)
+    try:
+        supervisor.run(stop)
+    except KeyboardInterrupt:
+        stop.set()  # run() stops the children on its way out
 
 
 class EventSide(StrEnum):

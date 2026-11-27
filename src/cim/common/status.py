@@ -9,9 +9,12 @@ skills and `cim.mcp.summary` for MCP. This module only adds them up and words th
 - **Behaviour alerts** are the T-16 drift codes. **Monitor events** are the watchdog's
   (`collector_restarted`, `collector_failed`). **Capture faults** are records saying that
   something could not be recorded or scored (`proxy_*`, `skill_score_failed`).
+- **Collectors** come from the runtime files beside the store (`cim.common.runtime`): what
+  `cim watch` last wrote about itself and its children, and the wrappers' session files.
 - **Exit status** (decision 6): 0 clean; 1 when the chain is broken or there is any finding,
-  behaviour alert, monitor event or capture fault. Exit 2 ("monitor not running") arrives with
-  the watchdog (stage 4); until then the `collectors` line says that nothing supervises them.
+  behaviour alert, monitor event or capture fault; 2 when the monitor is not running, which
+  wins over 1. "Not running" means `cim watch` once ran for this store and runs no longer, or,
+  when the caller requires a monitor, that it never ran.
 """
 
 from __future__ import annotations
@@ -22,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from cim.common.runtime import Session, WatchState, read_sessions, read_watch_state
 from cim.common.store import BaselineStore, StoredArtefact, StoredRecord
 from cim.mcp.summary import McpSummary, summarise
 from cim.mcp.summary import event_label as mcp_label
@@ -65,6 +69,8 @@ class Status:
     skill_alerts: int
     monitor_events: int
     capture_faults: int
+    watch: WatchState | None = None  # None: `cim watch` never ran for this store
+    sessions: tuple[Session, ...] = ()
 
     @property
     def behaviour_alerts(self) -> int:
@@ -73,6 +79,16 @@ class Status:
     @property
     def skills_learning(self) -> int:
         return sum(1 for row in self.skills.skills if row.runs < WARMUP)
+
+    @property
+    def monitor_running(self) -> bool:
+        return self.watch is not None and self.watch.running
+
+    def exit_code(self, *, require_watch: bool = False) -> int:
+        """0 clean, 1 something found, 2 monitor not running (wins over 1)."""
+        if (self.watch is not None or require_watch) and not self.monitor_running:
+            return 2
+        return 0 if self.clean else 1
 
     @property
     def clean(self) -> bool:
@@ -104,6 +120,8 @@ def load_status(db: Path) -> Status:
         skill_alerts=sum(code == SKILL_BEHAVIOUR_CODE for code in codes),
         monitor_events=sum(code in MONITOR_CODES for code in codes),
         capture_faults=sum(code in CAPTURE_CODES for code in codes),
+        watch=read_watch_state(db),
+        sessions=tuple(read_sessions(db)),
     )
 
 
@@ -116,7 +134,7 @@ def render(status: Status) -> list[str]:
     lines = [
         f"store      {status.store}   {chain}   {status.records} records   tip {tip}   "
         f"hash v{status.hash_version}",
-        "collectors not supervised yet (`cim watch` arrives with T-13 stage 4)",
+        *_collector_lines(status),
         f"inventory  mcp: {servers} server{'s' * (servers != 1)}, {mcp.tool_count} tools   "
         f"skills: {len(status.skills.skills)}",
     ]
@@ -154,7 +172,7 @@ def as_dict(status: Status) -> dict[str, Any]:
             "broken_at": status.broken_at,
             "reason": status.chain_reason or None,
         },
-        "collectors": {"supervised": False},
+        "collectors": _collectors(status),
         "inventory": {
             "mcp": {"servers": len(status.mcp.tools), "tools": status.mcp.tool_count},
             "skills": len(status.skills.skills),
@@ -296,6 +314,58 @@ def _mcp_findings(summary: McpSummary) -> list[Finding]:
         details = tuple(_without_prefix(c.detail, f"{tool}: ") for c in changes)
         found.append(Finding("mcp", name, details, changes[-1].ts))
     return found
+
+
+def _collector_lines(status: Status) -> list[str]:
+    watch = status.watch
+    if watch is None:
+        head = "cim watch has never run for this store"
+    elif not watch.running:
+        head = f"cim watch NOT RUNNING (last update {watch.updated or 'unknown'})"
+    else:
+        parts = [f"cim watch running since {watch.started}"]
+        for child in watch.children:
+            restarts = int(child.get("restarts") or 0)
+            parts.append(
+                f"{child.get('name')} {child.get('state')} ({_count(restarts, 'restart')})"
+            )
+        head = " · ".join(parts)
+    lines = [f"collectors {head}"]
+    live = [s for s in status.sessions if s.running]
+    ended = [s for s in status.sessions if not s.running]
+    if live:
+        listed = ", ".join(f"{s.name} {s.subject} (pid {s.pid}, since {s.started})" for s in live)
+        lines.append(f"           sessions: {listed}")
+    if ended:
+        listed = ", ".join(f"{s.name} {s.subject} (pid {s.pid})" for s in ended)
+        lines.append(f"           ended without closing: {listed}")
+    return lines
+
+
+def _collectors(status: Status) -> dict[str, Any]:
+    watch = status.watch
+    return {
+        "supervised": status.monitor_running,
+        "watch": None
+        if watch is None
+        else {
+            "pid": watch.pid,
+            "running": watch.running,
+            "started": watch.started,
+            "updated": watch.updated,
+            "children": list(watch.children),
+        },
+        "sessions": [
+            {"name": s.name, "subject": s.subject, "pid": s.pid, "started": s.started}
+            for s in status.sessions
+            if s.running
+        ],
+        "ended_without_closing": [
+            {"name": s.name, "subject": s.subject, "pid": s.pid}
+            for s in status.sessions
+            if not s.running
+        ],
+    }
 
 
 def _count(number: int, noun: str) -> str:
