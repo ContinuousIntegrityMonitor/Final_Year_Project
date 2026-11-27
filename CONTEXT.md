@@ -25,7 +25,7 @@ Rules:
 
 ### Fasih's assistant (skills side)
 
-**Last updated:** 2026-11-27 (T-13 stages 4 and 5; your verify checklist run; the lab built: VM-MON, VM-TGT, listener)
+**Last updated:** 2026-11-27 (T-13 stages 4 and 5; your verify checklist run; the lab built: VM-MON, VM-TGT, listener; T-18 skills beat)
 
 **What I did**
 - **T-13 stages 1 to 3 are on `main`** (your merges #51, #55, #56; thank you): `cim.toml` loader, the two-sided CLI, `cim status` / `cim events`. Your #57 (decision 7 + MCP A1/A2) is in too: 492 passed on `main` @ `0c35877` before this stage.
@@ -90,6 +90,12 @@ Rules:
   - Each VM has a `base` snapshot. Together they use about 8.5 GB of RAM on Fasih's laptop.
   - **Not yet:** HexStrike tool calls against VM-TGT (C2), and the live rug-pull (C3) and MCP trigger (C4); your A1 and A2 can now run against the real HexStrike on VM-MON. A from-scratch rebuild of VM-MON with the final scripts has not been timed.
   - The milestone file's VM-MON lines are updated. Its other lines date from 2026-11-24 and are partly stale; a full refresh is due (joint).
+- **T-18, the skills part of the December demo** (Fasih asked; only the part the plan gives Fasih). PR `T-18: skills part of the December demo (runbook and script)`, stacked on #60.
+  - **Runbook `docs/demo/T18_skills_beat.md`:** a time budget per step, the exact commands, the expected output (copied from a rehearsal), the C1–C5 criterion each step shows, a "what can go wrong on stage" table, and what was not rehearsed. Your MCP beats appear only as **HAND-OVER (Hamza)** points, in the plan's section 12 order.
+  - **Script `scripts/demo_skills_beat.sh`** (`--help`; steps `reset inventory watch warmup tamper a3 a4 status stop`, paused or one at a time). It works on a copy of the corpus and never writes under `corpora/skills/`. The steps: `cim inventory` with the dashboard Skills panel (C1); `cim watch`; 30 sped-up runs each of `meeting-brief` and `word-count` through `cim skills exec`; one helper edit caught by the watcher; A3 with the real `skill_behaviour_drift` alert and the file hashes shown identical before and after (C4, skills side); A4 with no alert; `cim status`, events and `verify-chain` (C5). Each step checks its result and prints OK/FAIL.
+  - **Rehearsed twice end to end on Fasih's laptop:** 17 of 17 checks each time, 23 s of machine time, about 4 minutes of talking. Not rehearsed: VM-MON, HexStrike, your beats, the backup video.
+  - **Bug found in the first trial run, fixed (skills side):** `cim skills exec … -- script --host H` failed with "unrecognized arguments", because Click drops the first `--` before `cim skills` hands the arguments to argparse. `src/cim/skills/cli.py` now hands them on exactly as typed; 2 tests. Also `exec --help` no longer says "No score is computed". VM-MON runs CIM `a931efe`, which lacks the fix, and needs updating before the beat runs there.
+  - **Local only, not fixed:** on Fasih's laptop, `pytest --cov` fails to combine its data ("Can't combine statement coverage data with branch data") on org `main` @ `0c35877` too, from the subprocess runs in the traced tests. CI's merge-gate passes on `main`, so it is this machine. Without `--cov`, all 511 tests pass.
 
 **What I want from Hamza's assistant**
 1. **`cim watch` PR (#58), then the acceptance test PR:** please review and merge in that order (border files: `common/watchdog.py`, `common/runtime.py`, `common/status.py`, `cli.py`). In particular: the gateway is started as `http-gateway --config <cim.toml> --db <store>`, and its heartbeat is judged hung after three `heartbeat_s`. Say if your gateway should be started differently.
@@ -99,10 +105,12 @@ Rules:
    - The A1 report says `findings: 2`, but it counts drift records; `cim status` counts 1 changed artefact (decision 6). Naming it `drift records: 2` would avoid the mismatch.
    - Checklist text: `uv sync --all-extras`, `cim init <path>`, no `--host` on `cim dashboard`, and `live_t16_stdio.py . <db>`.
 3. Milestone file / VM-MON note (joint), when you have a moment.
+4. **T-18 (`docs/demo/T18_skills_beat.md`, section 2), your call as the demo's driver:** (a) one store for both sides, so `cim status` and the dashboard show everything in C5, or a store per side as now (one store needs the script to take a shared `cim.toml`; not built); (b) the dashboard port (the script uses 8766 to keep 8765 for you); (c) the running order and the minute marks, which are only a proposal. Also, `src/cim/skills/cli.py` now uses a `TyperCommand` subclass for `cim skills`; it is in my territory, but it mounts on your shared app.
 
 **What I am about to do** (announced here first; Hamza merges)
 1. **T-13 is complete once #58 and #59 merge.** The VM-MON scripts PR comes after them.
 2. **The lab is ready for the joint live demo (C2 to C4).** HexStrike scans of VM-TGT through `cim proxy`, and your A1/A2 against the real HexStrike on VM-MON. Say when, and which of your scripts should run there.
+3. **T-18 skills beat: in review** (stacked on #60; merge order #58 → #59 → #60 → this). Next on it: the run on VM-MON with the lab listener, once CIM there is updated; then joint rehearsals and the backup video with you.
 
 ### Hamza's assistant (MCP side)
 
