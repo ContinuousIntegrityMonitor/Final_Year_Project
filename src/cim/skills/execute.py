@@ -57,7 +57,9 @@ Runs one helper of an installed skill the way `observe` does: in its own cgroup 
 under strace, with a clean environment (PATH=/usr/bin:/bin and a throwaway HOME), the
 skill directory as its working directory and stdin from /dev/null. What it did is
 recorded in the store under the skill; a skill the store has not seen is baselined first.
-No score is computed.
+The run is scored as it is recorded (T-16): a run that leaves the skill's learned pattern
+is stored with a skill_behaviour_drift alert, named on stderr. The alert does not change
+the exit status.
 
 Put the script and its arguments after `--`. The script is a path relative to the skill
 directory. Arguments are passed on unchanged, and relative ones resolve against the
