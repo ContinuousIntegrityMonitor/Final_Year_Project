@@ -217,11 +217,14 @@ step_reset() {
 
 step_inventory() {
   [[ -f "$WORK/$MARKER" ]] || die "no demo workspace at $WORK: run the reset step first"
+  cd "$WORK"  # the store path below is relative: this step may run on its own
   local out board
   out="$(show cim inventory)"
   echo "$out"
   check "15 skills baselined, chain ok" grep -qE "skills=15 new_baselines=[0-9]+ chain=ok" <<<"$out"
-  show cim skills board --db store.sqlite | sed -n '1,6p'
+  out="$(show cim skills board --db store.sqlite)"
+  sed -n '1,6p' <<<"$out"
+  check "the board lists the 15 skills" grep -q "^skills: 15 installed" <<<"$out"
   note "... (one line per skill)"
   stop_pidfile "$RUN/dashboard.pid"
   start_bg dashboard "${PY[@]}" -m cim dashboard --db "$WORK/store.sqlite" --port "$DASH_PORT"
@@ -248,6 +251,7 @@ sys.exit(0 if summary["skills"] == 15 else 1)
 
 step_watch() {
   need_workspace
+  cd "$WORK"
   stop_pidfile "$RUN/watch.pid"
   start_bg watch "${PY[@]}" -m cim watch --config "$WORK/cim.toml"
   printf '\n%s$ cim watch &%s   %s(runs in the background; log: run/watch.log)%s\n' \
