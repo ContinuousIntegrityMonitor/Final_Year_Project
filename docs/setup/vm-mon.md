@@ -125,7 +125,7 @@ scripts/lab/vm_mon.sh snapshot cim-<commit>
 - The card is attached to the running VM only (`--live`). `isolate` removes it from wherever it is: the running VM, the saved definition, or both.
 - Use the branch or commit the demo needs as `CIM_REPO_REF`. Branches are fetched from the org repository.
 
-Done on 2026-11-27: CIM `a931efe` → `t18-skills-demo-beat` @ `332c6e9`, for the T-18 skills beat, which needs the `cim skills exec` fix in it. After that: isolated (only `cim-lab`, no default route, no internet), `cim status --require-watch` exit 0 with the operator store unchanged (169 records), and snapshot `cim-332c6e9`.
+Done on 2026-11-27: CIM `a931efe` → `t18-skills-demo-beat` @ `332c6e9`, for the T-18 skills beat, which needs the `cim skills exec` fix in it. After that: isolated (only `cim-lab`, no default route, no internet), `cim status --require-watch` exit 0 with the operator store unchanged (169 records), and snapshot `cim-332c6e9`. Again the same day: `332c6e9` → `21b5a2e` (the `inventory` step fix, for the backup video), snapshot `cim-21b5a2e`, the same checks.
 
 ## Remove it
 

@@ -327,6 +327,14 @@ def chunks(work: Path) -> list[tuple[float, str]]:
     return out
 
 
+def checks(work: Path) -> str:
+    """How many OK and FAIL lines the demo script printed in the recording."""
+    text = re.sub(r"\x1b\[[0-9;]*m", "", (work / "typescript").read_text(errors="replace"))
+    ok = len(re.findall(r"^\s+OK ", text, re.MULTILINE))
+    failed = len(re.findall(r"^\s+FAIL ", text, re.MULTILINE))
+    return f"{ok} OK, {failed} FAIL"
+
+
 def render(work: Path) -> list[Clip]:
     screen = pyte.Screen(COLS, ROWS)
     stream = pyte.Stream(screen)
@@ -410,9 +418,10 @@ def render(work: Path) -> list[Clip]:
                             [
                                 "15 skills inventoried; 60 traced runs; one file edit caught;",
                                 "A3 alert with the skill's hashes unchanged; A4 update, no alert;",
-                                "cim status and verify-chain. Every step checked itself: OK.",
+                                "cim status and verify-chain.",
+                                f"Checks printed in this recording: {checks(work)}.",
                             ],
-                            "Hamza's MCP beats (HexStrike) are recorded separately.",
+                            "Not in this video: Hamza's MCP beats (HexStrike).",
                         ),
                         6.0,
                     )

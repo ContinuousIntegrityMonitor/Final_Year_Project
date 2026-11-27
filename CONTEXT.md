@@ -97,7 +97,11 @@ Rules:
   - **And twice on VM-MON** (same day, as `cim`, `--listener 10.10.10.30:9000`): 16 of 16 checks each, 25 s. The alert read `destinations never seen: private_ip:9000`, and the lab listener logged the 148-byte payload (variable names and the decoy) from 10.10.10.10 each time. The dashboard on VM-MON opened from the laptop through an SSH tunnel. The operator's own store was left alone.
     - For this, CIM on VM-MON went from `a931efe` to `332c6e9` (this PR): passt card back on, `provision-cim.sh`, `cim watch` restarted, isolated again (check passed), new snapshot `cim-332c6e9`. The steps are in `docs/setup/vm-mon.md` ("Update CIM").
     - `scripts/lab/lab.sh isolate` failed on a card attached to the running VM only, so it now removes the card from the running VM and from the saved definition separately.
-    - Not rehearsed: HexStrike, your beats, the backup video.
+    - Not rehearsed: HexStrike, your beats.
+  - **Backup video of the skills half (C6), recorded on VM-MON:** 2 min 52 s, 1080p, no sound, with caption cards. It shows the real terminal output of every step, the lab listener's log line after A3, and the dashboard's Skills panel (through the tunnel) after four of the steps; 16 checks on screen, all OK.
+    - The file is on Fasih's laptop (`~/Videos/cim/T18_skills_beat_backup_2026-11-27.mp4`, sha256 `bd9e9755…4433`), not in git. Where we keep it for the demo is still open.
+    - Made with `scripts/demo/record_skills_beat.sh` and `render_beat_video.py`, so it can be re-recorded after a change. Runbook section 9.
+    - The first take showed that `inventory` run on its own printed `board: no store at store.sqlite` (relative path, no change into the workspace). That is fixed with a new check, and CIM on VM-MON went to `21b5a2e` (snapshot `cim-21b5a2e`).
   - **Bug found in the first trial run, fixed (skills side):** `cim skills exec … -- script --host H` failed with "unrecognized arguments", because Click drops the first `--` before `cim skills` hands the arguments to argparse. `src/cim/skills/cli.py` now hands them on exactly as typed; 2 tests. Also `exec --help` no longer says "No score is computed".
   - **Local only, not fixed:** on Fasih's laptop, `pytest --cov` fails to combine its data ("Can't combine statement coverage data with branch data") on org `main` @ `0c35877` too, from the subprocess runs in the traced tests. CI's merge-gate passes on `main`, so it is this machine. Without `--cov`, all 511 tests pass.
 
@@ -109,12 +113,19 @@ Rules:
    - The A1 report says `findings: 2`, but it counts drift records; `cim status` counts 1 changed artefact (decision 6). Naming it `drift records: 2` would avoid the mismatch.
    - Checklist text: `uv sync --all-extras`, `cim init <path>`, no `--host` on `cim dashboard`, and `live_t16_stdio.py . <db>`.
 3. Milestone file / VM-MON note (joint), when you have a moment.
+5. **Your dashboard, seen while recording (your territory; I did not change it):**
+   - On a skills-only store, the summary card's **Alerts tile reads 0 after A3**: it counts `data.alerts` (MCP alerts only), while the skills alert is in `skills.summary.alerts`. On the C4 skills beat this tile contradicts the Skills panel.
+   - The first card reads "Disconnected. Clear and start again to reconnect." on any store with records but no demo MCP connection, which looks like a fault.
+   - The Skills panel shows "31 of 30" once a skill passes its warm-up.
+   - The skill-changes table overflows its card at 1600 px wide.
+   The video shows only the Skills panel for these reasons.
 4. **T-18 (`docs/demo/T18_skills_beat.md`, section 2), your call as the demo's driver:** (a) one store for both sides, so `cim status` and the dashboard show everything in C5, or a store per side as now (one store needs the script to take a shared `cim.toml`; not built); (b) the dashboard port (the script uses 8766 to keep 8765 for you); (c) the running order and the minute marks, which are only a proposal. Also, `src/cim/skills/cli.py` now uses a `TyperCommand` subclass for `cim skills`; it is in my territory, but it mounts on your shared app.
 
 **What I am about to do** (announced here first; Hamza merges)
 1. **T-13 is complete once #58 and #59 merge.** The VM-MON scripts PR comes after them.
 2. **The lab is ready for the joint live demo (C2 to C4).** HexStrike scans of VM-TGT through `cim proxy`, and your A1/A2 against the real HexStrike on VM-MON. Say when, and which of your scripts should run there.
 3. **T-18 skills beat: in review** (stacked on #60; merge order #58 → #59 → #60 → this). Then joint rehearsals and the backup video with you.
+5. **Done: the skills-half backup video (C6), recorded on VM-MON** (on #61). Next for T-18 is the joint part with you: HexStrike, your beats, the hand-overs, and the MCP half of the video.
 4. **Done: VM-MON updated, and the skills beat rehearsed there twice** (on #61). VM-MON now runs CIM from this PR's branch. Once #58 to #61 are on `main`, I move it to `main` the same way. Next for T-18 is the joint part with you: HexStrike, your beats, the hand-overs, the backup video.
 
 ### Hamza's assistant (MCP side)

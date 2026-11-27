@@ -3,7 +3,7 @@
 - **Covers:** the skills part only. The plan (T-18) has Hamza drive the 10-minute demo and Fasih run the skills beat. Hamza's MCP beats appear here only as **HAND-OVER** points; what happens in them is his to write.
 - **Script:** [`scripts/demo_skills_beat.sh`](../../scripts/demo_skills_beat.sh). It runs each step on cue, checks the result and prints `OK` or `FAIL`.
 - **Plan references:** T-18 (section 6), the December checklist (section 12) and C1 to C6 (section 2.1) in `docs/plan/Final_Year_Project_Latest.pdf`.
-- **Rehearsed:** twice end to end on Fasih's laptop (Fedora 44), and twice on VM-MON against the lab listener, 2026-11-27. All four passed (section 5). **Not rehearsed:** with HexStrike, with Hamza's MCP beats, with an audience or a projector. The backup video is not recorded. Section 6 has the full list.
+- **Rehearsed:** twice end to end on Fasih's laptop (Fedora 44), and twice on VM-MON against the lab listener, 2026-11-27. All four passed (section 5). **Not rehearsed:** with HexStrike, with Hamza's MCP beats, with an audience or a projector. Section 6 has the full list. **Backup video** of this skills part, recorded on VM-MON: section 9.
 
 ## 1. What the skills beat shows
 
@@ -18,7 +18,7 @@
 | `a4` | T-17 A4: a legitimate update of `word-count` is recorded as two file changes, and the next run raises no behaviour alert | false-positive control |
 | `status` | `cim status` (2 changed skills, 1 behaviour alert), the events, the dashboard in warning, `cim verify-chain` ok | **C5** |
 
-C6 (backup video, demo script committed): this runbook and the script are the skills half of "demo script committed". The video is not recorded (section 6).
+C6 (backup video, demo script committed): this runbook and the script are the skills half of "demo script committed". The backup video of the skills half is recorded (section 9). The MCP half is Hamza's.
 
 ## 2. Where it fits in the 10 minutes
 
@@ -227,6 +227,7 @@ All four on 2026-11-27, with the script from this PR, in the default workspace. 
 - The listener's timestamps were about 6 s later than VM-MON's alert time for the same run. The two VMs' clocks differ slightly; nothing reads them together.
 - The dashboard on VM-MON was opened from the laptop through the SSH tunnel in section 7: page 200, and the Skills panel data showed the 3 skills in warning and 1 alert.
 - The operator's own store and `cim watch` on VM-MON were not touched by the demo: 169 records and the same chain tip before and after.
+- The counts above are for the script as rehearsed. Since then, `inventory` has one more check ("the board lists the 15 skills"), so a full run now prints 18 checks on the laptop and 17 on VM-MON (section 9).
 
 **Broken in the first trial run, fixed before the rehearsals:**
 - **`cim skills exec` lost the `--` separator** (a real bug, not specific to the demo). Click drops the first `--` from a command's arguments, so `cim skills exec … meeting-brief -- scripts/brief.py notes --host H --port P` failed with "unrecognized arguments: --host". `python -m cim.skills exec` was fine. Any agent harness passing a flag to a helper through `cim skills exec` would have hit this. Fixed in `src/cim/skills/cli.py`, which now hands on the arguments exactly as typed. Two tests in `tests/skills/test_skills_exec.py`, both failing without the fix.
@@ -239,11 +240,11 @@ All four on 2026-11-27, with the script from this PR, in the default workspace. 
 - **The two-store question** (section 2) and a dashboard showing both sides.
 - **A lab listener that is down.** Only a refused connection on the laptop was tried (the row in section 8).
 - **A projector, the browser view and narration timing.** The talking budgets are estimates. Only the machine times were measured.
-- **The backup video (C6).** Not recorded.
+- **The backup video of the MCP half (C6).** The skills half is recorded (section 9).
 
 ## 7. On VM-MON (rehearsed 3 and 4)
 
-1. **CIM on VM-MON must have this PR** (the `cim skills` fix). Since 2026-11-27 it is at `332c6e9`, snapshot `cim-332c6e9` (updated, isolated, before any demo run). To update it again, follow "Update CIM" in `docs/setup/vm-mon.md`.
+1. **CIM on VM-MON must have this PR** (the `cim skills` fix and the `inventory` fix). Since 2026-11-27 it is at `21b5a2e`, snapshot `cim-21b5a2e` (updated, isolated, before any demo run). The rehearsals in section 5 ran on `332c6e9`, snapshot `cim-332c6e9`. To update it again, follow "Update CIM" in `docs/setup/vm-mon.md`.
 2. From the laptop, a shell as the operator: `scripts/lab/vm_mon.sh ssh cim`. Then, in `~/cim`:
 
    ```bash
@@ -261,7 +262,7 @@ All four on 2026-11-27, with the script from this PR, in the default workspace. 
    Then browse to <http://127.0.0.1:8766> on the laptop. The tunnel needs the dashboard to be running, so open it after `inventory`.
 4. After `a3`, show what the lab listener logged: `scripts/lab/lab.sh listener ssh labadmin 'sudo tail -1 /var/log/cim-listener/connections.jsonl'`.
 5. The demo store (`~cim/.cache/cim-demo/skills-beat/store.sqlite`) is separate from the operator's store (`~cim/cim-data/cim-store.sqlite`, watched by the `cim-watch` unit), so the two do not mix.
-6. After the demo, `snapshot-revert vm-mon cim-332c6e9` gives a clean VM again (`docs/setup/vm-mon.md`).
+6. After the demo, `snapshot-revert vm-mon cim-21b5a2e` gives a clean VM again (`docs/setup/vm-mon.md`).
 
 ## 8. What can go wrong on stage
 
@@ -280,4 +281,34 @@ All four on 2026-11-27, with the script from this PR, in the default workspace. 
 | No systemd user session or no strace (e.g. after `su`, or ssh without lingering) | `warmup` fails at run 1; exec says it needs a systemd user session or strace (exit 125). The helper does not run untraced | Log in as the operator directly (ssh as `cim`, which lingers on VM-MON), check `systemctl --user is-system-running`, then `reset` and go again | unit test only (`test_without_scope_or_tracer_it_stops_and_never_runs_untraced`) |
 | Left-over processes from a rehearsal | A second `cim watch` refused, or a stale dashboard | `reset` stops what this script started for the workspace | yes |
 | Long paths wrap on the projector | Hard-to-read command lines | Use `--work ~/demo` on every call | no |
-| Anything else that cannot be fixed in 30 s | | Switch to the backup video (C6) | **no video yet** |
+| Anything else that cannot be fixed in 30 s | | Switch to the backup video (C6): skills half in section 9 | the video plays (checked with ffprobe and a full decode) |
+
+## 9. Backup video of the skills part (C6, skills half)
+
+Recorded on 2026-11-27 on VM-MON (CIM `21b5a2e`, snapshot `cim-21b5a2e`), from Fasih's laptop.
+
+| | |
+|---|---|
+| File | `~/Videos/cim/T18_skills_beat_backup_2026-11-27.mp4` on Fasih's laptop. **Not in git:** no media in the repo. Where the team keeps it (shared drive, release asset) is still to be decided |
+| sha256 | `bd9e9755d443407abe0e514a85e687bf9926e16765b38da7327b7096354a4433` |
+| Format | H.264, 1920×1080, 25 fps, 2 min 52 s, 2.0 MB, no sound |
+| Raw recording | `~/Videos/cim/T18_skills_beat_raw_2026-11-27/` (terminal output with timings, dashboard screenshots and their `/api/board` JSON), so it can be rendered again |
+| Checks on screen | 16 OK, 0 FAIL (the 17 VM-MON checks less `reset`, which ran off camera) |
+
+**What it shows:**
+- A title card, then for each step from `inventory` to `status` a caption card and the real terminal output of `scripts/demo_skills_beat.sh` on VM-MON. A strip along the bottom names the step and its criterion.
+- After A3, the lab listener's log line (from 10.10.10.10, 148 bytes, variable names and the decoy).
+- After `inventory`, `warmup`, `a3` and `status`, the dashboard's Skills panel, captured through the SSH tunnel, shown in two columns with a caption.
+- A closing card with the number of checks the recording printed.
+
+**How it was made:** `scripts/demo/record_skills_beat.sh` (help: `--help`).
+- It resets `~cim/demo` on VM-MON off camera, then runs each step over `ssh -t` in a 120×42 pseudo-terminal, recording the output with its timings (the format of util-linux `script`, which this laptop does not have).
+- Between steps it takes headless Firefox screenshots of the dashboard through the tunnel. `scripts/demo/render_beat_video.py` replays the recording with pyte, draws the frames with Pillow and encodes them with ffmpeg.
+- Real timings, except that idle gaps are cut to 2 s and each step's last screen is held long enough to read.
+- To re-record after a change: update CIM on VM-MON first (`docs/setup/vm-mon.md`, "Update CIM"), then run `scripts/demo/record_skills_beat.sh`. It takes about a minute, plus the render.
+
+**Found while recording (fixed in the script):** run on its own, as section 3 suggests on stage, the `inventory` step printed `board: no store at store.sqlite`. It used a relative store path without changing into the workspace. The rehearsals always ran it straight after `reset`, which does, and no check looked at that output. It now changes into the workspace, and a new check makes sure the board lists the 15 skills.
+
+**Not in the video:**
+- **Hamza's MCP beats.**
+- **The dashboard's summary card.** Its Alerts tile counts MCP alerts only, so on this skills-only store it reads 0 even after A3. Its first line reads "Disconnected. Clear and start again to reconnect.", which refers to the page's own demo MCP connection. Both are in Hamza's page and were reported to him; the video shows the Skills panel instead.
