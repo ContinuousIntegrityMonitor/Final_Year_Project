@@ -97,8 +97,35 @@ virsh --connect qemu:///system snapshot-revert vm-mon base
 scripts/lab/vm_mon.sh snapshot week-2026-12-07
 ```
 
-To update CIM on VM-MON later, it needs the internet again: attach a NAT card for the update,
-then run `isolate` and take a new snapshot.
+## Update CIM
+
+VM-MON is isolated, so it needs the internet card back for the update. Save the card as a file,
+for example `nat0.xml`:
+
+```xml
+<interface type="user">
+  <backend type="passt"/>
+  <mac address="52:54:00:10:10:99"/>
+  <model type="virtio"/>
+</interface>
+```
+
+Then, from the laptop:
+
+```bash
+virsh --connect qemu:///system attach-device vm-mon nat0.xml --live    # nat0 comes up by DHCP
+CIM_REPO_REF=main scripts/lab/lab.sh vm-mon run cim provision-cim.sh    # fetch, checkout, uv sync
+scripts/lab/vm_mon.sh ssh cim 'XDG_RUNTIME_DIR=/run/user/$(id -u) systemctl --user restart cim-watch'
+scripts/lab/vm_mon.sh isolate                                           # card off, then check
+scripts/lab/vm_mon.sh snapshot cim-<commit>
+```
+
+- `provision-cim.sh` is safe to re-run. It keeps `cim.toml`, the store and the installed skills, and its inventory baselines nothing twice. It does not restart `cim watch` (`enable --now` leaves a running unit alone), hence the restart.
+- Without the card, `provision-cim.sh` stops at `git fetch` ("Could not resolve host") and changes nothing.
+- The card is attached to the running VM only (`--live`). `isolate` removes it from wherever it is: the running VM, the saved definition, or both.
+- Use the branch or commit the demo needs as `CIM_REPO_REF`. Branches are fetched from the org repository.
+
+Done on 2026-11-27: CIM `a931efe` → `t18-skills-demo-beat` @ `332c6e9`, for the T-18 skills beat, which needs the `cim skills exec` fix in it. After that: isolated (only `cim-lab`, no default route, no internet), `cim status --require-watch` exit 0 with the operator store unchanged (169 records), and snapshot `cim-332c6e9`.
 
 ## Remove it
 

@@ -163,9 +163,17 @@ step_provision() {
 }
 
 step_isolate() {
-  if [ -n "${NAT_MAC:-}" ] && "${VIRSH[@]}" domiflist "$VM" | grep -qi "$NAT_MAC"; then
-    "${VIRSH[@]}" detach-interface "$VM" user --mac "$NAT_MAC" --live --config
-    say "removed the internet card ($NAT_MAC): $VM is on $NET only"
+  # The card can be in the running VM, in its saved definition, or both: the build has it in
+  # both, a card attached later for an update (docs/setup/vm-mon.md) only in the running VM.
+  if [ -n "${NAT_MAC:-}" ]; then
+    if "${VIRSH[@]}" domiflist "$VM" | grep -qi "$NAT_MAC"; then
+      "${VIRSH[@]}" detach-interface "$VM" user --mac "$NAT_MAC" --live
+      say "removed the internet card ($NAT_MAC) from the running $VM"
+    fi
+    if "${VIRSH[@]}" domiflist "$VM" --inactive | grep -qi "$NAT_MAC"; then
+      "${VIRSH[@]}" detach-interface "$VM" user --mac "$NAT_MAC" --config
+      say "removed the internet card ($NAT_MAC) from $VM's saved definition"
+    fi
   fi
   step_check
 }
