@@ -200,11 +200,17 @@ def proxy(
     ] = None,
     server: Annotated[
         str | None,
-        typer.Option("--server", help="[mcp.servers.<id>] to bind (default: hexstrike / env)"),
+        typer.Option(
+            "--server",
+            help="\\[mcp.servers.<id>] to bind (default: hexstrike / env)",
+        ),
     ] = None,
     db: Annotated[
         Path | None,
-        typer.Option("--db", help="Baseline store path (default: [store].path / $CIM_PROXY_DB)"),
+        typer.Option(
+            "--db",
+            help="Baseline store path (default: \\[store].path / $CIM_PROXY_DB)",
+        ),
     ] = None,
 ) -> None:
     """Run an MCP server behind the capture proxy: cim proxy [--config] [--server] -- <cmd>.
@@ -231,7 +237,7 @@ def http_gateway(
             exists=True,
             dir_okay=False,
             readable=True,
-            help="cim.toml with [mcp.gateway], or legacy JSON routes file (auto-detected)",
+            help="cim.toml with \\[mcp.gateway], or legacy JSON routes file (auto-detected)",
         ),
     ],
     db: Annotated[

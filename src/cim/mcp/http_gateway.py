@@ -724,6 +724,9 @@ def serve_gateway(
 
 
 def run_gateway(config: GatewayConfig) -> int:
+    """Serve until SIGINT/SIGTERM. Both clear the heartbeat (T-13 / cim watch stop)."""
+    import signal
+
     from cim.mcp.runtime import HeartbeatThread
 
     server = serve_gateway(config)
@@ -732,11 +735,26 @@ def run_gateway(config: GatewayConfig) -> int:
     _log(f"listening on http://{config.host}:{bound}/s/<id>/  routes=[{ids}] db={config.db}")
     heartbeat = HeartbeatThread(config.db, "http-gateway", interval_s=config.heartbeat_s)
     heartbeat.start()
+
+    def _stop(_signum: int, _frame: object) -> None:
+        # systemd / cim watch send SIGTERM; map it to the same path as Ctrl-C.
+        raise KeyboardInterrupt
+
+    previous = None
+    try:
+        previous = signal.signal(signal.SIGTERM, _stop)
+    except (ValueError, OSError):
+        previous = None  # not on the main thread, or platform refuses the hook
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         _log("shutting down")
     finally:
+        if previous is not None:
+            try:
+                signal.signal(signal.SIGTERM, previous)
+            except (ValueError, OSError):
+                pass
         heartbeat.stop()
         heartbeat.join(timeout=config.heartbeat_s + 1)
         writer: _StoreWriter | None = getattr(server, "cim_writer", None)

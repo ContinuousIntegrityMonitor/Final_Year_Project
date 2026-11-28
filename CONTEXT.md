@@ -2,7 +2,7 @@
 
 1. **What:** Continuous Integrity Monitor — detect MCP rug-pulls / trigger tools and skills-side integrity + behavioural drift on a monitored host. Demo host: lab VM-MON. HexStrike pin: `corpora/mcp/hexstrike.pin` (`d689933ff579d839c676c82b231f8e98326c5f04`).
 2. **Phase:** Phase 1 (SEE) / FYP I. Milestone: December 2026 demo (C1–C6). Scope: ADR-003.
-3. **Active now (2026-11-25):** Org `main` has T-13 stages 1–3 (#51/#55/#56) + Hamza **decision‑7** + **T-17 A1/A2**. Next: Fasih stage 4 `cim watch` + stage 5 acceptance; joint VM-MON / C6. Verify: [`docs/FASIH_VERIFY_2026-11-25.md`](docs/FASIH_VERIFY_2026-11-25.md). Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
+3. **Active now (2026-11-28):** Org `main` has T-13 complete (#58–#59), lab (#60), skills T-18 (#61). Hamza MCP demo beat + polish **in review** (do not merge until Fasih greens). Dual remotes `origin` + `org` (ADR-002). Log: [`ACTION.md`](ACTION.md).
 4. **Territory:** `src/cim/mcp/` = Hamza; `src/cim/skills/` = Fasih; border = `common/`, `history/`, `progress/`, `scripts/`, root. Full map: DIRECTORY.md; rules: `docs/plan/Final_Year_Project_Latest.pdf`.
 5. **Rules R1–R6:** one monorepo; sole territories; border PR-only + both review; protected `main`; full suite green; generated files regenerated never hand-edited.
 6. **Git:** branches `tXX-slug`; PR titles `T-XX: description`; no Cursor/AI co-author trailers; push accepted phases to **both** remotes. Ship via `scripts/_ship.sh` / commit-tree (never `git commit` from the agent).
@@ -130,21 +130,20 @@ Rules:
 
 ### Hamza's assistant (MCP side)
 
-**Last updated:** 2026-11-25  
+**Last updated:** 2026-11-28  
 **Sign as:** Hamza Cursor (Hamza’s Cursor agent). Does not claim authorship of Fasih’s commits.
 
 **What I did**
-- Merged your T-13 stack **#51 → #55 → #56** (config, CLI restructure, status/events).
-- **Decision 7 locked and coded:** accepted your `[mcp.servers.*]` / `[mcp.gateway]` keys; `cim proxy --config/--server`; `http-gateway --config` auto-detects TOML vs JSON; proxy session file + gateway heartbeat under `<store>.run/` (for your stage 4).
-- **T-17 MCP A1/A2:** `cim mcp-attack A1|A2 --work …` (rug-pull + behavioural trigger stand-ins).
-- Dashboard both-sides tests + verify checklist: [`docs/FASIH_VERIFY_2026-11-25.md`](docs/FASIH_VERIFY_2026-11-25.md).
+- Merged your stack **#58 → #61** (watch, acceptance, lab, skills T-18).
+- **Your polish notes fixed:** proxy/gateway help escapes `\[…]`; gateway **SIGTERM** clears heartbeat; A1 prints `drift records:`; dashboard Alerts tile = MCP + skills alerts; monitoring stores no longer say “Disconnected…”.
+- **T-18 MCP beat:** [`docs/demo/T18_mcp_beat.md`](docs/demo/T18_mcp_beat.md) + [`scripts/demo_mcp_beat.py`](scripts/demo_mcp_beat.py) (stand-in inventory / A1 / A2 / status). Demo decisions: **one shared store on stage**, MCP dashboard **8765**, skills **8766**, accept your interleaved minute marks.
+- Opened PR for review — **will not merge until you green-light**.
 
 **What I want from Fasih**
-1. **Run the verify checklist in order** and report PASS/FAIL in this section.
-2. **Check the chosen dashboard** (`cim dashboard` — MCP + Skills panels); run the dashboard pytest group in the checklist.
-3. **Stage 4 `cim watch`** consuming Hamza’s heartbeat/session files; then stage 5 acceptance + runbook.
-4. Joint **VM-MON / live HexStrike** + **C6 script/video** when your machine is ready.
+1. **Review the open PR** (title `T-18: MCP demo beat + polish`). Test steps are in the PR body and in runbook §4.
+2. Reply **PASS/FAIL** here (and a PR comment). If PASS, I merge.
+3. After merge: joint VM-MON HexStrike C2–C4 + MCP half of the backup video.
 
 **What I am about to do**
-1. Support your stage 4/5 review; polish only if verify finds MCP gaps.
-2. Live demo + Dec C1–C6 close-out with you (lab/video).
+1. Wait for your green signal, then merge.
+2. Joint live HexStrike / MCP video with you for presentation week.
