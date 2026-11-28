@@ -504,8 +504,10 @@ _SCRIPT = """
       var names = data.tools.slice(0, 3).map(function (tool) { return tool.name; }).join(", ");
       var more = data.tools.length > 3 ? " and " + (data.tools.length - 3) + " more" : "";
       p.textContent = "Connected. " + names + more + ".";
-    } else if (data.tools.length || data.record_count) {
+    } else if (data.demo) {
       p.textContent = "Disconnected. Clear and start again to reconnect.";
+    } else if (data.tools.length || data.record_count) {
+      p.textContent = "Store loaded. No live demo MCP connection (monitoring only).";
     } else {
       p.textContent = "Not connected. Connect an MCP to begin.";
     }
@@ -533,10 +535,11 @@ _SCRIPT = """
   function stats(data) {
     var wrap = node("div", "stats");
     var skills = (data.skills && data.skills.summary) ? data.skills.summary.skills : 0;
+    var skillAlerts = (data.skills && data.skills.summary) ? (data.skills.summary.alerts || 0) : 0;
     wrap.appendChild(stat(data.tools.length, "MCP tools"));
     wrap.appendChild(stat(skills, "Skills"));
     wrap.appendChild(stat(data.changes.length, "MCP changes"));
-    wrap.appendChild(stat(data.alerts.length, "Alerts"));
+    wrap.appendChild(stat(data.alerts.length + skillAlerts, "Alerts"));
     return wrap;
   }
   function pill(state) {
@@ -1081,11 +1084,12 @@ def _schema_body(board: Board) -> str:
 
 def _stats(board: Board) -> str:
     skill_n = len(board.skills.skills) if board.skills is not None else 0
+    skill_alerts = board.skills.total_alerts if board.skills is not None else 0
     cards = (
         (len(board.tools), "MCP tools"),
         (skill_n, "Skills"),
         (len(board.changes), "MCP changes"),
-        (len(board.alerts), "Alerts"),
+        (len(board.alerts) + skill_alerts, "Alerts"),
     )
     body = "".join(
         f'<div class="stat"><b>{value}</b><span>{label}</span></div>' for value, label in cards
@@ -1183,7 +1187,7 @@ def _connection(board: Board, connected: bool) -> str:
     if board.tools or board.record_count:
         return (
             '<p id="connection" class="connection off">'
-            "Disconnected. Clear and start again to reconnect.</p>"
+            "Store loaded. No live demo MCP connection (monitoring only).</p>"
         )
     return '<p id="connection" class="connection off">Not connected. Connect an MCP to begin.</p>'
 

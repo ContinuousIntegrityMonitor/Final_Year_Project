@@ -71,12 +71,14 @@ class AttackReport:
 
     def render(self) -> str:
         mark = "PASS" if self.passed else "FAIL"
+        # `findings` here is integrity drift *records*; cim status counts one changed
+        # artefact per rug-pull (decision 6). Name the field so the two do not clash.
         return (
             f"mcp-attack {self.attack}: {mark}\n"
             f"  expected: {self.expected}\n"
             f"  detail:   {self.detail}\n"
             f"  store:    {self.store}\n"
-            f"  findings: {self.findings}  alerts: {self.alerts}"
+            f"  drift records: {self.findings}  alerts: {self.alerts}"
         )
 
 
