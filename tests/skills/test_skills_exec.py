@@ -293,3 +293,42 @@ def test_a_failed_store_write_still_hands_the_output_on_but_says_so(
     assert code == EXIT_NOT_TRACED
     assert out == b"hello\n"
     assert "not recorded: disk full" in err
+
+
+# ---------------------------------------------------------------- through `cim skills exec`
+
+
+def test_cim_skills_hands_on_the_arguments_exactly_as_typed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Click drops the first `--`; the `cim skills` mount must not (found rehearsing T-18)."""
+    from typer.testing import CliRunner
+
+    import cim.skills.__main__ as skills_main
+    from cim.cli import app
+
+    seen: list[list[str]] = []
+    monkeypatch.setattr(skills_main, "main", lambda argv: seen.append(argv) or 0)
+    typed = ["exec", "--db", "s", "word-count", "--", "scripts/x.py", "a", "--host", "h", "--"]
+    result = CliRunner().invoke(app, ["skills", *typed])
+    assert result.exit_code == 0, result.output
+    assert seen == [typed]
+
+
+@pytest.mark.usefixtures("needs_tracer")
+def test_cim_skills_exec_passes_helper_flags_after_the_separator(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    root = tmp_path / "skills"
+    make_skill(root, "echo", 'printf "%s\\n" "$@"\n')
+    db = tmp_path / "store.sqlite"
+    done = subprocess.run(
+        [sys.executable, "-m", "cim", "skills", "exec", "--db", str(db), "--root", str(root)]
+        + ["echo", "--", "scripts/run.sh", "notes.md", "--host", "127.0.0.1", "--port", "9"],
+        capture_output=True,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    assert done.stdout == b"notes.md\n--host\n127.0.0.1\n--port\n9\n"
+    assert len(behaviour_payloads(db)) == 1

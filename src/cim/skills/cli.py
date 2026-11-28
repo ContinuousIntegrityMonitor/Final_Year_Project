@@ -12,8 +12,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import typer
+from typer.core import TyperCommand
 
 from cim.common.store import BaselineStore
 from cim.skills.envelope import profiles
@@ -53,10 +55,27 @@ def envelope_lines(store: BaselineStore, skill_id: str | None = None) -> list[st
     return [profile.render() for profile in profiles(store, skill_id)]
 
 
+RAW_ARGS = "cim.skills.raw_args"  # ctx.meta key: the arguments exactly as typed
+
+
+class _AsTyped(TyperCommand):
+    """Keeps the arguments after `cim skills` exactly as typed.
+
+    Click drops the first `--` from a command's arguments, even an unparsed one. `exec`
+    needs it: in `cim skills exec ... skill -- script --host h`, everything after `--`
+    belongs to the helper, and without it argparse reads `--host` as an option of exec.
+    """
+
+    def parse_args(self, ctx: Any, args: list[str]) -> list[str]:  # Typer's own click.Context
+        ctx.meta[RAW_ARGS] = list(args)
+        return super().parse_args(ctx, args)
+
+
 def register(app: typer.Typer) -> None:
     """Add `cim skills ...` to the shared `cim` app."""
     app.command(
         "skills",
+        cls=_AsTyped,
         context_settings={
             "allow_extra_args": True,
             "ignore_unknown_options": True,
@@ -72,7 +91,7 @@ def skills(ctx: typer.Context) -> None:
     from cim.skills.__main__ import main
 
     try:
-        code = main(list(ctx.args))
+        code = main(list(ctx.meta.get(RAW_ARGS, ctx.args)))
     except SystemExit as stop:  # argparse usage errors and --help
         code = stop.code if isinstance(stop.code, int) else (0 if stop.code is None else 2)
         if isinstance(stop.code, str):
