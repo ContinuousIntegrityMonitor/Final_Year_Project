@@ -1,0 +1,17 @@
+# cloud-init network config for VM-TGT (netplan v2).
+# lab0: the isolated lab network, static 10.10.10.20, no gateway (no route out).
+# nat0: QEMU user-mode networking (passt), attached only while provisioning (image pulls);
+#       `scripts/lab/lab.sh vm-tgt isolate` removes the card before the base snapshot.
+version: 2
+ethernets:
+  lab0:
+    match:
+      macaddress: "52:54:00:10:10:20"
+    set-name: lab0
+    addresses: [10.10.10.20/24]
+  nat0:
+    match:
+      macaddress: "52:54:00:10:10:98"
+    set-name: nat0
+    dhcp4: true
+    optional: true

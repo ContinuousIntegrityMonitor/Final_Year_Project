@@ -1,0 +1,17 @@
+# cloud-init network config for VM-MON (netplan v2).
+# lab0: the isolated lab network, static 10.10.10.10, no gateway (no route out).
+# nat0: QEMU user-mode networking (passt), attached only while provisioning; scripts/lab/vm_mon.sh isolate
+#       removes the card before the base snapshot, so this entry then matches nothing.
+version: 2
+ethernets:
+  lab0:
+    match:
+      macaddress: "52:54:00:10:10:10"
+    set-name: lab0
+    addresses: [10.10.10.10/24]
+  nat0:
+    match:
+      macaddress: "52:54:00:10:10:99"
+    set-name: nat0
+    dhcp4: true
+    optional: true

@@ -1,0 +1,41 @@
+#cloud-config
+# VM-MON first boot (Ubuntu 24.04 cloud image). @LAB_KEY@ is replaced by scripts/lab/vm_mon.sh.
+#
+# Two users, on purpose:
+# - labadmin: administers the VM (sudo), reachable only with the lab SSH key. Nothing CIM
+#   monitors runs as labadmin.
+# - cim: the operator. Agents, skills, MCP servers and CIM itself run as cim. It has no sudo,
+#   so a malicious skill running as the operator cannot become root (threat model, ADR-007).
+hostname: vm-mon
+fqdn: vm-mon.lab
+manage_etc_hosts: true
+ssh_pwauth: false
+disable_root: true
+users:
+  - name: labadmin
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys: ["@LAB_KEY@"]
+  - name: cim
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys: ["@LAB_KEY@"]
+package_update: true
+packages:
+  - git
+  - strace
+  - curl
+  - ca-certificates
+  - jq
+  - python3
+  - python3-venv
+  - python3-pip
+  - docker.io
+  - qemu-guest-agent
+runcmd:
+  - [usermod, -aG, docker, cim]
+  - [loginctl, enable-linger, cim]   # a systemd user session for cim: cgroup scopes, cim watch
+  - [systemctl, enable, --now, qemu-guest-agent]
+final_message: "vm-mon cloud-init done after $UPTIME s"
