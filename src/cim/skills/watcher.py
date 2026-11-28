@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 import threading
+import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
@@ -23,6 +24,7 @@ DEBOUNCE_MS = 400  # group a burst of writes into one sweep
 STEP_MS = 50
 
 Report = Callable[[SweepResult], None]
+Beat = Callable[[], object]  # its return value is ignored
 
 
 def sweep_store(db: Path, roots: Sequence[Path], origin: str = DEFAULT_ORIGIN) -> SweepResult:
@@ -48,13 +50,28 @@ def watch(
     use_inotify: bool = True,
     stop: threading.Event | None = None,
     report: Report | None = None,
+    heartbeat: Beat | None = None,
+    heartbeat_s: float = 10.0,
 ) -> None:
     """Sweep now, then after every notification and at least once per interval, until stopped.
 
     A sweep that fails is logged and the watcher carries on: one bad sweep must not end
     monitoring.
+
+    With `heartbeat`, the loop wakes at least every `heartbeat_s` and calls it (T-13 design,
+    section 6): `cim watch` reads a heartbeat that stops moving as a hung watcher. It is
+    called from the loop itself, never from a side thread, so a sweep that hangs stops it.
     """
     stopping = stop or threading.Event()
+    tick = min(interval, heartbeat_s) if heartbeat is not None else interval
+
+    def beat() -> None:
+        if heartbeat is None:
+            return
+        try:
+            heartbeat()
+        except OSError as exc:  # a heartbeat is runtime state, not evidence: keep watching
+            _log(f"heartbeat failed: {exc}")
 
     def run_sweep() -> None:
         try:
@@ -65,12 +82,18 @@ def watch(
         if report is not None:
             report(result)
 
+    beat()
     run_sweep()
+    beat()
+    last = time.monotonic()
     watched = [root for root in roots if root.is_dir()] if use_inotify else []
     if not watched:
         # Notifications off, or no root exists yet: the periodic sweep alone.
-        while not stopping.wait(interval):
-            run_sweep()
+        while not stopping.wait(tick):
+            beat()
+            if time.monotonic() - last >= interval:
+                run_sweep()
+                last = time.monotonic()
         return
     # watch_filter=None: no file is too uninteresting to trigger a look.
     # A root created later is not watched, but every sweep still covers it.
@@ -80,7 +103,10 @@ def watch(
         debounce=DEBOUNCE_MS,
         step=STEP_MS,
         stop_event=stopping,
-        rust_timeout=max(1, int(interval * 1000)),
+        rust_timeout=max(1, int(tick * 1000)),
         yield_on_timeout=True,
     ):
-        run_sweep()
+        beat()
+        if _changes or time.monotonic() - last >= interval:  # a notification, or the interval
+            run_sweep()
+            last = time.monotonic()

@@ -12,6 +12,7 @@ import json
 import sys
 from pathlib import Path
 
+from cim.common.runtime import touch_heartbeat
 from cim.common.store import BaselineStore
 from cim.skills.attacks import prepare, run_a3, run_a4
 from cim.skills.attacks import render as render_attack
@@ -38,6 +39,8 @@ from cim.skills.inventory import (
 from cim.skills.runner import discover_skills
 from cim.skills.scoped import scope_available
 from cim.skills.watcher import DEFAULT_INTERVAL_S, watch
+
+WATCHER_NAME = "skills-watcher"  # the component name `cim watch` supervises it under
 
 
 def _corpus(args: argparse.Namespace) -> int:
@@ -118,6 +121,10 @@ def _watch(args: argparse.Namespace) -> int:
             interval=args.interval,
             use_inotify=not args.no_inotify,
             report=lambda result: _print_sweep(result, quiet_when_unchanged=True),
+            heartbeat=(lambda: touch_heartbeat(args.db, WATCHER_NAME))
+            if args.heartbeat_s
+            else None,
+            heartbeat_s=args.heartbeat_s or DEFAULT_INTERVAL_S,
         )
     except KeyboardInterrupt:
         pass
@@ -255,6 +262,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     watcher.add_argument(
         "--no-inotify", action="store_true", help="rely on the periodic sweep alone"
+    )
+    watcher.add_argument(
+        "--heartbeat-s",
+        type=float,
+        default=0.0,
+        help="touch <db>.run/skills-watcher.heartbeat this often, for `cim watch` (0: off)",
     )
     watcher.set_defaults(handler=_watch)
     observer = commands.add_parser(

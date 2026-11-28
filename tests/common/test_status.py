@@ -111,7 +111,12 @@ def test_a_clean_store_is_clean(tmp_path: Path) -> None:
     assert (shown["monitor_events"], shown["capture_faults"]) == (0, 0)
     assert shown["learning"] == {"mcp_tools": 2, "skills": 2, "warmup": 30}
     assert shown["clean"] is True
-    assert shown["collectors"] == {"supervised": False}
+    assert shown["collectors"] == {
+        "supervised": False,
+        "watch": None,
+        "sessions": [],
+        "ended_without_closing": [],
+    }
 
 
 def test_one_tampered_skill_is_one_finding(tmp_path: Path) -> None:
